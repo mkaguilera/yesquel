@@ -64,12 +64,13 @@ void IPPort::getUDPDest(UDPDest *udpdest){
   memcpy((void*)&udpdest->destaddr.sin_addr, (void*)&ip, 4);
 }
 
-// return IP address of a given name
+// return IP address of a given name or 0 if name does not exist
 u32 IPMisc::resolveName(const char *name, u32 preferip, u32 prefermask){
   struct hostent *he;
   u32 thisip;
 
-  he = gethostbyname(name); assert(he);
+  he = gethostbyname(name);
+  if (!he) return 0;
   assert(he->h_addrtype == AF_INET);
 
   if (!prefermask) preferip = 0; // anything goes
@@ -113,3 +114,19 @@ u32 IPMisc::getMyIP(u32 preferip, u32 prefermask){
   // did not find preferred ip, return first one
    return firstip;
 }
+
+
+// Return printable string for given ip.
+// Returned value is overwritten on each call.
+char *IPMisc::ipToStr(u32 ip){
+  static char retval[16];
+  u8 a1,a2,a3,a4;
+  ip = htonl(ip);
+  a1 = ip>>24;
+  a2 = ip>>16;
+  a3 = ip>>8;
+  a4 = ip;
+  sprintf(retval, "%d.%d.%d.%d", a1, a2, a3, a4);
+  return retval;
+}
+  

@@ -120,11 +120,3 @@ void MovingAverage::put(double item){
   sumsquare += item*item;
   ++nitems;
 }
-
-// converts an IP in network order to a string
-// String is a static buffer that gets overwritten on each call
-char *IPToChar(long ip){
-  static char retval[20];
-  sprintf(retval, "%ld.%ld.%ld.%ld", (ip>>24) & 0xff, (ip>>16)&0xff, (ip>>8)&0xff, ip & 0xff);
-  return retval;
-}

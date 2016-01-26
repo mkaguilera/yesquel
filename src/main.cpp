@@ -445,8 +445,8 @@ int main(int argc, char **argv)
     myipport.set(myip, htons(myport));
     hc = cs->Hosts.lookup(&myipport);
     if (!hc){
-      fprintf(stderr, "Cannot find my ip %s and port %d in config file\n",
-        IPToChar(htonl(myipport.ip)), ntohs(myipport.port));
+      fprintf(stderr, "Cannot find my IP %s and port %d in config file\n",
+        IPMisc::ipToStr(myipport.ip), ntohs(myipport.port));
       exit(1);
     }
   }
@@ -456,8 +456,8 @@ int main(int argc, char **argv)
   
   printf("Compilation time %s %s configuration %s\n", __DATE__, __TIME__, COMPILECONFIG);
   printf("Configuration file %s debuglog %s\n", Configfile, uselogfile ? "yes" : "no");
-  printf("Host %s ip %s port %d log %s store %s\n", hc->hostname,
-         IPToChar(htonl(myip)), hc->port, hc->logfile, hc->storedir);
+  printf("Host %s IP %s port %d log %s store %s\n", hc->hostname,
+         IPMisc::ipToStr(myip), hc->port, hc->logfile, hc->storedir);
   printf("Server_workers %d\n", SERVER_WORKERTHREADS);
 
   // debugging information stuff

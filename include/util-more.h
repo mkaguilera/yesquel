@@ -96,8 +96,4 @@ public:
   double getStdDev(void){ return sqrt(getVariance()); }
 };
 
-
-// converts an IP in network order to a string
-// String is a static buffer that gets overwritten on each call
-char *IPToChar(long ip);
 #endif

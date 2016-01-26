@@ -116,6 +116,8 @@ class IPMisc {
 public:
   static u32 resolveName(const char *name, u32 preferip=0, u32 prefermask=0); // return IP address of a given name
   static u32 getMyIP(u32 preferip=0, u32 prefermask=0); // return my own ip address
+  static char *ipToStr(u32 ip); // Return printable string for given ip.
+                                // Returned value is overwritten on each call.
 };
 
 #endif

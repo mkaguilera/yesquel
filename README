@@ -75,7 +75,7 @@ This is what it should look like.
 Config file is ./config.txt
 Compilation time [...] configuration Production
 Configuration file ./config.txt debuglog no
-Host localhost ip 127.0.0.1 port 11223 log /tmp/d1.log store /tmp/d1store
+Host localhost IP 127.0.0.1 port 11223 log /tmp/d1.log store /tmp/d1store
 Server_workers 1
 
 [in another window]

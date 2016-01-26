@@ -60,8 +60,12 @@ void ConfigState::addServer(int server, char *hostname, int port, u32 preferip, 
     ++nerrors;
   } else {
     chosenip = IPMisc::resolveName(hostname, preferip, prefermask);
-    ipport.set(chosenip, htons(port));
-    Servers.insert(new ServerHT(server, ipport));
+    if (!chosenip)
+      fprintf(stderr, "Config error: cannot resolve '%s' for server %d\n", hostname, server);
+    else {
+      ipport.set(chosenip, htons(port));
+      Servers.insert(new ServerHT(server, ipport));
+    }
   }
 }
 
@@ -97,16 +101,16 @@ int ConfigState::check(void){
   int retval;
   retval=0;
 
-  if (StripeMethod < 0){ fprintf(stderr, "Missing stripe_method indication\n"); ++retval; }
-  if (StripeParm < 0){ fprintf(stderr, "Missing stripe_parm indication\n"); ++retval; }
-  if (Nservers < 0){ fprintf(stderr, "Missing nservers indication\n"); ++retval; }
+  if (StripeMethod < 0){ fprintf(stderr, "Config error: missing stripe_method indication\n"); ++retval; }
+  if (StripeParm < 0){ fprintf(stderr, "Config error: missing stripe_parm indication\n"); ++retval; }
+  if (Nservers < 0){ fprintf(stderr, "Config error: missing nservers indication\n"); ++retval; }
 
   // check for repeated host definitions
   for (list<pair<IPPort,char*>>::iterator it = errRepeatedIPPort.begin();
        it != errRepeatedIPPort.end();
        ++it)
   {
-    fprintf(stderr, "Repeated host-port entry for host %s ip %x port %d\n", it->second, it->first.ip, it->first.port);
+    fprintf(stderr, "Config error: repeated host-port entry for host %s ip %x port %d\n", it->second, it->first.ip, it->first.port);
     ++retval;
   }
 
@@ -114,7 +118,7 @@ int ConfigState::check(void){
   for (list<int>::iterator it = errRepeatedServer.begin(); it != errRepeatedServer.end();
        ++it)
   {
-    fprintf(stderr, "Repeated server entry for server %d\n", *it);
+    fprintf(stderr, "Config error: repeated server entry for server %d\n", *it);
     ++retval;
   }
   
@@ -123,7 +127,7 @@ int ConfigState::check(void){
   int server;
   for (server=0; server < Nservers; ++server){
     if (Servers.lookup(server) == 0){
-      fprintf(stderr, "Missing configuration information for server %d\n", server);
+      fprintf(stderr, "Config error: missing information for server %d\n", server);
       ++retval;
     }
   }
@@ -142,7 +146,7 @@ ConfigState *ConfigState::ParseConfig(const char *configfilename){
   // read and parse configuration
   f = fopen(configfilename, "r");
   if (!f){ 
-    fprintf(stderr, "Cannot open configuration file %s\n", configfilename);
+    fprintf(stderr, "Config error: cannot open file %s\n", configfilename);
     return 0;
   }
   yyin = f;
@@ -150,7 +154,7 @@ ConfigState *ConfigState::ParseConfig(const char *configfilename){
   res = yyparse();
   fclose(f);
   if (res || CS->check()){
-    fprintf(stderr, "Problems reading configuration file %s\n", configfilename);
+    fprintf(stderr, "Config error: problems reading configuration file %s\n", configfilename);
     return 0;
   }
   return CS;
@@ -168,7 +172,7 @@ int ConfigState::connectHosts(Ptr<RPCTcp> rpcc){
     res=rpcc->clientconnect(hc->ipport);
     if (res){
       err=1;
-      printf("Cannot connect to server at %08x\n", hc->ipport.ip); 
+      printf("Config error: cannot connect to server at %s\n", IPMisc::ipToStr(hc->ipport.ip)); 
     }
   }
   return err;
