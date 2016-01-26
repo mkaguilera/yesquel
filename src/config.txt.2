@@ -1,0 +1,34 @@
+# Yesquel storage server configuration
+
+nservers       2               # number of storage servers
+stripe_method  0               # method to stripe coids. Only 0 supported.
+stripe_parm    0               # parameter to method to sprite. Use 0.
+prefer_ip      "0.0.0.0"       # preferred IP prefix. If a server has many IPs,
+                               #   it will try to pick an IP with this prefix.
+prefer_ip_mask "0.0.0.0"       # enabled bits in preferred IP prefix
+
+server 0 host "localhost" port 11223  # configuration of first server. Host
+                                      # can be an IP or a DNS name. Many servers
+                                      # can be on one host by assigning them
+                                      # different ports (in this case,
+                                      # the command line to start a server
+                                      # needs to indicate a port).
+
+server 1 host "localhost" port 11224  # configuration of first server. Host
+                                      # can be an IP or a DNS name. Many servers
+                                      # can be on one host by assigning them
+                                      # different ports (in this case,
+                                      # the command line to start a server
+                                      # needs to indicate a port).
+
+
+# Configuration for each storage server
+host "localhost" port 11223 {
+  logfile "/tmp/d1.log"      # where to store the transaction log (if enabled)
+  storedir "/tmp/d1store"    # where objects are stored (if disk enabled)
+}  
+
+host "localhost" port 11224 {
+  logfile "/tmp/d2.log"      # where to store the transaction log (if enabled)
+  storedir "/tmp/d2store"    # where objects are stored (if disk enabled)
+}  

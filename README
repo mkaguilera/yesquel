@@ -1,0 +1,236 @@
+Yesquel version 0.2
+===================
+
+
+PLATFORM
+--------
+Yesquel is designed to run in Ubuntu Linux. It has not been tried in other
+Linux distributions but it may work since it has few dependencies.
+
+TARGET USE
+----------
+Yesquel is currently a research prototype and its implementation is not tested
+for production use. Bugs will possibly cause crashes and data corruption.
+Yesquel could be a good tool to test your organization's ability to withstand
+unavailability and loss of data, but even that is not guaranteed to happen.
+
+HOW TO COMPILE YESQUEL
+----------------------
+Go to the src directory and run make.
+
+HOW TO RUN YESQUEL
+------------------
+1. Create config.txt to indicate the number and names of storage servers.
+   A sample config.txt is provided in src/. Place the config file in the
+   current working directory of all servers and clients. Alternatively,
+   set environment variable GAIACONFIG with the full path of the configuration
+   file.
+
+2. Start the storage servers by running "storageserver" at each host.
+   It is possible to run multiple servers on the same host by assigning
+   them different ports, which is useful for testing. This requires
+   specifying the port number on the command line, as follows:
+   
+        storageserver <portno>
+
+   The storage servers connect to each other. When there are lots of servers,
+   this can take a while since some servers will have started while others are
+   still starting. This could trigger a length connection timeout and retry. In
+   these cases, a better method is to start the servers in a special mode,
+   which does not connect to other servers, and then, when all servers are
+   running, issue a command telling the servers to connect to each other. Here
+   is how to do this:
+
+        1. start servers with the "-s" option:
+             storageserver -s [portno optional]
+             
+           This will start the server in the special mode. The servers
+           should not be used by applications in this mode.
+
+        2. run "callserver splitter" from any of the hosts. This needs to be
+           made from a directory containing the config.txt file (or GAIACONFIG
+           needs to be set). Running this once will cause all servers to
+           connect to each other.
+
+3. Start the application. The application will need config.txt in the current
+   working directory (or GAIACONFIG needs to be set). You can run the sample
+   SQL applications "test-sql-simple" or "shell <DBNAME>". Note that running
+   the shell without a DBNAME parameter will store the data locally in memory
+   not in Yesquel.
+
+4. When all is done, shutdown the storage servers. Either invoke "callserver
+   shutdown" from any host (and this needs to be done only once to shut down
+   all servers), or kill the servers manually. Using "callserver" is preferred
+   since killing the servers might block the server port briefly, preventing
+   the server from starting again in the same port for a few minutes (a known
+   Linux issue).
+
+This is what it should look like.
+
+% cd src
+% make
+[...]
+
+% ./storageserver -c
+Config file is ./config.txt
+Compilation time [...] configuration Production
+Configuration file ./config.txt debuglog no
+Host localhost ip 127.0.0.1 port 11223 log /tmp/d1.log store /tmp/d1store
+Server_workers 1
+
+[in another window]
+% ./test-sql-simple
+create table t1 (a integer primary key, b int);
+ done
+insert into t1 values (1,2);
+ done
+Executing 'select * from t1 where a=1;' 10000 times
+ success
+
+% ./shell TEST
+Yesquel running SQLite shell
+YS> [...]
+
+
+
+CONTENTS
+--------
+src/     Contains the source code for the Yesquel. Upon compilation,
+         the following files will be created in this directory:
+         
+           storageserver: executable for the Yesquel storage servers.
+           
+           yesquel.a and localstorage.a: the Yesquel client library.  Link both
+                  of these libraries to your application to use Yesquel.
+
+           test-sql-simple: a sample Yesquel application that issues SQL
+                  to create a table, insert a row, and query the table.
+           
+           shell: a utility for entering SQL commands into Yesquel from the
+                  standard input. The syntax is "shell <dbname>", where
+                  <dbname> is the name of the database (eg, TEST).
+
+           callserver: a command-line utility to manage running storage
+                  servers.  This utility works only if the storage servers are
+                  already running. It permits pinging and shutting down
+                  the storage servers. It requires a configuration
+                  file indicating what are the storage servers.
+
+         The source code is logically organized into 7 parts:
+
+            Key-value storage server:
+              disklog.cpp disklog.h diskstorage.cpp diskstorage.h logmem.cpp
+              logmem.h main.cpp pendingtx.cpp pendingtx.h storageserver-rpc.cpp
+              storageserver-rpc.h storageserver.cpp storageserver.h
+              storageserverstate.cpp storageserverstate.h
+            
+            Key-value storage client:
+              clientdir.cpp clientdir.h clientlib.cpp clientlib.h
+              kvinterface.cpp memkv-simple.cpp record.cpp supervalue.cpp
+              supervalue.h valbuf.cpp valbuf.h
+              
+            Local key-value storage client:
+              clientlib-local.cpp clientlib-local.h disklog-nop.cpp
+              diskstorage-nop.cpp localstorage-test.cpp logmem-local.cpp
+              pendingtx-local.cpp server-splitter-nop.cpp
+              storageserver-local.cpp storageserver-nop.cpp
+              storageserver-rpc-local.cpp storageserverstate-nop.cpp
+              valbuf-local.cpp
+            
+            Data structures and other general-purpose utilities:
+              config.cpp debug.cpp gaiarpcaux.cpp gaiatypes.cpp grpctcp.cpp
+              ipmisc.cpp newconfig.cpp os.cpp scheduler.cpp task.cpp
+              tcpdatagram.cpp tmalloc-other.cpp tmalloc.cpp util-more.cpp
+              util.cpp warning.cpp
+              
+            Distributed B-tree:
+                cellbuf.cpp coid.cpp dtree.cpp dtreeaux.cpp
+                treedirect.cpp yesql-init.cpp            
+            
+            SQLite files:
+                btmutex.c expr.c fts3.c os_unix.c pager.c parse.c sqlite3.cpp
+                tokenize.c vdbe.c where.c
+                
+            Applications:
+                shell.cpp test-sql-simple.cpp
+
+include/ Contains include files needed to compile the files in src.
+
+extra/ Contains additional utilities not required to use Yesquel.  These are
+         intended for the expert user and often refer to the internal workings
+         of Yesquel. Some of the utilities require additional libraries to be
+         present in the Linux distribution, such as mysql, redis, etc. To
+         compile these utilities, first run make in the "src" directory, and
+         then run make in the "extra" directory. Upon compilation, the
+         following files are created.
+
+           getserver: returns the IP-port of the server responsible for
+                      a given coid
+
+           shelldt: permits typing commands to insert, lookup, delete
+                    keys in a distributed B-tree
+
+           showdtree: prints out a distributed B-tree
+
+           test-sql: more sample code for a Yesquel application
+           test-gaia: test code for the storage servers
+           test-gaialocal: test code for the local storage service
+           test-tree: test code for the distributed B-tree
+           test-various: test code for data structures used by Yesquel
+
+           bench-*: various benchmarks, shown below. These benchmarks
+                    require a json benchmark configuration file, of which
+                    a sample is provided (bench-sample.json).
+           
+           bench-dtree: benchmarks Yesquel's distributed B-tree.
+           bench-mysql: benchmarks mysql
+           bench-redis: benchmarks Redis
+           bench-yesquel: benchmarks Yesquel
+           bench-wiki-mysql: benchmarks Mysql using a Wikipedia workload
+           bench-wiki-yesquel: benchmarks Yesquel using a Wikipedia workload
+
+MULTITHREADED CODE
+------------------
+Yesquel is multithread-safe, but it supports only SQLite's threadsafe
+mode 2 (SQLITE_THREADSAFE==2). That means each thread using Yesquel
+must sqlite_open its own database connection, that is, the database
+connection cannot be shared across threads.
+
+We do not recommend using fork() in a Yesquel application, since
+fork() will cause the child process to share the parent's connections
+to the Yesquel servers, which is problematic. However, it is fine to
+use fork() if the child process does not use Yesquel.
+
+
+WORK IN PROGRESS
+----------------
+Yesquel still lacks some features to make it fully usable, listed
+below. We are currently working on them.
+
+ 1. Log replay: Yesquel logs transactions durably to disk but it does
+    not replay those transactions upon restart. Rather, Yesquel
+    restarts with an empty state. As partial mitigation, Yesquel allows
+    users to save and restore a checkpoint of the database state to
+    disk. This is triggered manually by the user via the provided
+    "callserver" utility.
+
+ 2. Disk storage: Storage servers currently keep all data objects in
+    memory, without swapping them to disk if memory is short.
+
+ 3. Thorough testing: Yesquel is not tested thoroughly.
+
+OTHER MISSING FEATURES
+----------------------
+
+ 1. Schema changes: These have not been tested at all. Use with caution.
+
+ 2. SQL CHECK and FOREIGN KEY within transactions. Yesquel does not support
+    SQL CHECK and FOREIGN KEY constraints of fields updated within a
+    transaction. That is, if a field has a SQL CHECK or FOREIGN KEY
+    constraint and it is updated within a transaction, Yesquel may
+    exit with a critical error message. (But it is ok to update
+    checked fields outside a transaction.) Implementing these
+    constraint checks within a transaction requires implementing
+    substatement transactions within Yesquel's key-value storage
+    system.
+    
