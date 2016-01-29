@@ -1,0 +1,38 @@
+# Sample of Yesquel configuration for four remote servers.
+# Rename this file to config.txt to use.
+
+nservers       4               # number of storage servers
+stripe_method  0               # method to stripe coids. Only 0 supported.
+stripe_parm    0               # parameter to method to sprite. Use 0.
+prefer_ip      "0.0.0.0"       # preferred IP prefix. If a server has many IPs,
+                               #   it will try to pick an IP with this prefix.
+prefer_ip_mask "0.0.0.0"       # enabled bits in preferred IP prefix
+
+server 0 host "vrg-00" port 11223  # declaration of 1st server (server 0)
+server 1 host "vrg-01" port 11223  # declaration of 2nd server (server 1)
+server 2 host "vrg-02" port 11223  # declaration of 3rd server (server 2)
+server 3 host "vrg-03" port 11223  # declaration of 4th server (server 3)
+
+
+
+# -------------- Configuration for each storage server ----------------------
+
+host "vrg-00" port 11223 {    # must match the declaration above
+  logfile "/tmp/d1.log"       # where to store the transaction log (if enabled)
+  storedir "/tmp/d1store"     # where objects are stored (if disk enabled)
+}
+
+host "vrg-01" port 11223 {    # must match the declaration above
+  logfile "/tmp/d1.log"       # where to store the transaction log (if enabled)
+  storedir "/tmp/d1store"     # where objects are stored (if disk enabled)
+}
+
+host "vrg-02" port 11223 {    # must match the declaration above
+  logfile "/tmp/d1.log"       # where to store the transaction log (if enabled)
+  storedir "/tmp/d1store"     # where objects are stored (if disk enabled)
+}
+
+host "vrg-03" port 11223 {    # must match the declaration above
+  logfile "/tmp/d1.log"       # where to store the transaction log (if enabled)
+  storedir "/tmp/d1store"     # where objects are stored (if disk enabled)
+}

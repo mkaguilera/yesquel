@@ -72,8 +72,11 @@ void ConfigState::addServer(int server, char *hostname, int port, u32 preferip, 
 void ConfigState::addHost(HostConfig *toadd)
 {
   IPPort ipport;
+  u32 ip;
 
-  ipport.set(IPMisc::resolveName(toadd->hostname, PreferredIP, PreferredIPMask), htons(toadd->port));
+  ip = IPMisc::resolveName(toadd->hostname, PreferredIP, PreferredIPMask);
+  if (!ip) return; // hostname cannot be resolved
+  ipport.set(ip, htons(toadd->port));
   toadd->ipport = ipport;
   if (toadd->port == 0) toadd->port = DEFAULT_PORT;
 

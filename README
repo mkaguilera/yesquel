@@ -201,7 +201,6 @@ fork() will cause the child process to share the parent's connections
 to the Yesquel servers, which is problematic. However, it is fine to
 use fork() if the child process does not use Yesquel.
 
-
 WORK IN PROGRESS
 ----------------
 Yesquel still lacks some features to make it fully usable, listed
@@ -234,3 +233,42 @@ OTHER MISSING FEATURES
     substatement transactions within Yesquel's key-value storage
     system.
     
+
+PERFORMANCE CONSIDERATIONS
+--------------------------
+
+To get the most performance from Yesquel, consider the following:
+
+1. Production versus debug mode
+
+   In debug mode, Yesquel is slow because it performs several runtime
+   checks. To get the most performance, compile Yesquel in production
+   mode. This is done by editing src/makefile.defs and setting CXX
+   flags appropriately: comment out the line for debug mode and
+   comment in the line for production mode.
+
+   While testing Yesquel, we recommend running it in debug mode.  Note
+   that this is a compile-time parameter, so the libraries need to be
+   recompiled from scratch ("make clean; make") to effect the change.
+
+
+2. Worker threads
+
+   Yesquel is designed to run many worker threads at both servers and
+   clients. However, the default configuration specifies only one work
+   thread. This configuration will not take take advantage of the many
+   processors a machine may hash. For machines with many processors,
+   we suggest increasing the number of worker threads.  This is done
+   by modifying compile-time parameters in include/options.h:
+   CLIENT_WORKERTHREADS and SERVER_WORKERTHREADS. Note, however, that
+   we have not tested Yesquel with many worker threads, so the
+   system will be less reliable.
+
+3. Logging to disk
+
+   Though Yesquel is designed to log to disk, this option is disabled
+   by default. You can enable disk logging by commenting out #define
+   SKIPLOG in include/options.h. In this case, performance of Yesquel
+   will be dominated by the performance of the disk. Over the longer
+   term, new and faster non-volatile memory technologies will
+   eventually displace disks, making this a moot point.
