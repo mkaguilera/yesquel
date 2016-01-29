@@ -20,11 +20,13 @@ Go to the src directory and run make.
 
 HOW TO RUN YESQUEL
 ------------------
-1. Create config.txt to indicate the number and names of storage servers.
-   A sample config.txt is provided in src/. Place the config file in the
+1. Create config.txt to indicate the number and names of storage
+   servers.  A sample config.txt is provided in src/ to run Yesquel on
+   a single local server; another sample config-4.txt shows a
+   configuration with four servers. Place the config.txt file in the
    current working directory of all servers and clients. Alternatively,
-   set environment variable GAIACONFIG with the full path of the configuration
-   file.
+   set environment variable GAIACONFIG with the full path of the
+   configuration file.
 
 2. Start the storage servers by running "storageserver" at each host.
    It is possible to run multiple servers on the same host by assigning
