@@ -59,7 +59,7 @@
 #define DEBUG_LEVEL_DEFAULT 0
 #define DEBUG_LEVEL_WHEN_LOGFILE 2 // debug level when -g option (use logfile) is chosen
 
-#define PIDFILE "/ys/server.pid"
+//#define PIDFILE "/tmp/yesquel-storageserver.pid"
 
 #ifdef VALG_LEAK
 #include <valgrind/memcheck.h>
