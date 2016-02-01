@@ -1,6 +1,17 @@
 Yesquel version 0.2
 ===================
 
+Yesquel is a scalable SQL storage system for Web applications. It
+achieves scalability by providing each client with its own SQL query
+processor, which then share a common distributed balanced tree data
+structure to store tables and indexes. Please visit
+
+   http://www.yesquel.com
+   
+for more details, where you can find a paper with Yesquel's
+architecture and design, and a video recording with the presentation
+given at SOSP 2015.
+
 
 PLATFORM
 --------
