@@ -3,12 +3,12 @@ Yesquel version 0.2
 
 Yesquel is a scalable SQL storage system for Web applications. It
 achieves scalability by providing each client with its own SQL query
-processor, which then share a common distributed balanced tree data
+processor, which then shares a common distributed balanced tree data
 structure to store tables and indexes. Please visit
 
    http://www.yesquel.com
    
-for more details, where you can find a paper with Yesquel's
+for more details, where you will find a paper with Yesquel's
 architecture and design, and a video recording with the presentation
 given at SOSP 2015.
 
@@ -42,13 +42,14 @@ HOW TO RUN YESQUEL
 2. Start the storage servers by running "storageserver" at each host.
    It is possible to run multiple servers on the same host by assigning
    them different ports, which is useful for testing. This requires
-   specifying the port number on the command line, as follows:
+   specifying an optional port number parameter on the command line, 
+   as follows:
    
         storageserver <portno>
 
    The storage servers connect to each other. When there are lots of servers,
    this can take a while since some servers will have started while others are
-   still starting. This could trigger a length connection timeout and retry. In
+   still starting. This could trigger a lengthy connection timeout and retry. In
    these cases, a better method is to start the servers in a special mode,
    which does not connect to other servers, and then, when all servers are
    running, issue a command telling the servers to connect to each other. Here
@@ -58,10 +59,10 @@ HOW TO RUN YESQUEL
              storageserver -s [portno optional]
              
            This will start the server in the special mode. The servers
-           should not be used by applications in this mode.
+           should not be used by applications yet.
 
-        2. run "callserver splitter" from any of the hosts. This needs to be
-           made from a directory containing the config.txt file (or GAIACONFIG
+        2. run "callserver splitter" from any of the hosts. This must be
+           done from a directory containing the config.txt file (or GAIACONFIG
            needs to be set). Running this once will cause all servers to
            connect to each other.
 
@@ -219,7 +220,7 @@ WORK IN PROGRESS
 Yesquel still lacks some features to make it fully usable, listed
 below. We are currently working on them.
 
- 1. Log replay: Yesquel logs transactions durably to disk but it does
+ 1. Log replay: Yesquel can log transactions durably to disk but it does
     not replay those transactions upon restart. Rather, Yesquel
     restarts with an empty state. As partial mitigation, Yesquel allows
     users to save and restore a checkpoint of the database state to
@@ -264,15 +265,14 @@ To get the most performance from Yesquel, consider the following:
    that this is a compile-time parameter, so the libraries need to be
    recompiled from scratch ("make clean; make") to effect the change.
 
-
 2. Worker threads
 
    Yesquel is designed to run many worker threads at both servers and
-   clients. However, the default configuration specifies only one work
+   clients. However, the default configuration specifies only one worker
    thread. This configuration will not take take advantage of the many
-   processors a machine may hash. For machines with many processors,
+   processors a machine may have. For machines with many processors,
    we suggest increasing the number of worker threads.  This is done
-   by modifying compile-time parameters in include/options.h:
+   by modifying some compile-time parameters in include/options.h:
    CLIENT_WORKERTHREADS and SERVER_WORKERTHREADS. Note, however, that
    we have not tested Yesquel with many worker threads, so the
    system will be less reliable.
