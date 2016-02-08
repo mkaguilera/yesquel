@@ -2,16 +2,18 @@ Yesquel version 0.2
 ===================
 
 Yesquel is a scalable SQL storage system for Web applications. It
-achieves scalability by providing each client with its own SQL query
-processor, which then shares a common distributed balanced tree data
-structure to store tables and indexes. Please visit
+achieves the functionality of SQL systems together with the
+scalability and performance of NOSQL. It does so by providing
+each client with its own SQL query processor, which then shares
+a common distributed balanced tree data structure to store tables
+and indexes. Thus, as we add more clients to the system, we also
+add more query processing capability. Please visit
 
    http://www.yesquel.com
    
 for more details, where you will find a paper with Yesquel's
 architecture and design, and a video recording with the presentation
 given at SOSP 2015.
-
 
 PLATFORM
 --------
@@ -106,7 +108,6 @@ Yesquel running SQLite shell
 YS> [...]
 
 
-
 CONTENTS
 --------
 src/     Contains the source code for the Yesquel. Upon compilation,
@@ -182,9 +183,9 @@ extra/ Contains additional utilities not required to use Yesquel.  These are
                       a given coid
 
            shelldt: permits typing commands to insert, lookup, delete
-                    keys in a distributed B-tree
+                    keys in a distributed balanced tree
 
-           showdtree: prints out a distributed B-tree
+           showdtree: prints out a distributed balanced tree
 
            test-sql: more sample code for a Yesquel application
            test-gaia: test code for the storage servers
@@ -234,7 +235,6 @@ below. We are currently working on them.
 
 OTHER MISSING FEATURES
 ----------------------
-
  1. Schema changes: These have not been tested at all. Use with caution.
 
  2. SQL CHECK and FOREIGN KEY within transactions. Yesquel does not support
@@ -246,11 +246,9 @@ OTHER MISSING FEATURES
     constraint checks within a transaction requires implementing
     substatement transactions within Yesquel's key-value storage
     system.
-    
 
 PERFORMANCE CONSIDERATIONS
 --------------------------
-
 To get the most performance from Yesquel, consider the following:
 
 1. Production versus debug mode
