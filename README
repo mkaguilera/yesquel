@@ -237,17 +237,17 @@ OTHER MISSING FEATURES
 ----------------------
  1. Schema changes: These have not been tested at all. Use with caution.
 
- 2. Integrity checks within transactions. Yesquel does not support
-    integrity checks for updates done within a transaction.  The
-    unsupported integrity checks include NOT NULL, SQL CHECK, and
-    FOREIGN KEY constraints defined in the schema.  If those checks
-    are present, and a table is updated within a BEGIN
-    TRANSACTION/COMMIT TRANSACTION block, then Yesquel will exit with
-    a critical error message. (It is ok to update checked fields
-    outside a TRANSACTION block.) To work around this problem, remove
-    the constraints from the schema definition. Fully implementing
-    constraint checks requires implementing substatement transactions
-    within Yesquel's key-value storage system, which is future work.
+ 2. Integrity checks within transactions. Yesquel does not fully
+    support integrity checks, such as NOT NULL, SQL CHECK, and FOREIGN
+    KEY constraints defined in the schema. If those checks are present
+    and a field gets updated within a BEGIN/COMMIT TRANSACTION block,
+    Yesquel will exit with a critical error message. (It is ok to
+    update checked fields outside a TRANSACTION block.) To work around
+    this problem, remove the constraints from the schema definition,
+    or update the checked data only outside a SQL transaction. Fully
+    implementing integrity checks requires implementing substatement
+    transactions within Yesquel's key-value storage system, which is
+    future work.
 
 PERFORMANCE CONSIDERATIONS
 --------------------------
