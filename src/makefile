@@ -2,7 +2,7 @@ include makefile.defs
 
 TARGET = storageserver shell callserver test-sql-simple yesquel.a 
 
-CLIENTLIB_SRC = clientdir.cpp clientlib.cpp supervalue.cpp valbuf.cpp ccache.cpp
+CLIENTLIB_SRC = clientdir.cpp clientlib.cpp clientlib-common.cpp supervalue.cpp valbuf.cpp ccache.cpp
 
 CLIENTLIBAUX_SRC = config.tab.cpp debug.cpp gaiarpcaux.cpp gaiatypes.cpp grpctcp.cpp ipmisc.cpp lex.yy.cpp newconfig.cpp os.cpp record.cpp scheduler.cpp pendingtx.cpp task.cpp tcpdatagram.cpp tmalloc.cpp util.cpp util-more.cpp
 
@@ -10,7 +10,7 @@ STORAGESERVER_SRC = storageserver.cpp storageserverstate.cpp storageserver-rpc.c
 
 STORAGESERVERLOCALSTORAGE_SRC = clientlib-local.cpp
 
-LOCALSTORAGE_SRC = clientlib-local.cpp disklog-nop.cpp diskstorage-nop.cpp logmem-local.cpp server-splitter-nop.cpp storageserver-nop.cpp storageserverstate-nop.cpp valbuf-local.cpp storageserver-local.cpp pendingtx-local.cpp storageserver-rpc-local.cpp ccache-server-nop.cpp
+LOCALSTORAGE_SRC = clientlib-local.cpp clientlib-common.cpp disklog-nop.cpp diskstorage-nop.cpp logmem-local.cpp server-splitter-nop.cpp storageserver-nop.cpp storageserverstate-nop.cpp valbuf-local.cpp storageserver-local.cpp pendingtx-local.cpp storageserver-rpc-local.cpp ccache-server-nop.cpp
 
 SPLITTER_SRC = dtreesplit.cpp splitter-client.cpp storageserver-splitter.cpp splitter-standalone.cpp loadstats.cpp
 

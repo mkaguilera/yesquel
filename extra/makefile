@@ -31,7 +31,7 @@ test-gaia: test-gaia.o $(SRC_DIR)/yesquel.a
 test-gaialocal: test-gaialocal.o $(SRC_DIR)/yesquel.a $(SRC_DIR)/localstorage.a
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDLIBS)
 
-test-gaialocal.o: test-gaia.cpp
+test-gaialocal.o: test-gaia.cpp test-gaialocal.cpp
 
 test-sql: test-sql.o $(SRC_DIR)/yesquel.a $(SRC_DIR)/localstorage.a
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDLIBS)

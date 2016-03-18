@@ -41,23 +41,26 @@
 
 #include "options.h"
 
-//------------------------------------ Limits -----------------------------------------
+//--------------------------------- Limits ------------------------------------
 #define NFIXEDTASKS 32 // max # of fixed tasks
 #define NIMMEDIATEFUNCS 32 // max # of immediate functions
-#define THREADCONTEXT_SHARED_SPACE_SIZE 32 // max # of entries in space shared by tasks of the same thread
+#define THREADCONTEXT_SHARED_SPACE_SIZE 32 // max # of entries in space shared
+                                           // by tasks of the same thread
 
-//--------------------------------- Thread classes -------------------------------------
+//------------------------------ Thread classes --------------------------------
 // tcpdatagram.h
 #define TCLASS_WORKER  1   // threads for processing incoming requests
 #define TCLASS_WARNING 2   // thread that issues warnings
 #define TCLASS_DISKLOG 3   // thread that logs data to disk
-#define TCLASS_SPLITTER 4  // thread that splits tree nodes (storageserver-splitter.h)
+#define TCLASS_SPLITTER 4  // thread that splits tree nodes
+                            // (storageserver-splitter.h)
 
-//------------------------------- Immediate functions ----------------------------------
+//--------------------------- Immediate functions ------------------------------
 // core
 #define IMMEDIATEFUNC_NOP  0  // do nothing (intended for testing)
 #define IMMEDIATEFUNC_EXIT 1  // cause scheduler to exit
-#define IMMEDIATEFUNC_EVENTSCHEDULER_ADD 4  // add an event to the event scheduler
+#define IMMEDIATEFUNC_EVENTSCHEDULER_ADD 4  // add an event to the event
+                                            // scheduler
 // tcpdatagram.h
 #define IMMEDIATEFUNC_SEND 11
 #define IMMEDIATEFUNC_ADDIPPORTFD 12
@@ -71,22 +74,26 @@
 #define IMMEDIATEFUNC_SPLITTERTHREADNEWWORK 26
 #define IMMEDIATEFUNC_SPLITTERTHREADREPORTWORK 27
 
-//---------------------------------- Fixed tasks ---------------------------------------
+//------------------------------ Fixed tasks -----------------------------------
 // core
 #define FIXEDTASK_EVENTSCHEDULER 0  
 // tcpdatagram.h
 #define FIXEDTASK_BATCHFREEMULTIBUFS 11
 
-//---------------------------- Thread context spaces ------------------------------------
+//------------------------- Thread context spaces ------------------------------
 // core
 #define THREADCONTEXT_SPACE_EVENTSCHEDULER 0
 // tcpdatagram.h
-#define THREADCONTEXT_SPACE_TCPDATAGRAM 10 // index for shared space for tcpdatagram pointer
-#define THREADCONTEXT_SPACE_TCPDATAGRAM_WORKER 11 // index for shared space of send task and thread
+#define THREADCONTEXT_SPACE_TCPDATAGRAM 10 // index for shared space for
+                                           // tcpdatagram pointer
+#define THREADCONTEXT_SPACE_TCPDATAGRAM_WORKER 11 // index for shared space
+                                                  // of send task and thread
 // disklog-win.h
-#define THREADCONTEXT_SPACE_DISKLOG 12 // index for shared space of disklog thread
+#define THREADCONTEXT_SPACE_DISKLOG 12 // index for shared space of disklog
+                                       // thread
 // storageserver-splitter.h
-#define THREADCONTEXT_SPACE_SPLITTER 13 // index for shared space of disklog thread
+#define THREADCONTEXT_SPACE_SPLITTER 13 // index for shared space of disklog
+                                        // thread
 
 
 int taskGetCore(const char *threadname);
@@ -101,7 +108,8 @@ int taskGetCore(const char *threadname){
 #else
   static int nextUnallocatedCore = 2; // next core that is yet unallocated
 #endif
-  //static int allocatedCore[] = {0,0}; // cores that will be allocated are still marked as not allocated
+  //static int allocatedCore[] = {0,0}; // cores that will be allocated are
+  //                                    // still marked as not allocated
   int retval;
   int nprocessors = getNProcessors();
   if (!strcmp(threadname, "TCPWORKER")){

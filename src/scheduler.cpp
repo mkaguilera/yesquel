@@ -66,7 +66,8 @@ OSTHREAD_FUNC EventScheduler::executorThread(void *parm){
     u64 now = Time::now();
 
     // invoke all expired events, removing them from queue
-    while (!es->Events.empty() && (copyTopEvent = es->Events.top()).when <= now){
+    while (!es->Events.empty() &&
+           (copyTopEvent = es->Events.top()).when <= now){
       do {
         ed = copyTopEvent.ed;
         es->Events.pop();
@@ -79,7 +80,8 @@ OSTHREAD_FUNC EventScheduler::executorThread(void *parm){
           copyTopEvent.when = Time::now() + ed->msFromNow;
           es->Events.push(copyTopEvent); // put back event with new time
         } else delete ed; // free space taken by event data
-      } while (!es->Events.empty() && (copyTopEvent = es->Events.top()).when <= now);
+      } while (!es->Events.empty() &&
+               (copyTopEvent = es->Events.top()).when <= now);
 
       now = Time::now();
     }
@@ -94,7 +96,8 @@ OSTHREAD_FUNC EventScheduler::executorThread(void *parm){
 }
 
 // schedule an event to be called
-void EventScheduler::AddEvent(EventHandler handler, void *data, int type, int msFromNow){
+void EventScheduler::AddEvent(EventHandler handler, void *data, int type,
+                              int msFromNow){
   Event e;
   EventData *ed;
 
@@ -111,9 +114,10 @@ void EventScheduler::AddEvent(EventHandler handler, void *data, int type, int ms
 
   Events_lock.lock();
   Events.push(e);
-  if (Events.top().when == e.when) Events_semaphore.signal();
-    //SemCondVar.wakeAll(); // if this event is at the top (smallest when time), wake up 
-    //                                                  // thread otherwise it will sleep until the next event
+  if (Events.top().when == e.when)
+    // if this event is at the top (smallest when time), wake up
+    // thread otherwise it will sleep until the next event
+    Events_semaphore.signal();
   Events_lock.unlock();
 }
 
@@ -121,7 +125,8 @@ void EventScheduler::launch(void){
   int res;
   if (!Launched){
     Launched = true;
-    res = OSCreateThread(&SchedulerThread, executorThread, (void*) this); assert(res==0);
+    res = OSCreateThread(&SchedulerThread, executorThread, (void*) this);
+    assert(res==0);
   }
 }
 

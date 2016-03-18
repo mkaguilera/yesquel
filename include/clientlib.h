@@ -44,24 +44,19 @@
 
 #include "debug.h"
 #include "util.h"
-
 #include "ipmisc.h"
-
+#include "clientlib-common.h"
 #include "clientdir.h"
 #include "gaiarpcaux.h"
 #include "datastruct.h"
 #include "supervalue.h"
 
 #define STARTTS_MAX_STALE 50  // maximum staleness for start timestamp in ms
-//#define STARTTS_NO_READMYWRITES // comment in to start timestamp in the past by STARTTS_MAX_STALE even if we committed, so
-                                  // a thread will not see its own previous transactions. If commented out,
-                                  // the start timestamp will be set to max(now-STARTTS_MAX_STALE,lastcommitts), so that
-                                  // the thread will see its own committed transactions.
-
-#define TXCACHE_HASHTABLE_SIZE 64
-
-// cache only the first MAX_READS_TO_TXCACHE reads of a transaction
-#define MAX_READS_TO_TXCACHE 1000
+//#define STARTTS_NO_READMYWRITES // comment in to start timestamp in the past
+      // by STARTTS_MAX_STALE even if we committed, so a thread will not see
+      // its own previous transactions. If commented out, the start timestamp
+      // will be set to max(now-STARTTS_MAX_STALE,lastcommitts), so that
+      // the thread will see its own committed transactions.
 
 // largest time in the past for choosing a deferred start timestamp.
 // With deferred timestamps, the start timestamp is chosen to be
@@ -70,9 +65,10 @@
 // will be now minus MAX_DEFERRED_START_TS
 #define MAX_DEFERRED_START_TS 1000
 
-#define TID_TO_RPCHASHID(tid) ((u32)tid.d1)  // rpc hashid to use for a given tid. Currently, returns d1, which is the client's IP + PID.
-                                        // Thus, all requests of the client are assigned the same rpc hashid, so they are all handled by the
-                                        // same server thread.
+#define TID_TO_RPCHASHID(tid) ((u32)tid.d1)  // rpc hashid to use for a given
+     // tid. Currently, returns d1, which is the client's IP + PID. Thus, all
+     // requests of the client are assigned the same rpc hashid, so they are
+     // all handled by the same server thread.
 
 // Initializes and uninitializes Gaia
 StorageConfig *InitGaia(void);
@@ -89,58 +85,25 @@ private:
   int readsTxCached;
   bool hasWrites;
   bool hasWritesCachable; // whether tx writes to cachable items
+  int currlevel;          // current subtransaction level
 
   char *piggy_buf;   // data to be piggybacked
   IPPortServerno piggy_server; // server holding coid to be written
   COid piggy_coid;   // coid to be written
-  int piggy_len;     // length of data
+  int piggy_len;     // length of data. -1 means no data, -2 means data
+                     // used to exist but does not exist any longer
+                     // (in this case, we cannot add data again because
+                     // the order does not match as piggy writes are
+                     // always done first)
+  int piggy_level;   // level of data
 #ifdef GAIA_OCC
   Set<COid> ReadSet;
 #endif
 
-  struct TxCacheEntry {
-  public:
-    COid coid;
-    ~TxCacheEntry(){}
-    Ptr<Valbuf> vbuf;
-    TxCacheEntry *next, *prev, *snext, *sprev;
-    COid *GetKeyPtr(){ return &coid; }
-    static unsigned HashKey(COid *i){ return COid::hash(*i); }
-    static int CompareKey(COid *i1, COid *i2){ return memcmp((void*)i1, (void*)i2, sizeof(COid)); }
-    static void delEntry(TxCacheEntry *tce){ delete tce; }
-  };
-
-  struct PendingOpsEntry {
-    PendingOpsEntry *next;
-    int type;   // 0 = add, 1 = delrange, 2 = attrset
-    union dummy {
-      dummy(){}
-      struct { ListCell cell; GKeyInfo *ki; } add;
-      struct { ListCell cell1, cell2; int intervtype; GKeyInfo *ki; } delrange;
-      struct { u32 attrid; u64 attrvalue; } attrset;
-    } u;
-  };
-
-  typedef SLinkList<PendingOpsEntry> PendingOpsList;
+  TxCache txCache;
   
-  static void delPendingOpsList(PendingOpsList *pol);
-
-  SkipList<COid,TxCacheEntry*> TxCache;
-  SkipList<COid,PendingOpsList*> PendingOps; // contains pending listadd and
-  // listdelrange operations that should be applied to supervalue in TxCache
-  // as soond as it is read from the server. We do this so that
-  // clients can execute listadd and listdelrange without having to populate
-  // the txcache (which would require reading the supervalue from the server).
-  // The invariant is that, for a given coid, if TxCache[coid] is set then
-  // PendingOps[coid] is empty. When we read the supervalue (when the
-  // client really needs the full supervalue), we set TxCache[coid] and
-  // then apply all the operations in PendingOps[coid].
-
-  void clearTxCache(void);
-  void updateTxCache(COid &coid, Ptr<Valbuf> &buf); // clear pending ops and updates txcache
-  int applyPendingOps(COid &coid, Ptr<Valbuf> &buf); // applies pending ops and clears them
-  bool hasPendingOps(COid &coid); // checks of tx nas pending updates on coid
-  int checkPendingOps(COid &coid, int nKey, char *pKey, GKeyInfo *ki); // check if key was added or removed by pending operations. Returns 1 if added, 0 if removed, -1 if neither
+  void updateTxCache(COid &coid, Ptr<Valbuf> &buf); // clear pending ops and
+                                                    // updates txcache
   
   // Try to read data locally using TxCache from transaction.
   // If there is data to be read, data is placed in *buf if *buf!=0;
@@ -154,7 +117,7 @@ private:
   //          GAIAERR_WRONG_TYPE = wrong type
   int tryLocalRead(COid &coid, Ptr<Valbuf> &buf, int typ);
 
-  // ------------------------------ Prepare RPC -----------------------------------
+  // ---------------------------- Prepare RPC ----------------------------------
 
   struct PrepareCallbackData {
     Semaphore sem; // to wait for response
@@ -168,13 +131,13 @@ private:
   //             part of two-phase commit. Otherwise, just the local
   //             servers are contacted
   // sets chosents to the timestamp chosen for transaction
-  // Sets hascommitted to indicate if the transaction was also committed using one-phase commit.
+  // Sets hascommitted to indicate if the transaction was also committed using
+  // one-phase commit.
   // This is possible when the transaction spans only one server.
   int auxprepare(Timestamp &chosents, int &hascommitted);
   static void auxpreparecallback(char *data, int len, void *callbackdata);
 
-  // ------------------------------ Commit RPC -----------------------------------
-
+  // ----------------------------- Commit RPC ----------------------------------
 
   struct CommitCallbackData {
     Semaphore sem; // to wait for response
@@ -193,6 +156,17 @@ private:
   //  or to smallest possible timestamp if no servers reported a legal timestamp
   int auxcommit(int outcome, Timestamp committs, Timestamp *waitingts);
 
+  // ---------------------------- Subtrans RPC ---------------------------------
+
+  struct SubtransCallbackData {
+    Semaphore sem; // to wait for response
+    SubtransRPCResp data;
+    SubtransCallbackData *prev, *next; // linklist stuff
+  };
+
+  static void auxsubtranscallback(char *data, int len, void *callbackdata);
+  int auxsubtrans(int level, int action);
+  
 
 public:
   Transaction(StorageConfig *sc);
@@ -204,7 +178,8 @@ public:
   int start();
 
   // start a transaction with a start timestamp that will be set when the
-  // transaction first reads, to be the timestamp of the latest available version to read.
+  // transaction first reads, to be the timestamp of the latest available
+  // version to read.
   // Right now, these transactions must read something before committing. Later,
   // we should be able to extend this so that transactions can commit without
   // having read.
@@ -224,7 +199,8 @@ public:
   // put with 2 or 3 user buffers
   // returns a status as in write() above
   int put2(COid coid, char *data1, int len1, char *data2, int len2);
-  int put3(COid coid, char *data1, int len1, char *data2, int len2, char *data3, int len3);
+  int put3(COid coid, char *data1, int len1, char *data2, int len2, char *data3,
+           int len3);
 
   // read a value into a Valbuf
   int vget(COid coid, Ptr<Valbuf> &buf);
@@ -236,11 +212,12 @@ public:
   // no particular cell, in which case these parameters are ignored.
   int vsuperget(COid coid, Ptr<Valbuf> &buf, ListCell *cell, GKeyInfo *ki);
 
-  static void readFreeBuf(char *buf); // frees a buffer returned by readNewBuf() or get()
-  static char *allocReadBuf(int len); // allocates a buffer that can be freed by readFreeBuf.
-                            // Normally, such a buffer comes from the RPC layer, but
-                            // when reading txcached data, we need to return a pointer to
-                            // such a type of buffer so caller can free it in the same way
+  static void readFreeBuf(char *buf); // frees a buffer returned by
+                                      // readNewBuf() or get()
+  static char *allocReadBuf(int len); // allocates a buffer that can be freed
+       // by readFreeBuf. Normally, such a buffer comes from the RPC layer, but
+       // when reading txcached data, we need to return a pointer to
+       // such a type of buffer so caller can free it in the same way
 
   // add an object to a set in the context of a transaction
   // Returns 0 if ok, <0 if error (eg, -9 if transaction is aborted)
@@ -272,19 +249,36 @@ public:
 #if DTREE_SPLIT_LOCATION != 1
   int listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags);
 #else
-  int listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags, int *ncells=0, int *size=0);
+  int listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags,
+              int *ncells=0, int *size=0);
 #endif
   
   // deletes a range of cells
-  // intervalType indicates how the interval is to be treated. The possible values are
+  // intervalType indicates how the interval is to be treated.
+  // The possible values are
   //     0=(cell1,cell2)   1=(cell1,cell2]   2=(cell1,inf)
   //     3=[cell1,cell2)   4=[cell1,cell2]   5=[cell1,inf)
   //     6=(-inf,cell2)    7=(-inf,cell2]    8=(-inf,inf)
   // where inf is infinity
-  int listDelRange(COid coid, u8 intervalType, ListCell *cell1, ListCell *cell2, GKeyInfo *ki);
+  int listDelRange(COid coid, u8 intervalType, ListCell *cell1,
+                   ListCell *cell2, GKeyInfo *ki);
   
   // sets an attribute
   int attrSet(COid coid, u32 attrid, u64 attrvalue);
+
+  // start a subtransaction with the given level, which
+  // must be greater than currlevel. Return 0 if ok, non-0 if error.
+  int startSubtrans(int level);
+
+  // rollback the changes made by a subtransaction. Any updates
+  // done with a higher level are discarded. Afterwards, currlevel
+  // is set to level
+  int abortSubtrans(int level);
+
+  // release subtransactions, moving them to a lower level.
+  // Any updates done with a higher level are changed to the given level.
+  // Afterwards, currlevel is set to level
+  int releaseSubtrans(int level);
 
   // try to commit
   // Return 0 if committed, non-0 if aborted

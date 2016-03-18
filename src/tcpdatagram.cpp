@@ -59,10 +59,11 @@
 
 using namespace std;
 
-//---------------------------------------------- RECEIVING ------------------------------------------------
+//------------------------------------ RECEIVING -----------------------------
 
 // returns 0 if ok, non-zero if send queue is full
-void TCPDatagramCommunication::updateState(int handlerid, ReceiveState &s, IPPort src, int len){
+void TCPDatagramCommunication::updateState(int handlerid, ReceiveState &s,
+                                           IPPort src, int len){
   DatagramMsgHeader *header;
   int totalsize;
   char *newbuf;
@@ -77,7 +78,8 @@ void TCPDatagramCommunication::updateState(int handlerid, ReceiveState &s, IPPor
   // totalsize is how much we are supposed to receive
   totalsize = sizeof(DatagramMsgHeader) + header->size;
   if (s.Filled < totalsize){ // didn't fill everything yet
-    if (totalsize > s.Buflen){ // current buffer is too small; copy to new buffer
+    if (totalsize > s.Buflen){ // current buffer is too small;
+                               // copy to new buffer
       newbuf = (char*) malloc(totalsize); assert(newbuf);
       memcpy(newbuf, s.Buf, s.Filled);
       free(s.Buf);
@@ -90,7 +92,8 @@ void TCPDatagramCommunication::updateState(int handlerid, ReceiveState &s, IPPor
 
   if (s.Filled == totalsize){   // we filled everything exactly
     // call application handler
-    tmb =  new TaskMultiBuffer(s.Buf, 1); // TaskMultiBuffer is used to later free s.Buf
+    tmb =  new TaskMultiBuffer(s.Buf, 1); // TaskMultiBuffer is used to
+                                          // later free s.Buf
     handleMsg(handlerid, &src, header->req, header->xid, header->flags,
               tmb, s.Buf+sizeof(DatagramMsgHeader), header->size);
     
@@ -115,9 +118,12 @@ void TCPDatagramCommunication::updateState(int handlerid, ReceiveState &s, IPPor
   bufs[bufindex] = s.Buf;
   ++bufindex; assert(bufindex < MAXREQUESTSPERRECEIVE);
 
-  while (extrasize > sizeof(DatagramMsgHeader) && extrasize >= sizeof(DatagramMsgHeader) + ((DatagramMsgHeader*)extraptr)->size){
+  while (extrasize > sizeof(DatagramMsgHeader) &&
+         extrasize >= sizeof(DatagramMsgHeader) +
+         ((DatagramMsgHeader*)extraptr)->size){
     // we have a full request to process
-    sizenewreq = sizeof(DatagramMsgHeader) + ((DatagramMsgHeader*)extraptr)->size;
+    sizenewreq = sizeof(DatagramMsgHeader) +
+      ((DatagramMsgHeader*)extraptr)->size;
 
     assert(((DatagramMsgHeader*) extraptr)->cookie == REQ_HEADER_COOKIE);
     bufs[bufindex] = extraptr;
@@ -127,7 +133,9 @@ void TCPDatagramCommunication::updateState(int handlerid, ReceiveState &s, IPPor
   }
 
   // now extraptr and extrasize still refers to an incomplete chunk at the end
-  tmb = new TaskMultiBuffer(s.Buf, bufindex); // TaskMultiBuffer is used to later free s.Buf. It will expect bufindex requests before freeing s.Buf
+  tmb = new TaskMultiBuffer(s.Buf, bufindex); // TaskMultiBuffer is used to
+                   // later free s.Buf. It will expect bufindex requests
+                   // before freeing s.Buf
   if (extrasize <= TCP_RECLEN_DEFAULT){
     newlen = TCP_RECLEN_DEFAULT;
     newbuf = (char*) malloc(newlen); assert(newbuf);
@@ -162,7 +170,11 @@ void TCPDatagramCommunication::updateState(int handlerid, ReceiveState &s, IPPor
 }
 
 struct TaskMsgDataAddIPPortFd {
-  TaskMsgDataAddIPPortFd(IPPort i, i64 f, i64 h){ ipport = i; fd = f; handlerid = h; }
+  TaskMsgDataAddIPPortFd(IPPort i, i64 f, i64 h){
+    ipport = i;
+    fd = f;
+    handlerid = h;
+  }
   IPPort ipport;
   i64 fd;
   i64 handlerid;
@@ -171,22 +183,28 @@ struct TaskMsgDataAddIPPortFd {
 // add fd to list of fds being monitored by one of the worker threads,
 // so that worker can handle sending and receiving of data. To be called after
 // a client connect()s or a server accept()s.
-// workerno indicates which of the workers will handle this fd. That number will be mod'ed
-// by the actual number of workers in the system.
-void TCPDatagramCommunication::startReceiving(IPPort ipport, int fd, int handlerid, int workerno){
+// workerno indicates which of the workers will handle this fd. That number
+// will be mod'ed by the actual number of workers in the system.
+void TCPDatagramCommunication::startReceiving(IPPort ipport, int fd,
+                                              int handlerid, int workerno){
   // ask worker thread to start handling fd+ipport
   TaskMsgDataAddIPPortFd addmsg(ipport, fd, handlerid);
-  sendIFMsg(gContext.hashThread(TCLASS_WORKER, workerno), IMMEDIATEFUNC_ADDIPPORTFD, (void*) &addmsg, sizeof(TaskMsgDataAddIPPortFd));
+  sendIFMsg(gContext.hashThread(TCLASS_WORKER, workerno),
+            IMMEDIATEFUNC_ADDIPPORTFD, (void*) &addmsg,
+            sizeof(TaskMsgDataAddIPPortFd));
 }
 
 
-//---------------------------------------------- WORKER ------------------------------------------------
+//------------------------------------ WORKER ----------------------------------
 
 
-void TCPDatagramCommunication::immediateFuncAddIPPortFd(TaskMsgData &msgdata, TaskScheduler *ts, int srcthread){
+void TCPDatagramCommunication::immediateFuncAddIPPortFd(TaskMsgData &msgdata,
+                                     TaskScheduler *ts, int srcthread){
   TaskMsgDataAddIPPortFd *addmsg = (TaskMsgDataAddIPPortFd*) &msgdata;
-  TCPDatagramCommunication *tdc = (TCPDatagramCommunication*) tgetSharedSpace(THREADCONTEXT_SPACE_TCPDATAGRAM);
-  int epfd = (int) (long long) tgetSharedSpace(THREADCONTEXT_SPACE_TCPDATAGRAM_WORKER);
+  TCPDatagramCommunication *tdc = (TCPDatagramCommunication*)
+    tgetSharedSpace(THREADCONTEXT_SPACE_TCPDATAGRAM);
+  int epfd = (int) (long long)
+    tgetSharedSpace(THREADCONTEXT_SPACE_TCPDATAGRAM_WORKER);
   int res;
 
   // initialize TCPSTreamState for this new connection
@@ -200,7 +218,8 @@ void TCPDatagramCommunication::immediateFuncAddIPPortFd(TaskMsgData &msgdata, Ta
   tss->rstate.Filled = 0;
   tss->sendeagain = 0;
 
-  tdc->IPPortMap.insert(addmsg->ipport, tss); // associate ip-port with TCPStreamState just created
+  tdc->IPPortMap.insert(addmsg->ipport, tss); // associate ip-port with
+                                              // TCPStreamState just created
   
   // add fd to list of things being watched
   struct epoll_event ev;
@@ -268,10 +287,6 @@ void TCPDatagramCommunication::sendTss(TCPStreamState *tss){
     // send iobufs
     assert(currbuf >= 1);
     tss->sendeagain = 0;
-    //static int showstat=0;
-    //if (showstat++ % 1000 == 0){
-    //  printf("sendTss: nreqscombined %d nbufcombined %d nbufs %d\n", nreqscombined, nbufscombined, currbuf);
-    //}
 
     nbytes = writev(tss->fd, bufs, currbuf);
     if (nbytes <= 0){ // could not write anything
@@ -318,7 +333,8 @@ OSTHREAD_FUNC TCPDatagramCommunication::workerThread(void *parm){
   int myworkerno = gContext.indexWithinClass(TCLASS_WORKER, tgetThreadNo());
   
   tsetSharedSpace(THREADCONTEXT_SPACE_TCPDATAGRAM, tdc);
-  tsetSharedSpace(THREADCONTEXT_SPACE_TCPDATAGRAM_WORKER, (void*)(long long) epfd);
+  tsetSharedSpace(THREADCONTEXT_SPACE_TCPDATAGRAM_WORKER,
+                  (void*)(long long) epfd);
   
   ts->assignImmediateFunc(IMMEDIATEFUNC_ADDIPPORTFD, immediateFuncAddIPPortFd);
   ts->assignImmediateFunc(IMMEDIATEFUNC_SEND, immediateFuncSend);
@@ -346,11 +362,12 @@ OSTHREAD_FUNC TCPDatagramCommunication::workerThread(void *parm){
   
   while (!tdc->ForceEndThreads){
     something = ts->runOnce(); // run event schedule loop once
-                               // this will handle immediate functions to add new
-                               // things to the epoll set:
-                               //     after adding, must receive anything that already exists
+                  // this will handle immediate functions to add new
+                  // things to the epoll set:
+                  //     after adding, must receive anything that already exists
 
-    // go through pendingsends and send anything for which we didn't get EAGAIN before
+    // go through pendingsends and send anything for which we did not get
+    // EAGAIN before
     if (!tdc->PendingSendsBeforeEpoll[myworkerno].empty()){
       SetNode<TCPStreamStatePtr> *it;
       TCPStreamState *tssptr;
@@ -383,17 +400,20 @@ OSTHREAD_FUNC TCPDatagramCommunication::workerThread(void *parm){
           
       if (epevents[i].events & EPOLLIN){ // read available
         //if (ts->checkSendQueuesAlmostFull()){
-          // **!** if internal send queues are almost full, do not receive TCP packets
+          // **!** if internal send queues are almost full, do not receive
+          // TCP packets
           // do something here
         //}
         
         while (1){
-          nread = read(tss->fd, tss->rstate.Ptr, tss->rstate.Buflen - tss->rstate.Filled);
+          nread = read(tss->fd, tss->rstate.Ptr,
+                       tss->rstate.Buflen - tss->rstate.Filled);
           if (nread < 0){
             if (errno == EAGAIN || errno == EWOULDBLOCK) break;
           } else if (nread == 0) break;
           else {
-            // update the state of this stream (and if entire message received, invoke handler)
+            // update the state of this stream (and if entire message received,
+            // invoke handler)
             tdc->updateState(tss->handlerid, tss->rstate, tss->ipport, nread);
           }
         }
@@ -401,7 +421,8 @@ OSTHREAD_FUNC TCPDatagramCommunication::workerThread(void *parm){
       if (epevents[i].events & EPOLLOUT){ // write available
         tdc->sendTss(tss);
       }
-      if (epevents[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)){ // problem with fd
+      if (epevents[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)){
+        // problem with fd
         close(tss->fd);
       }
     }
@@ -413,7 +434,7 @@ OSTHREAD_FUNC TCPDatagramCommunication::workerThread(void *parm){
   return 0;
 }
 
-//---------------------------------------------- SENDING ------------------------------------------------
+//------------------------------------ SENDING -------------------------------
 
 void TCPDatagramCommunication::SendQueueEntry::marshallRPC(){
   int bufsleft = MAXIOVECSERIALIZE;
@@ -443,9 +464,11 @@ void TCPDatagramCommunication::SendQueueEntry::marshallRPC(){
  
 
 
-void TCPDatagramCommunication::immediateFuncSend(TaskMsgData &msgdata, TaskScheduler *ts, int srcthread){
+void TCPDatagramCommunication::immediateFuncSend(TaskMsgData &msgdata,
+                                                 TaskScheduler *ts, int srcthread){
   DatagramMsg *dmsg = (DatagramMsg*) &msgdata;
-  TCPDatagramCommunication *tdc = (TCPDatagramCommunication*) tgetSharedSpace(THREADCONTEXT_SPACE_TCPDATAGRAM);
+  TCPDatagramCommunication *tdc = (TCPDatagramCommunication*)
+    tgetSharedSpace(THREADCONTEXT_SPACE_TCPDATAGRAM);
   tdc->sendMsgFromWorker(dmsg);
 }
 
@@ -469,21 +492,23 @@ void TCPDatagramCommunication::sendMsgFromWorker(DatagramMsg *dmsg){
 }
 
 void TCPDatagramCommunication::sendMsg(DatagramMsg *dmsg){
-  // otherwise, must send a message to one of the workers. This is the case at the client.
+  // otherwise, must send a message to one of the workers. This is the case at
+  // the client.
   assert(sizeof(DatagramMsg) <= TASKSCHEDULER_TASKMSGDATA_SIZE);
   TaskMsg msg;
   int workerthread; // which of the worker threads to make the request to
 
   *(DatagramMsg*)&msg.data = *dmsg; // copy dmsg
 
-  workerthread = gContext.hashThread(TCLASS_WORKER, chooseWorkerForClient(dmsg->ipport));
+  workerthread = gContext.hashThread(TCLASS_WORKER,
+                                     chooseWorkerForClient(dmsg->ipport));
   msg.dest = TASKID_CREATE(workerthread, IMMEDIATEFUNC_SEND);
   msg.flags = TMFLAG_FIXDEST | TMFLAG_IMMEDIATEFUNC;
   tgetTaskScheduler()->sendMessage(msg);    
 }
  
 
-//---------------------------------------------- INIT + LISTENING ------------------------------------------------
+//------------------------------- INIT + LISTENING ---------------------------
 
 TCPDatagramCommunication::TCPDatagramCommunication() : newServerQueue(1024)
 {
@@ -495,7 +520,8 @@ TCPDatagramCommunication::TCPDatagramCommunication() : newServerQueue(1024)
 }
 
 TCPDatagramCommunication::~TCPDatagramCommunication(){
-  if (!ForceEndThreads) // exitThreads sets ForceEndThreads, so this tests ensures exitThreads is not called twice
+  if (!ForceEndThreads) // exitThreads sets ForceEndThreads, so this tests
+    // ensures exitThreads is not called twice
     exitThreads();
   if (PendingSendsBeforeEpoll) delete [] PendingSendsBeforeEpoll;
 }
@@ -520,8 +546,11 @@ int TCPDatagramCommunication::addServer(int handlerid, int port){
   setnonblock(fdlisten);
 #ifdef DISABLE_NAGLE
   int value = 1;
-  res = setsockopt(fdlisten, IPPROTO_TCP, TCP_NODELAY, (char*) &value, sizeof(int));
-  if (res) printf("%016llx setsockopt on TCP_NODELAY of listen socket: error %d\n", (long long) Time::now(), errno);
+  res = setsockopt(fdlisten, IPPROTO_TCP, TCP_NODELAY, (char*) &value,
+                   sizeof(int));
+  if (res)
+    printf("%016llx setsockopt on TCP_NODELAY of listen socket: error %d\n",
+           (long long) Time::now(), errno);
 #endif
   
   memset(&sin_server, 0, sizeof(sockaddr_in));
@@ -554,7 +583,8 @@ OSTHREAD_FUNC TCPDatagramCommunication::serverThread(void *parm){
   NewServer ServerEventFdNs; // epoll data for the ServerEventFd
   int workerno;
 
-  SLauncher->initThreadContext("SERVER", 0); // allows this thread to send messages to others
+  SLauncher->initThreadContext("SERVER", 0); // allows this thread to send
+                                             // messages to others
   ts = tgetTaskScheduler();
   tsetSharedSpace(THREADCONTEXT_SPACE_TCPDATAGRAM, tdc);
 
@@ -573,7 +603,8 @@ OSTHREAD_FUNC TCPDatagramCommunication::serverThread(void *parm){
   epfd = epoll_create1(0); assert(epfd != -1);
   ev.events = EPOLLIN;
   ev.data.ptr = (void*) &ServerEventFdNs;
-  res = epoll_ctl(epfd, EPOLL_CTL_ADD, tdc->ServerEventFd, &ev); assert(res==0);  
+  res = epoll_ctl(epfd, EPOLL_CTL_ADD, tdc->ServerEventFd, &ev);
+  assert(res==0);  
 
   UDPDest ud;
   while (!tdc->ForceEndThreads){
@@ -599,13 +630,16 @@ OSTHREAD_FUNC TCPDatagramCommunication::serverThread(void *parm){
         continue;
       }
 
-      if (epevents[i].events & EPOLLIN){ // read available, new connection to accept
+      if (epevents[i].events & EPOLLIN){
+        // read available, new connection to accept
         ud.sockaddr_len = sizeof(sockaddr_in);
-        fdaccept = accept(epollptr->fd, (sockaddr*) &ud.destaddr, &ud.sockaddr_len);
+        fdaccept = accept(epollptr->fd, (sockaddr*) &ud.destaddr,
+                          &ud.sockaddr_len);
         if (fdaccept == -1){
           int err = errno;
           if (err != 0){
-            printf("%016llx accept:socket_error %d from %08x\n", (long long) Time::now(), errno, *(int*)&ud.destaddr.sin_addr);
+            printf("%016llx accept:socket_error %d from %08x\n",
+                 (long long) Time::now(), errno, *(int*)&ud.destaddr.sin_addr);
           }
           continue;
         }
@@ -615,17 +649,22 @@ OSTHREAD_FUNC TCPDatagramCommunication::serverThread(void *parm){
     
 #ifdef DISABLE_NAGLE
         int value = 1;
-        res = setsockopt(fdaccept, IPPROTO_TCP, TCP_NODELAY, (char*) &value, sizeof(int));
-        if (res) printf("%016llx setsockopt on TCP_NODELAY of accept socket: error %d\n", (long long) Time::now(), errno);
+        res = setsockopt(fdaccept, IPPROTO_TCP, TCP_NODELAY, (char*) &value,
+                         sizeof(int));
+        if (res)
+          printf("setsockopt on TCP_NODELAY of accept socket: error %d\n",
+                 errno);
 #endif
         
         // determines which worker will handle this fd
         workerno = tdc->ClientCount++;
         //printf("Fd %d going to worker %d\n", fdaccept, workerno);
-        tdc->startReceiving(ud.getIPPort(), fdaccept, epollptr->handlerid, workerno);
+        tdc->startReceiving(ud.getIPPort(), fdaccept, epollptr->handlerid,
+                            workerno);
       } // if
 
-      if (epevents[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)){ // problem with fd
+      if (epevents[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)){
+        // problem with fd
         if (epollptr->fd != tdc->ServerEventFd){
           printf("Problem with fd, closing it\n");
           close(epollptr->fd);
@@ -652,7 +691,8 @@ int TCPDatagramCommunication::clientconnect(IPPort dest) {
   }
   
   do {
-    res = connect(fd, (sockaddr*) &udpdest.destaddr, (int) udpdest.sockaddr_len);
+    res = connect(fd, (sockaddr*) &udpdest.destaddr,
+                  (int) udpdest.sockaddr_len);
     if (res == -1) {
       printf("connect failed: %d\n", errno);
       mssleep(1000);
@@ -677,7 +717,11 @@ int TCPDatagramCommunication::clientdisconnect(IPPort dest) {
   res = IPPortMap.lookup(dest, tss);
   if (res) return -1; // no such client
   if (*tss){
-    delete *tss; // FIXME: potential race: deleting tss will free (*tss)->rstate.Buf and (*tss)->sendQueue, but worker thread may be using this if it is receiving data on this connection. The fix is to wait for worker to be done receiving anything before deleting *tss
+    delete *tss; // FIXME: potential race: deleting tss will free
+                 // (*tss)->rstate.Buf and (*tss)->sendQueue, but worker thread
+                 // may be using this if it is receiving data on this
+                 // connection. The fix is to wait for worker to be done
+                 // receiving anything before deleting *tss
     *tss = 0; // associate empty TCPStreamState with dest in IPPortMap
   }
   return 0;
@@ -726,7 +770,8 @@ int TCPDatagramCommunication::launch(int workerthreads, int wait){
   gContext.setNThreads(TCLASS_WORKER, nWorkerThreads);
 
   for (i = 0; i < nWorkerThreads; ++i){
-    threadno = SLauncher->createThread("TCPWORKER", workerThread, (void*) this, true);
+    threadno = SLauncher->createThread("TCPWORKER", workerThread,
+                                       (void*) this, true);
     gContext.setThread(TCLASS_WORKER, i, threadno);
   }
 
@@ -754,6 +799,7 @@ void TCPDatagramCommunication::exitThreads(){
     msg.flags = TMFLAG_FIXDEST | TMFLAG_IMMEDIATEFUNC;
     tgetTaskScheduler()->sendMessage(msg);
   }
-  ForceEndThreads = true; // causes receive thread and thread that accepts connections to exit
+  ForceEndThreads = true; // causes receive thread and thread that accepts
+                          // connections to exit
 }
 

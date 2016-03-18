@@ -63,9 +63,16 @@ DiskStorage::DiskStorage(char *diskstoragepath){}
 char *DiskStorage::getFilename(const COid& coid){ return 0; }
 char *DiskStorage::searchseparator(char *name){ return 0; }
 int DiskStorage::Makepath(char *dirname){return 0; }
-COid DiskStorage::FilenameToCOid(char *filename){ COid d; d.cid=d.oid=0; return d; }
-int DiskStorage::readCOidFromFile(FILE *f, const COid &coid, Ptr<TxInfoCoid> &ticoid){ return 0; }
-int DiskStorage::writeCOidToFile(FILE *f, Ptr<TxInfoCoid> ticoid){ return 0; }
-int DiskStorage::readCOid(const COid& coid, int len, Ptr<TxInfoCoid> &ticoid, Timestamp& version){ return -1; }
-int DiskStorage::writeCOid(const COid& coid, Ptr<TxInfoCoid> ticoid, Timestamp version){ return 0; }
+COid DiskStorage::FilenameToCOid(char *filename){
+  COid d;
+  d.cid=d.oid=0;
+  return d;
+}
+int DiskStorage::readCOidFromFile(FILE *f, const COid &coid,
+                                  Ptr<TxUpdateCoid> &tucoid){ return 0; }
+int DiskStorage::writeCOidToFile(FILE *f, Ptr<TxUpdateCoid> tucoid){ return 0; }
+int DiskStorage::readCOid(const COid& coid, int len,
+               Ptr<TxUpdateCoid> &tucoid, Timestamp& version){ return -1; }
+int DiskStorage::writeCOid(const COid& coid, Ptr<TxUpdateCoid> tucoid,
+                           Timestamp version){ return 0; }
 int DiskStorage::getCOidSize(const COid& coid){ return -1; }

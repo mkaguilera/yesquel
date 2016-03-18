@@ -97,7 +97,6 @@ void test_slist_heights(){
   }
   expected_number = SLIST_HEIGHTS_OPS / 2;
   for (i=1; i < 28; ++i){
-    //printf("Height %i: got %d expected %d\n", i, heights[i], expected_number);
     assert(expected_number / 2 <= heights[i] &&
            heights[i] <= expected_number * 2 ||
            expected_number < 10);
@@ -124,7 +123,7 @@ void test_prng(){
   n = (double) PRNG_OPS;
 
   mean = n * prob; // expected number of items on each bucket
-  stddev = sqrt(n * prob * (1-prob)); // stddev of number of items on each bucket
+  stddev = sqrt(n * prob * (1-prob)); // stddev of # of items on each bucket
 
   memset(buckets, 0, sizeof(int) * PRNG_NBUCKETS);
   
@@ -154,7 +153,8 @@ void test_prng(){
   mean = n * prob;
   stddev = sqrt(n * prob * (1-prob));
   for (bit = 0; bit < 64; ++bit){
-    //printf("Bitbucket %i: got %d expected %d\n", bit, bitbuckets[bit], (int) mean);
+    //printf("Bitbucket %i: got %d expected %d\n", bit, bitbuckets[bit],
+    // (int) mean);
     assert(mean - stddev * PRNG_NDEVS <= (double) bitbuckets[bit] &&
            (double) bitbuckets[bit] <= mean + stddev * PRNG_NDEVS);
   }
@@ -189,7 +189,8 @@ void test_lock(){
   void *tres;
 
   for (int i=0; i < LOCK_NTHREADS; ++i){
-    res = OSCreateThread(thr+i, lock_thread, (void*)(long long) i); assert(res==0);
+    res = OSCreateThread(thr+i, lock_thread, (void*)(long long) i);
+    assert(res==0);
   }
   for (int i=0; i < LOCK_NTHREADS; ++i){
     OSWaitThread(thr[i], &tres);
@@ -327,7 +328,8 @@ SkipList<Int,double> test3_sl;
 void printList(int full=0){
   SkipListNode<Int,double> *ptr;
   int nitems=0;
-  for (ptr = test3_sl.getFirst(); ptr != test3_sl.getLast(); ptr = test3_sl.getNext(ptr)){
+  for (ptr = test3_sl.getFirst(); ptr != test3_sl.getLast();
+       ptr = test3_sl.getNext(ptr)){
     if (!full) printf("%d[%d] ", ptr->key.val, ptr->nlevels);
     else printf("%d(%f) ", ptr->key.val, ptr->value);
     ++nitems;
@@ -359,7 +361,8 @@ void test3(){
     for (i = 0; i < TEST3_NINSERT; ++i){
       v = Int(p.next() % TEST3_RANGE);
       if (maxv.val < v.val) maxv = v;
-      if (range1.val <= v.val && v.val <= range2.val) ++inrange; // count number to be deleted
+      if (range1.val <= v.val && v.val <= range2.val)
+        ++inrange; // count number to be deleted
       test3_sl.insert(v, (double)v.val);
       //test3_sl.insert(&v, new double(v));
     }
@@ -445,7 +448,8 @@ void test4(){
     lastsl = test3_sl.getNitems();
 
     Int prevkey = Int(-99);
-    for (ptr = test3_sl.getFirst(); ptr != test3_sl.getLast(); ptr = test3_sl.getNext(ptr)){
+    for (ptr = test3_sl.getFirst(); ptr != test3_sl.getLast();
+         ptr = test3_sl.getNext(ptr)){
       assert(sl2.lookup(ptr->key,valueptr) == 0); // value is in the other table
       assert(ptr->key.val != prevkey.val); // value is unique
       prevkey = ptr->key;
@@ -637,7 +641,8 @@ int test10_PROGIncrement(TaskInfo *ti){
   TaskMsgData msgdata;
   if (ti->getState()==0){
     ti->setState((void*)1);
-    TaskEventScheduler::AddEvent(tgetThreadNo(), test10_eventhandler, (void*) 15, 1, 2000);
+    TaskEventScheduler::AddEvent(tgetThreadNo(), test10_eventhandler,
+                                 (void*) 15, 1, 2000);
   }
 
   if (ti->getMessage(msgdata) == 0){
@@ -719,7 +724,8 @@ void test10(){
   tinitScheduler(0);
   test10_threadno_inc = SLauncher->createThread("inc", test10_incThread, 0, 0);
   test10_event.wait();
-  test10_threadno_test = SLauncher->createThread("test", test10_testThread, 0, 0);
+  test10_threadno_test = SLauncher->createThread("test", test10_testThread,
+                                                 0, 0);
   SLauncher->wait();
   return;
 }
@@ -751,7 +757,8 @@ void test12(){
     item = new ListItem(i);
     l.pushTail(item);
   }
-  for (item = l.getFirst(), i=0; item != l.getLast(); item = l.getNext(item), ++i){
+  for (item = l.getFirst(), i=0; item != l.getLast();
+       item = l.getNext(item), ++i){
     assert(item->value == i);
   }
   i = 0;

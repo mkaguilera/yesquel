@@ -80,10 +80,14 @@ public:
 // It also includes the ObjectDirectory and the RPCTcp class to communicate with servers
 class StorageConfig {
 private:
-  static void pingCallback(char *data, int len, void *callbackdata); // aux function: callback for shutdown rpc
-  static void getStatusCallback(char *data, int len, void *callbackdata); // aux function: callback for getstatus rpc
-  static void shutdownCallback(char *data, int len, void *callbackdata); // aux function: callback for shutdown rpc
-  static void startsplitterServersCallback(char *data, int len, void *callbackdata);
+  // aux function: callback for shutdown rpc
+  static void pingCallback(char *data, int len, void *callbackdata);
+  // aux function: callback for getstatus rpc
+  static void getStatusCallback(char *data, int len, void *callbackdata);
+  // aux function: callback for shutdown rpc
+  static void shutdownCallback(char *data, int len, void *callbackdata);
+  static void startsplitterServersCallback(char *data, int len,
+                                           void *callbackdata);
   static void flushServersCallback(char *data, int len, void *callbackdata);
   static void loadServersCallback(char *data, int len, void *callbackdata);
 
@@ -93,22 +97,28 @@ public:
   Ptr<RPCTcp> Rpcc;
   ClientCache *CCache;
 
-  // ping and wait for response once to each server (eg, to make sure they are all up)
+  // ping and wait for response once to each server (eg, to make sure
+  // they are all up)
   void pingServers(void);
 
   void getStatusServers(void);
 
-  // the functions below invoke various RPCs on all servers to ask them to do various things
-  void shutdownServers(int level);       // shutdown servers (0=splitter only, 1=fullserver)
+  // the functions below invoke various RPCs on all servers to ask them
+  // to do various things
+  void shutdownServers(int level);  // shutdown servers (0=splitter only,
+                                    // 1=fullserver)
   void startsplitterServers(void);  // start splitter
-  void flushServers(char *filename=0); // flush storage contents to a given filename or the default filename
-  void loadServers(char *filename=0);  // load storage contents from a given filename or the default filename
+  void flushServers(char *filename=0); // flush storage contents to a given
+                                       // filename or the default filename
+  void loadServers(char *filename=0);  // load storage contents from a given
+                                        // filename or the default filename
 
-  StorageConfig(const char *configfile); // this constructor builds the RPCTcp object. Intended to be
-                                              // used at the client
+  StorageConfig(const char *configfile); // this constructor builds the RPCTcp
+         // object. Intended to be used at the client
                  
-  StorageConfig(const char *configfile, Ptr<RPCTcp> rpcc); // this constructor uses a given RPCTcp object.
-                           // Intended to be used at the server (who wishes to make RPC calls to other servers)
+  StorageConfig(const char *configfile, Ptr<RPCTcp> rpcc); // this constructor
+     // uses a given RPCTcp object. Intended to be used at the server (who
+     // wishes to make RPC calls to other servers)
   ~StorageConfig(){
     if (CS && Rpcc.isset()) CS->disconnectHosts(Rpcc); // disconnect clients
     if (Od){ delete Od; Od=0; }

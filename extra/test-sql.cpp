@@ -168,7 +168,8 @@ void test2(){
   // create TEST2_THREADS threads
   for (i = 0; i <= TEST2_THREADS; ++i){
     if (i == middle) continue; // skip middle part
-    res = OSCreateThread(&thr[i], test2_thread, (void*)(long long) i); assert(res==0);
+    res = OSCreateThread(&thr[i], test2_thread, (void*)(long long) i);
+    assert(res==0);
   }
 
   // wait for them to finish
@@ -217,7 +218,8 @@ OSTHREAD_FUNC test3_thread(void *parm){
 
   res=sqlite3_open("TEST3", &db); assert(res==0);
   for (i=0; i < TEST3_ROWS; ++i){
-    sprintf(str, "INSERT INTO t1 VALUES (%d,%d);", i*(TEST3_THREADS+1)+offset,
+    sprintf(str, "INSERT INTO t1 VALUES (%d,%d);",
+            i*(TEST3_THREADS+1)+offset,
             i*(TEST3_THREADS+1)+offset);
     res=sqlite3_prepare(db, str, -1, &stmt, 0); assert(res==0);
     do {
@@ -263,7 +265,8 @@ void test3(){
 
   // create THREADS threads
   for (i=0; i < TEST3_THREADS; ++i){
-    res = OSCreateThread(&thr[i], test3_thread, (void*) (long long)(i+1)); assert(res==0);
+    res = OSCreateThread(&thr[i], test3_thread, (void*) (long long)(i+1));
+    assert(res==0);
   }
 
   // wait for threads to finish
@@ -294,8 +297,10 @@ void test3(){
 }
 
 // test4: basic test for JOIN
-#define TEST4_NROWS 2000 // number of rows in first table
-#define TEST4_NJOINS  4  // number of joined rows in second table per row of first table
+// number of rows in first table
+#define TEST4_NROWS 2000
+// number of joined rows in second table per row of first table
+#define TEST4_NJOINS  4
 
 // common function for test4 and test5
 void test4and5_common(char *dbname, bool indexfirst){
@@ -605,7 +610,9 @@ OSTHREAD_FUNC test8_thread(void *parm){
 
     tomove = prng.next() % TEST8_INITIAL - TEST8_INITIAL/2;
 
-    sprintf(str, "UPDATE t1 SET balance = balance + (%d) WHERE accttype='CHECKING';", tomove);
+    sprintf(str,
+            "UPDATE t1 SET balance = balance + (%d) WHERE accttype='CHECKING';",
+            tomove);
     res=sqlite3_prepare(db, str, -1, &stmt, 0); assert(res==0);
     do {
       res=sqlite3_step(stmt);
@@ -613,7 +620,9 @@ OSTHREAD_FUNC test8_thread(void *parm){
     assert(res==SQLITE_DONE);
     sqlite3_finalize(stmt);
 
-    sprintf(str, "UPDATE t1 SET balance = balance - (%d) WHERE accttype='SAVINGS';", tomove);
+    sprintf(str,
+            "UPDATE t1 SET balance = balance - (%d) WHERE accttype='SAVINGS';",
+            tomove);
     res=sqlite3_prepare(db, str, -1, &stmt, 0); assert(res==0);
     do {
       res=sqlite3_step(stmt);
@@ -644,7 +653,8 @@ void test8(){
 
   res=sqlite3_open("TEST8", &db); assert(res==0);
 
-  const char *s1 = "CREATE TABLE t1 (accttype VARCHAR(10) PRIMARY KEY, balance INTEGER);";
+  const char *s1 =
+    "CREATE TABLE t1 (accttype VARCHAR(10) PRIMARY KEY, balance INTEGER);";
   res=sqlite3_prepare(db, s1, -1, &stmt, 0);
   if (res){
     printf("  Error creating table (table already exists?)\n");
@@ -673,7 +683,8 @@ void test8(){
   
   // create THREADS threads
   for (i=0; i < TEST8_THREADS; ++i){
-    res = OSCreateThread(&thr[i], test8_thread, (void*) (long long)i); assert(res==0);
+    res = OSCreateThread(&thr[i], test8_thread, (void*) (long long)i);
+    assert(res==0);
   }
 
   // wait for threads to finish
@@ -706,8 +717,6 @@ void test8(){
   res=sqlite3_close(db); assert(res==0);
 }
 
-
-
 int main(){
   printf("Test1\n");
   test1();
@@ -716,7 +725,7 @@ int main(){
   printf("Test3\n");
   test3();
   printf("Test4\n");
-  test4();  
+  test4();
   printf("Test5\n");
   test5();
   printf("Test6\n");

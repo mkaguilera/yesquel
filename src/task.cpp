@@ -161,7 +161,8 @@ TaskInfo::~TaskInfo(){
 }
 
 void TaskInfo::addMessage(TaskMsgData &msg){
-  if (!MessageValid){ // if there is space for message in single slot, add it there
+  if (!MessageValid){
+    // if there is space for message in single slot, add it there
     MessageValid = true;
     memcpy((void*)&Message, (void*)&msg, sizeof(TaskMsgData));
   } else { // otherwise, put in linked list
@@ -238,7 +239,8 @@ void TaskScheduler::assignImmediateFunc(int n, ImmediateFunc func){
 //  TaskMsgEntry *tme, *nexttme;
 //  ChannelManager *cm = getCManager();
 //  int res;
-//  for (tme = OverflowQueue.getFirst(); tme != OverflowQueue.getLast(); tme = nexttme){
+//  for (tme = OverflowQueue.getFirst(); tme != OverflowQueue.getLast();
+//        tme = nexttme){
 //    nexttme = OverflowQueue.getNext(tme);
 //    res = cm->sendMessage(tme->msg);
 //    if (res==0){ // successfully sent, so remove from OverflowQueue
@@ -349,8 +351,8 @@ int TaskScheduler::hasIncomingMessages(){
   return 0;
 }
 
-// wake up thread by writing to SleepEventFd. This will presumably be called by another thread
-// to wake up the scheduler loop of the current thread
+// wake up thread by writing to SleepEventFd. This will presumably be called by
+// another thread to wake up the scheduler loop of the current thread
 void TaskScheduler::wake(){
   if (Asleep){
     Asleep = 0;
@@ -374,9 +376,9 @@ int TaskScheduler::processIncomingMessages(){
     ch = CManager->getChannel(threadno, srcthread);
     if (!ch) continue;
 
-    // first, dequeue all incoming messages. We do this first to avoid starving ourselves
-    // (if we dequeued and processed each message individually, messages may keep arriving
-    // so that we never finish)
+    // first, dequeue all incoming messages. We do this first to avoid starving
+    // ourselves (if we dequeued and processed each message individually,
+    // messages may keep arriving so that we never finish)
     nmsgs = 0;
     while (1){
       res = ch->dequeue(MessageBuf[nmsgs]);
@@ -394,7 +396,8 @@ int TaskScheduler::processIncomingMessages(){
         assert(msg->flags & TMFLAG_FIXDEST);
         itf = getImmediateFunc(TASKID_TASKNO(msg->dest));
         if (!itf){
-          printf("Immediate function %d is not registered\n", TASKID_TASKNO(msg->dest));
+          printf("Immediate function %d is not registered\n",
+                 TASKID_TASKNO(msg->dest));
           assert(0);
           exit(1);
         }
@@ -402,13 +405,14 @@ int TaskScheduler::processIncomingMessages(){
         continue;
       }
 
-      if (msg->flags & TMFLAG_FIXDEST) ti = getFixedTask(TASKID_TASKNO(msg->dest));
+      if (msg->flags & TMFLAG_FIXDEST)
+        ti = getFixedTask(TASKID_TASKNO(msg->dest));
       else ti = msg->dest;
       if (!ti) continue;
       assert(ti->CurrSchedulerTaskState != SchedulerTaskStateEnding);
       if (msg->flags & TMFLAG_SCHED){
-        // currently, the only message to be processed by scheduler is to wake up task,
-        // done below
+        // currently, the only message to be processed by scheduler
+        // is to wake up task, done below
       } else {
         // message intended to task
         ti->addMessage(msg->data);
@@ -445,7 +449,8 @@ int TaskScheduler::runOnce(){
       taskwakeup = ti->getWakeUpTime();
       if (taskwakeup <= now){
         wakeUpTask(ti);
-      } else if (taskwakeup < nextearliest) nextearliest = taskwakeup; // remember the next earliest one
+      } else if (taskwakeup < nextearliest)
+        nextearliest = taskwakeup; // remember the next earliest one
       ti = nextti;
     }
     TimeOfNextTimedWaiting = nextearliest;
@@ -459,7 +464,8 @@ int TaskScheduler::runOnce(){
     ++nrunning;
     //do {
       tstate = ti->Func(ti); // invoke function
-    //} while (tstate == SchedulerTaskStateRunning); // invoke function while it returns running
+    //} while (tstate == SchedulerTaskStateRunning); // invoke function while
+                                                    // it returns running
     assert(tstate != SchedulerTaskStateNew);
 
     if (tstate == SchedulerTaskStateWaiting && ti->hasMessage())
@@ -496,7 +502,8 @@ int TaskScheduler::runOnce(){
     }
   //}
 
-  // **!* maybe here call scheduler. Or do it once every 100 interations of the loop.
+  // TODO: maybe here call scheduler. Or do it once every 100 interations of
+  // the loop.
   return something;
 }
 
@@ -530,10 +537,12 @@ void TaskScheduler::run(){
 int TaskScheduler::findSleepTimeout(){
   u64 now;
   int res = -1; // by default, can sleep forever
-  if (hasIncomingMessages()) return 0; // no sleeping since there are incoming messages
+  if (hasIncomingMessages()) return 0; // no sleeping since there are
+                                        // incoming messages
 
-  if (RunningTasks.getFirst() != RunningTasks.getLast()) return 0; // no sleeping since there are ready tasks
-  if (NewTasks.getFirst() != NewTasks.getLast()) return 0; // there are new tasks
+  if (RunningTasks.getFirst() != RunningTasks.getLast()) return 0; // no
+                                        // sleeping since there are ready tasks
+  if (NewTasks.getFirst() != NewTasks.getLast()) return 0; //there are new tasks
   
   // check for timed waiting tasks
   if (TimeOfNextTimedWaiting != ULLONG_MAX){
@@ -568,10 +577,12 @@ void TaskScheduler::sleep(){
 
 
 // Creates channels and launch the various schedulers.
-//   - nthreads indicates the number of schedulers to create. There will be squared number of channels.
-//   - createthread, if set, is a boolean vector indicating which schedulers should be launched.
-//     Launching means creating a thread and invoking the scheduler's run method.
-//     If createthread is 0, then all schedulers are launched
+//  - nthreads indicates the number of schedulers to create. There will be
+//    squared number of channels.
+//  - createthread, if set, is a boolean vector indicating which schedulers
+//    should be launched.
+//    Launching means creating a thread and invoking the scheduler's run method.
+//    If createthread is 0, then all schedulers are launched
 SchedulerLauncher::SchedulerLauncher(int maxthreads)
   : CManager(maxthreads)
 {
@@ -606,7 +617,8 @@ struct CreateThreadData {
   ~CreateThreadData(){ if (threadname) delete [] threadname; }
 };
 
-void SchedulerLauncher::initThreadContext(const char *threadname, int threadno, bool pinthread){
+void SchedulerLauncher::initThreadContext(const char *threadname, int threadno,
+                                          bool pinthread){
   TaskScheduler *ts;
   TaskInfo *ti;
 
@@ -628,7 +640,8 @@ void SchedulerLauncher::initThreadContext(const char *threadname, int threadno, 
     int processor;
     processor = taskGetCore(threadname);
     if (processor<0)
-      printf("Warning: cannot pin thread %s to processor because of too few processors. Performance will suffer\n", threadname);
+      printf("Warning: cannot pin thread %s to processor because of too "
+             "few processors. Performance will suffer\n", threadname);
     else {
       dprintf(1, "Pinning thread %s to processor %d", threadname, processor);
       pinThread(processor); // pin current thread to processor
@@ -638,14 +651,16 @@ void SchedulerLauncher::initThreadContext(const char *threadname, int threadno, 
   // assign immediate tasks and tasks
   ts->assignImmediateFunc(IMMEDIATEFUNC_NOP, ImmediateFuncNop);
   ts->assignImmediateFunc(IMMEDIATEFUNC_EXIT, ImmediateFuncExit);
-  ts->assignImmediateFunc(IMMEDIATEFUNC_EVENTSCHEDULER_ADD, TaskEventScheduler::ImmediateFuncEventSchedulerAdd);
+  ts->assignImmediateFunc(IMMEDIATEFUNC_EVENTSCHEDULER_ADD,
+                          TaskEventScheduler::ImmediateFuncEventSchedulerAdd);
 
   // create event scheduler task
   ti = ts->createTask(TaskEventScheduler::PROGEventScheduler, 0);
   ts->assignFixedTask(FIXEDTASK_EVENTSCHEDULER, ti);
 
   // create threadcontext space for eventscheduler task
-  ThreadSharedEventScheduler *tses = (ThreadSharedEventScheduler*) tgetSharedSpace(THREADCONTEXT_SPACE_EVENTSCHEDULER);
+  ThreadSharedEventScheduler *tses = (ThreadSharedEventScheduler*)
+    tgetSharedSpace(THREADCONTEXT_SPACE_EVENTSCHEDULER);
   assert(!tses);
   tses = new ThreadSharedEventScheduler;
   tses->EventSchedulerTask = ti;
@@ -654,7 +669,8 @@ void SchedulerLauncher::initThreadContext(const char *threadname, int threadno, 
   ProtectAll.unlock();
 }
 
-int SchedulerLauncher::initThreadContext(const char *threadname, bool pinthread){
+int SchedulerLauncher::initThreadContext(const char *threadname,
+                                         bool pinthread){
   if (threadContext) return threadContext->getThreadNo(); // already initialized
   ProtectAll.lock();
   if (NextThread >= Maxthreads){
@@ -683,13 +699,14 @@ OSTHREAD_FUNC SchedulerLauncher::createThreadAux(void *parm){
   return startroutine(threaddata);
 }
 
-int SchedulerLauncher::createThread(const char *threadname, OSTHREAD_FUNC_PTR startroutine, void *threaddata, bool pinthread){
+int SchedulerLauncher::createThread(const char *threadname,
+                                    OSTHREAD_FUNC_PTR startroutine, void *threaddata, bool pinthread){
   int res;
   ProtectAll.lock();
   if (NextThread >= Maxthreads){
     ProtectAll.unlock();
     assert(0);
-    printf("Creating too many threads beyond Maxthreads. Increase Maxthread.\n");
+    printf("Creating too many threads. Increase Maxthread.\n");
     exit(1);
   }
   int threadno = NextThread++;
@@ -739,11 +756,12 @@ void tinitScheduler(int initthread){
   if (!SLauncher){
     SLauncher = new SchedulerLauncher(TASKSCHEDULER_MAX_THREADS);
     if (initthread != -1)
-      SLauncher->initThreadContext("(tinitScheduler)", initthread == 0 ? false : true);
+      SLauncher->initThreadContext("(tinitScheduler)",
+                                   initthread == 0 ? false : true);
   }
 }
 
-//----------------------------------- thread context -------------------------------------------
+//---------------------------- thread context --------------------------------
 Tlocal ThreadContext *threadContext;
 
 ThreadContext::ThreadContext(const char *name, int threadno)
@@ -799,18 +817,20 @@ void GlobalContext::setThread(int tclass, int k, int threadno){
   Threads[tclass][k] = threadno;
 }
 
-// ---------------------------------- event scheduler ------------------------------------
+// ---------------------------- event scheduler -------------------------------
 
 bool operator < (const TEvent& x, const TEvent& y){
   return x.when > y.when;
 }
 
-void TaskEventScheduler::ImmediateFuncEventSchedulerAdd(TaskMsgData &msgdata, TaskScheduler *ts, int srcthread){
+void TaskEventScheduler::ImmediateFuncEventSchedulerAdd(TaskMsgData &msgdata,
+                                           TaskScheduler *ts, int srcthread){
   TEvent e;
   TaskMsgDataAddEvent *ed;
   TaskMsgDataAddEvent *tmdae = (TaskMsgDataAddEvent*) &msgdata;
   // extract shared space entry
-  ThreadSharedEventScheduler *tses = (ThreadSharedEventScheduler*) tgetSharedSpace(THREADCONTEXT_SPACE_EVENTSCHEDULER);
+  ThreadSharedEventScheduler *tses = (ThreadSharedEventScheduler*)
+    tgetSharedSpace(THREADCONTEXT_SPACE_EVENTSCHEDULER);
   assert(tses);
 
   assert(tmdae->type >= 0 && tmdae->type <= 1);
@@ -823,7 +843,8 @@ void TaskEventScheduler::ImmediateFuncEventSchedulerAdd(TaskMsgData &msgdata, Ta
 
   tses->TEvents.push(e);
   if (tses->TEvents.top().when == e.when){
-    if (tses->EventSchedulerTask->getSchedulerTaskState() == SchedulerTaskStateTimedWaiting)
+    if (tses->EventSchedulerTask->getSchedulerTaskState() ==
+        SchedulerTaskStateTimedWaiting)
       ts->setTaskState(tses->EventSchedulerTask, SchedulerTaskStateRunning);
     // if this event is at the top (smallest when time), wake up 
     // thread otherwise it will sleep until the next event
@@ -837,13 +858,15 @@ int TaskEventScheduler::PROGEventScheduler(TaskInfo *ti){
   int handlerres;
 
   // extract shared space entry
-  ThreadSharedEventScheduler *tses = (ThreadSharedEventScheduler*) tgetSharedSpace(THREADCONTEXT_SPACE_EVENTSCHEDULER);
+  ThreadSharedEventScheduler *tses = (ThreadSharedEventScheduler*)
+    tgetSharedSpace(THREADCONTEXT_SPACE_EVENTSCHEDULER);
   assert(tses);
 
   u64 now = Time::now();
 
   // invoke all expired events, removing them from queue
-  while (!tses->TEvents.empty() && (copyTopEvent = tses->TEvents.top()).when <= now){
+  while (!tses->TEvents.empty() && (copyTopEvent = tses->TEvents.top()).when
+         <= now){
     do {
       ed = copyTopEvent.ed;
       tses->TEvents.pop();
@@ -854,7 +877,8 @@ int TaskEventScheduler::PROGEventScheduler(TaskInfo *ti){
         copyTopEvent.when = Time::now() + ed->msFromNow;
         tses->TEvents.push(copyTopEvent); // put back event with new time
       } else delete ed; // free space taken by event data
-    } while (!tses->TEvents.empty() && (copyTopEvent = tses->TEvents.top()).when <= now);
+    } while (!tses->TEvents.empty() &&
+             (copyTopEvent = tses->TEvents.top()).when <= now);
 
     now = Time::now();
   }
@@ -866,7 +890,8 @@ int TaskEventScheduler::PROGEventScheduler(TaskInfo *ti){
   return SchedulerTaskStateTimedWaiting;
 }
 
-void TaskEventScheduler::AddEvent(int threadno, TEventHandler handler, void *data, int type, int msFromNow){
+void TaskEventScheduler::AddEvent(int threadno, TEventHandler handler,
+                                  void *data, int type, int msFromNow){
   TaskMsg msg;
   TaskMsgDataAddEvent *tmdae;
   assert(sizeof(TaskMsgDataAddEvent) <= sizeof(TaskMsgData));
@@ -885,4 +910,6 @@ void TaskEventScheduler::AddEvent(int threadno, TEventHandler handler, void *dat
 }
 
 
-TaskScheduler *tgetThreadTaskScheduler(int threadno){ return SLauncher->getTaskScheduler(threadno); }
+TaskScheduler *tgetThreadTaskScheduler(int threadno){
+  return SLauncher->getTaskScheduler(threadno);
+}

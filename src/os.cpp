@@ -44,7 +44,8 @@
 
 #include "os.h"
 
-int OSCreateThread(OSThread_t *thread, OSThread_return_t (*func)(void*), void *arg){
+int OSCreateThread(OSThread_t *thread, OSThread_return_t (*func)(void*),
+                   void *arg){
   return pthread_create(thread, 0, func, arg);
 }
 
@@ -59,16 +60,19 @@ int getNProcessors(){
 }
 
 // pins a thread to a processor
-// returns 0 if ok, -1 if could not set affinity to processor, -2 if affinity set to processor and others
+// returns 0 if ok, -1 if could not set affinity to processor, -2 if
+// affinity set to processor and others
 int pinThread(int processor){ 
   cpu_set_t cs1, cs2;
   int res;
   CPU_ZERO(&cs1);
   CPU_SET(processor, &cs1);
   // set the affinity
-  res = pthread_setaffinity_np(pthread_self(), sizeof(cs1), &cs1); assert(res==0);
+  res = pthread_setaffinity_np(pthread_self(), sizeof(cs1), &cs1);
+  assert(res==0);
   // check the affinity
-  res = pthread_getaffinity_np(pthread_self(), sizeof(cs2), &cs2); assert(res==0);
+  res = pthread_getaffinity_np(pthread_self(), sizeof(cs2), &cs2);
+  assert(res==0);
   if (!CPU_ISSET(processor, &cs2)) return -1;
   if (memcmp(&cs1, &cs2, sizeof(cs1)) != 0) return -2;
   return 0;

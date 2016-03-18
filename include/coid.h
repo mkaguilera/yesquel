@@ -85,7 +85,8 @@
 
 #define EPHEMDB_CID_BIT    0x80000000  // bit in dbid indicating ephemeral db
 #define DTREE_CID_BIT  0x0000000080000000LL // bit in cid indicating tree node
-#define DATA_CID(cid) (cid & ~DTREE_CID_BIT) // data cid associated with tree cid
+#define DATA_CID(cid) (cid & ~DTREE_CID_BIT) // data cid associated with
+                                              //tree cid
 
 
 // Check to see if table with given cid had been created before.
@@ -106,10 +107,12 @@ void setRandomServerid(u64 *oid); // change oid to have a random serverid
 void setOid(u64 *oid, u64 issuerid, u64 counter, u64 serverid); // constructs
   // oid from its components
 inline u64 getDbid(u64 cid){ return cid >> 32; } // return dbid of given cid
-inline u64 getiTable(u64 cid){ return cid & 0x7fffffffULL;} // return table id of given cid
+inline u64 getiTable(u64 cid){ return cid & 0x7fffffffULL;} // return table id
+                                                          // of given cid
 void NewIssuerId(bool remote); // sets MyIssuerId to a new issuerid
 Oid NewOid(bool remote); // gets a new oid with serverid set to 0
-u64 nameToDbid(const char *dbname, bool ephemeral); // returns dbid associated with a name
+u64 nameToDbid(const char *dbname, bool ephemeral); // returns dbid associated
+                                                    // with a name
 void markusedDBId(u64 dbid); // marks dbid as used
 u64 newMemDBId(bool ephemeral); // returns a new memory dbid
 void freeMemDBId(u64 dbid); // frees a memory dbid

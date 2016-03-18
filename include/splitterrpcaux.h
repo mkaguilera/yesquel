@@ -46,9 +46,12 @@
 // RPC to split a node
 
 struct SplitnodeRPCParm {
-  int getstatusonly; // 0=perform split, 1=do not split anything, just return splitter status
-  COid coid;         // coid to split. This parameter is meaningful only if getstatusonly==0.
-  int  wait;         // 0=return immediately, 1=wait for split to finish before returning
+  int getstatusonly; // 0=perform split, 1=do not split anything,
+                     // just return splitter status
+  COid coid;         // coid to split. This parameter is meaningful only if
+                     // getstatusonly==0.
+  int  wait;         // 0=return immediately, 1=wait for split to finish
+                     // before returning
                      //  This parameter is meaningful only if getstatusonly==0
 };
 
@@ -70,11 +73,13 @@ public:
 };
 
 struct SplitterLoadStatus {
-  SplitterLoadStatus(){ splitQueueSize=0; splitTimeAvg = splitTimeStddev = 0.0; splitTimeRetryingMs=0; }
+  SplitterLoadStatus(){ splitQueueSize=0; splitTimeAvg = splitTimeStddev = 0.0;
+                        splitTimeRetryingMs=0; }
   int splitQueueSize;      // how many elements are queued to be split
   double splitTimeAvg;     // average time to split
   double splitTimeStddev;  // standard deviation time to split
-  u64 splitTimeRetryingMs; // how many ms we have been retrying current split (0 if current split is done)
+  u64 splitTimeRetryingMs; // how many ms we have been retrying current split
+                           // (0 if current split is done)
 };
 
 struct SplitnodeRPCResp {
@@ -99,7 +104,7 @@ public:
   void demarshall(char *buf){ data = (SplitnodeRPCResp*) buf; }
 };
 
-// ---------------------------------- GETROWID RPC ----------------------------------
+// ------------------------------- GETROWID RPC --------------------------------
 // RPC to get a fresh rowid
 
 struct GetRowidRPCParm {

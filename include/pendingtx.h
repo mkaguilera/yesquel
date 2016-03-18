@@ -54,17 +54,48 @@
 using namespace std;
 
 class SingleLogEntryInMemory;
+class TxWriteSVItem;
+class TxUpdateCoid;
+
+
+struct TxListItem {
+  COid coid;
+  i16 type;  // 0=ListAdd, 1=ListDelRange, 2=TxWriteItem, 3=TxWriteSVItem,
+             // 4=SetAttr, 5=TxReadItem
+  i16 level;
+  i16 where; // where item is **!**
+  TxListItem *next, *prev; // so items can be included in LinkList<>
+
+  TxListItem() : type(-1), level(-1), where(-1) {
+  }
+  TxListItem(const COid &coidinit, int typ, int l)
+    : coid(coidinit),
+      type(typ),
+      level(l),
+      where(-1)
+  {
+  }
+  virtual ~TxListItem();
+  void printShort(COid expectedcoid);
+  // Apply an item to a TxWriteSVItem. cancapture indicates whether item
+  // can be captured by this function (meaning the function will own it).
+  // Returns true if item was captured and so it should not be deleted
+  // afterwards, false otherwise. Always returns false if cancapture==false
+  bool applyItemToTucoid(Ptr<TxUpdateCoid> tucoid, bool cancapture);
+};
 
 // information about a single write of a value
-class TxWriteItem {
-public:
-  COid coid;
+struct TxWriteItem : public TxListItem {
   int len;
   char *buf;        // pointer to buffer with data
-  char *rpcrequest; // pointer to rpc request buffer; here so that it can be freed afterwards if alloctype=0
-  int alloctype;    // way request buffer was allocated (so it can be freed properly later).
+  char *rpcrequest; // pointer to rpc request buffer; here so that it can be
+                    //   freed afterwards if alloctype=0
+  int alloctype;    // way request buffer was allocated (so it can be freed
+                    //   properly later).
                     // 0=via UDP layer, 1=via malloc
-  TxWriteItem(){ buf = rpcrequest = 0; }
+  TxWriteItem(const COid &coidinit, int l) : TxListItem(coidinit, 2, l)
+  { buf = rpcrequest = 0; }
+  TxWriteItem(const TxWriteItem &r);
   ~TxWriteItem(){
     switch(alloctype){
     case 0:
@@ -77,17 +108,18 @@ public:
     default: assert(0);
     }
   }
+  void printShort(COid coidtomatch);
+  bool applyItemToTucoid(Ptr<TxUpdateCoid> tucoid, bool cancapture);
 };
 
 // information about a single write of a supervalue
-class TxWriteSVItem {
-            // anything from here to attrs (exclusive) gets saved to file literally by DiskStorage::writeCOidToFile
-            // careful putting things here. A previous bug had temporary buffers here, which got saved
-            // to disk and later got reloaded with random stuff, which overwrote the zero values
-            // they were supposed to have. The destructor later tried to free those random buffers,
-            // corrupting memory
-public:
-  COid coid;
+struct TxWriteSVItem : public TxListItem {
+    // Warning: anything from nattrs to attrs (exclusive) gets saved to
+    // a file literally by DiskStorage::writeCOidToFile, so careful putting
+    // things here. A previous bug had temporary buffers here, which got saved
+    // to disk and later got reloaded with random stuff, which overwrote the
+    // zero values they were supposed to have. The destructor later tried to
+    // free those random buffers, corrupting memory
   u16 nattrs;      // number of 64-bit attribute values
   u8  celltype;    // type of cells: 0=int, 1=nKey+pKey
                    // -------- end of fixed part -----------
@@ -96,152 +128,205 @@ public:
 
   u64 *attrs;      // value of attributes
   SkipListBK<ListCellPlus,int> cells; // parsed cells
-                                  // note: the value in this skiplist is not used
-  GKeyInfo *pki;   // all cells in above skiplist will point to this pki.
-                   // If non-null, it is freed with free() in the destructor.
-                   // This pki is initially empty, but we learn it later when we
-                   // compare against a given ListCellPlus that comes in a ListAdd or
-                   // ListDelRange RPC.
-                   // The reason we do it this way is because sqlite does not include
-                   // the KeyInfoPtr in the pnkey; it is supplied externally whenever
-                   // it needs to compare cells. So, we must also supply it externally
-                   // later.
-                   // This field is the mechanism to do it: all cells have a pointer to
-                   // this field, and we set this field later. Once we set it (function
-                   // SetPkiSticky(), it remains with the value. That method will clone
-                   // the KeyInfo (and so the object will own it) and will not change it
-                   // again in subsequent calls).
+                            // note: the value in this skiplist is not used
+  GKeyInfo *pki;
+    // all cells in above skiplist will point to this pki.
+    // If non-null, it is freed with free() in the destructor.
+    // This pki is initially empty, but we learn it later when we
+    // compare against a given ListCellPlus that comes in a ListAdd or
+    // ListDelRange RPC.
+    // The reason we do it this way is because sqlite does not include
+    // the KeyInfoPtr in the pnkey; it is supplied externally whenever
+    // it needs to compare cells. So, we must also supply it externally
+    // later.
+    // This field is the mechanism to do it: all cells have a pointer to
+    // this field, and we set this field later. Once we set it (function
+    // SetPkiSticky(), it remains with the value. That method will clone
+    // the KeyInfo (and so the object will own it) and will not change it
+    // again in subsequent calls).
 
-  TxWriteSVItem(){ nattrs = 0; attrs = 0; pki = 0; ncelloids = lencelloids = 0; celloids = 0; }
+  TxWriteSVItem(const COid &coidinit, int l) : TxListItem(coidinit, 3, l) {
+    nattrs = 0; attrs = 0; pki = 0; ncelloids = lencelloids = 0;
+    celloids = 0; }
   TxWriteSVItem(const TxWriteSVItem &r);
   ~TxWriteSVItem();
+  void clear(bool reset); // clears object and optionally reset to empty state
   TxWriteSVItem &operator=(const TxWriteSVItem &r){ assert(0); return *this; }
 
-  void SetPkiSticky(GKeyInfo *k);
+  void setPkiSticky(GKeyInfo *k);
 
-  char *GetCelloids(int &retncelloids, int &retlencelloids);
+  char *getCelloids(int &retncelloids, int &retlencelloids);
 
-  // converts from a single interval type for both start and end of the interval to
-  // two interval types, one for the start and one for the end
+  // converts from a single interval type for both start and end of the
+  // interval to two interval types, one for the start and one for the end
   static void convertOneIntervalTypeToTwoIntervalType(int intervaltype1, int &intervaltype2start, int &intervaltype2end);
 
   void printShort(COid coidtomatch);
+  bool applyItemToTucoid(Ptr<TxUpdateCoid> tucoid, bool cancapture);
 
 private:
-  // Cached celloid information. This is populated by PopulateCelloids(), and it should be
-  // called only after the TxWriteSVItem has become immutable.
+  // Cached celloid information. This is populated by PopulateCelloids(), and
+  // it should be called only after the TxWriteSVItem has become immutable.
   int ncelloids;
   int lencelloids;
   char *celloids;
 };
 
-class TxListItem {
-  COid coid;
-public:
-  TxListItem(const COid &coidinit) : coid(coidinit) {}
-  int type;  // 0=ListAdd, 1=ListDelRange
-  virtual ~TxListItem();
-  void printShort(COid expectedcoid);
-};
 
 // information about a list add item
-class TxListAddItem : public TxListItem {
-private:
-public:
+struct TxListAddItem : public TxListItem {
   ListCellPlus item;
-  TxListAddItem(const COid &coidinit, GKeyInfo *ki, const ListCell &c) :
-    TxListItem(coidinit),
+  GKeyInfo *pki;
+  
+  TxListAddItem(const COid &coidinit, GKeyInfo *ki, const ListCell &c, int l) :
+    TxListItem(coidinit, 0, l),
     item(c, ki) // copy cell content
-  { 
-    type = 0;
+  {
+    pki = CloneGKeyInfo(ki);
   }
-
+  TxListAddItem(const TxListAddItem &r);
   ~TxListAddItem();
+  void printShort(COid coidtomatch);
+  bool applyItemToTucoid(Ptr<TxUpdateCoid> tucoid, bool cancapture);
 };
 
 // information about a list del range item
-class TxListDelRangeItem : public TxListItem {
-private:
-public:
+struct TxListDelRangeItem : public TxListItem {
   u8 intervalType;
   ListCellPlus itemstart; // first item in interval to delete
   ListCellPlus itemend;   // list item in interval to delete
-  TxListDelRangeItem(const COid &coidinit, GKeyInfo *ki, u8 it, const ListCell &is, const ListCell &ie) :
-    TxListItem(coidinit),
+  GKeyInfo *pki;
+  TxListDelRangeItem(const COid &coidinit, GKeyInfo *ki, u8 it,
+                     const ListCell &is, const ListCell &ie, int l) :
+    TxListItem(coidinit, 1, l),
     intervalType(it),
     itemstart(is, ki),
     itemend(ie, ki)
   {
-    type = 1;
+    pki = CloneGKeyInfo(ki);
   }
+  TxListDelRangeItem(const TxListDelRangeItem &r);
+  
   ~TxListDelRangeItem();
+  void printShort(COid coidtomatch);
+  bool applyItemToTucoid(Ptr<TxUpdateCoid> tucoid, bool cancapture);
+};
+
+// information about a setattr item
+struct TxSetAttrItem : public TxListItem {
+  u32 attrid;
+  u64 attrvalue;
+  TxSetAttrItem(const COid &coidinit, u32 aid, u64 av, int l) :
+    TxListItem(coidinit, 4, l)
+  { attrid = aid; attrvalue = av; }
+  void printShort(COid coidtomatch);
+  bool applyItemToTucoid(Ptr<TxUpdateCoid> tucoid, bool cancapture);
+};
+
+// information about a transaction read item
+struct TxReadItem : public TxListItem {
+  TxReadItem(const COid &coidinit, int l) :
+    TxListItem(coidinit, 5, l)
+  { }
+  void printShort(COid coidtomatch);
+  bool applyItemToTucoid(Ptr<TxUpdateCoid> tucoid, bool cancapture);
+};
+
+// Uncompressed information about operations of a single coid in pending
+// transaction.
+class TxRawCoid {
+private:
+  Ptr<TxUpdateCoid> cachedTucoid; // cached tucoid from getTucoid
+  LinkList<TxListItem> items;
+  int refcount;
+  friend class Ptr<TxRawCoid>;
+public:
+  TxRawCoid(){ refcount = 0; }
+  ~TxRawCoid(){ items.clear(true);  }
+  int abortLevel(int level); // remove any items with > level. Returns non-0
+                             // if items became empty, 0 otherwise
+  void releaseLevel(int level); // change any items with > level to level
+  // add item to list. The item will be owned.
+  void add(TxListItem *toadd){ toadd->where = 1; items.pushTail(toadd); }
+  void remove(TxListItem *todel){ todel->where = -2; items.remove(todel); }
+
+  TxListItem *getFirst(){ return items.getFirst(); }
+  TxListItem *getNext(TxListItem *tli){ return items.getNext(tli); }
+  TxListItem *getLast(){ return items.getLast(); }
+  
+  // Change TxRawCoid to TxUpdateCoid. Returns result and cache it
+  // internally for later use. This function will modify TxRawCoid,
+  // by moving some of its elements to the tucoid.
+  // This function should be called only when transaction has no further
+  // updates (e.g., when it is preparing to commit).
+  Ptr<TxUpdateCoid> getTucoid(const COid &coid);
 };
 
 
-struct TxReadItem {
-  COid coid;
-};
-
-// Information about updates of a single coid in pending transaction.
+// Compressed information about updates of a single coid in pending
+// transaction.
 //
-// A TxInfoCoid object (or ticoid, in short) expresses all the updates done on a
-// single coid by a transaction. Those updates might consist of overwriting the
-// entire coid (in which case Writevalue or WriteSV get set), setting individual
-// attributes (in which case SetAttrs and Attrs get set), adding or removing items/cells
-// (in which case Litems get set).
+// A TxUpdateCoid object (or tucoid, in short) expresses all the updates done
+// on a single coid by a transaction. Those updates might consist of
+// overwriting the entire coid (in which case Writevalue or WriteSV get set),
+// setting individual attributes (in which case SetAttrs and Attrs get set),
+// adding or removing items/cells (in which case Litems get set).
 //
-// We combine several ticoids of different coids into PendingTxInfo, which
+// We combine several tucoids of different coids into PendingTxInfo, which
 // records all updates done by the transaction.
 
-class TxInfoCoid {
-  friend class Ptr<TxInfoCoid>;
+class TxUpdateCoid {
+  friend class Ptr<TxUpdateCoid>;
 private:
-  void CommonConstructor();
+  void commonConstructor();
   SkipListBK<ListCellPlus,int> SLAddItems;  // to be used in hasConflicts
                                             // will be precomputed once and then used later
                                             // note: (1) the value in this skiplist is not used
                                             // note: (2) the ListCellPlus* items added do not belong to SLAddItems
   bool SLpopulated;
-  void PopulateSLAddItems();
+  void populateSLAddItems();
   Align4 int refcount;         // for Ptr<> smart pointers
 
 public:
-  TxInfoCoid();
-  TxInfoCoid(TxWriteItem *twi);
-  TxInfoCoid(TxWriteSVItem *twsvi);
-  ~TxInfoCoid();
+  TxUpdateCoid();
+  TxUpdateCoid(TxWriteItem *twi);
+  TxUpdateCoid(TxWriteSVItem *twsvi);
+  ~TxUpdateCoid();
 
   // clear all the updates (called when there is an overwrite).
   // If justfree is true, then just free entries (do not zero them out)
-  void ClearUpdates(bool justfree=false);
+  void clearUpdates(bool justfree=false);
 
   u8 SetAttrs[GAIA_MAX_ATTRS];// which attributes have been set. 
   u64 Attrs[GAIA_MAX_ATTRS];  // to what values they have been set. These Attr changes are on top
                               // of any writes that have occurred
   TxWriteItem *Writevalue;    // if there has been a write, the latest one
-  TxWriteSVItem *WriteSV;     // if there has been a write of a supervalue, the latest one
-  list<TxListItem*> Litems;   // list item operations, on top of any writes that have occurred
+  TxWriteSVItem *WriteSV;     // if there has been a write of a supervalue,
+                              //      the latest one
+  LinkList<TxListItem> Litems;// list item operations (only listadd and
+                              // listdelrange), on top of any writes
 
-  SingleLogEntryInMemory *pendingentriesSleim; // if item is in pendingupdates log, a pointer to
-                                 // the first entry there.
-                                 // This is set in the PREPARERPC and used in COMMITRPC to
-                                 // to able to quickly find the entry in the pendingupdates log without
-                                 // having to scan the log. The item pointed to by pendingUpdateSleim
-                                 // is not owned by the TxInfoCoid object, but rather belongs to the log.
+  SingleLogEntryInMemory *pendingentriesSleim; // if item is in pendingupdates
+     // log, a pointer to the first entry there.
+     // This is set in the PREPARERPC and used in COMMITRPC to
+     // to able to quickly find the entry in the pendingupdates log without
+     // having to scan the log. The item pointed to by pendingUpdateSleim
+     // is not owned by the TxUpdateCoid object, but rather belongs to the log.
 
-  // Returns whether this TxInfoCoid has a conflict with another TxInfoCoid of the same coid.
-  // This method should be called only after no more modifications will be done to
-  // this or the given TxInfoCoid (in other words, both TxInfoCoid objects have reached
-  // their final state). This is because this function will precompute data once and
-  // will reuse the precomputed data in subsequent calls. Precomputed data is stored
-  // in SLAddItems.
-  bool hasConflicts(Ptr<TxInfoCoid> ticoid, SingleLogEntryInMemory *sleim);
+  // Returns whether this TxUpdateCoid has a conflict with another
+  // TxUpdateCoid of the same coid.
+  // This method should be called only after no more modifications will be
+  // done to this or the given TxUpdateCoid (in other words, both TxUpdateCoid
+  // objects have reached their final state). This is because this function
+  // will precompute data once and will reuse the precomputed data in
+  // subsequent calls. Precomputed data is stored in SLAddItems.
+  bool hasConflicts(Ptr<TxUpdateCoid> tucoid, SingleLogEntryInMemory *sleim);
 
   // print contents of object (for debugging)
   void print();
   void printdetail(COid coid);
 
-  static void del(TxInfoCoid *ticoid){ delete ticoid; }
+  static void del(TxUpdateCoid *tucoid){ delete tucoid; }
 };
 
 #define PTISTATUS_INPROGRESS   0
@@ -250,7 +335,8 @@ public:
 #define PTISTATUS_CLEAREDABORT 3 // transaction aborted
 
 
-// information for a single pending transaction; holds the writeset of the transaction
+// information for a single pending transaction; holds the writeset of the
+// transaction
 class PendingTxInfo {
 private:
   friend Ptr<PendingTxInfo>;
@@ -258,11 +344,12 @@ private:
   Align4 int refcount;
 
 public:
-  SkipList<COid,Ptr<TxInfoCoid> > coidinfo; // for each coid, what updates were done to it
+  SkipList<COid,Ptr<TxRawCoid> > coidinfo; // for each coid, what updates
+                                              // were done to it
   bool updatesCachable; // whether tx updates cachable data
   int status;    // see status codes PTISTATUS_...
 
-  // Delete all ticoid items in coidinfo.
+  // Delete all tucoid items in coidinfo.
   // This is called when transaction aborts.
   void clear(){
     status = PTISTATUS_CLEAREDABORT;
@@ -292,7 +379,8 @@ public:
   int getInfo(Tid &tid, Ptr<PendingTxInfo> &retpti);
 
   // Gets info structure for a given tid.
-  // Returns the entry locked in retpti. Returns 0 if entry was found, non-zero if it was not found.
+  // Returns the entry locked in retpti. Returns 0 if entry was found,
+  //     non-zero if it was not found.
   // If not found, retpti is not changed.
   int getInfoNoCreate(Tid &tid, Ptr<PendingTxInfo> &retpti);
 

@@ -59,7 +59,8 @@ struct DataHeader {
 
 /* forward definitions */
 
-static int DtCreateTable(KVTransaction *tx, u64 dbid, bool allocateiTable, Pgno *piTable, int createTabFlags);
+static int DtCreateTable(KVTransaction *tx, u64 dbid, bool allocateiTable,
+                         Pgno *piTable, int createTabFlags);
 int DtReadData(BtCursor *pCur);
 int DtWriteData(BtCursor *pCur, u64 nkey, char *pdata, int ndata);
 static int saveAllCursors(BtShared *pBt, u64 cidTable, BtCursor *pExcept);
@@ -72,7 +73,8 @@ static int cursorHoldsMutex(BtCursor *p);
 // -------------------------------------------------------------------------
 
 // replace node in level with real node given its oid, and sets its index to 0
-static int ReadReal(BtCursor *pCur, int level, COid newcoid, ListCell *cell, GKeyInfo *ki){
+static int ReadReal(BtCursor *pCur, int level, COid newcoid, ListCell *cell,
+                    GKeyInfo *ki){
   int res;
   res = auxReadReal(pCur->pBtree->tx, newcoid, pCur->node[level], cell, ki);
   if (res==0){
@@ -209,14 +211,16 @@ int sqlite3BtreeOpen(
   assert(db!=0);
   assert(sqlite3_mutex_held(db->mutex));
   assert((flags&0xff)==flags);   /* flags fit in 8 bits */
-  assert((flags & BTREE_UNORDERED)==0 || (flags & BTREE_SINGLE)!=0); /* Only a BTREE_SINGLE database can be BTREE_UNORDERED */
-  assert((flags & BTREE_SINGLE)==0 || isTempDb);   /* A BTREE_SINGLE database is always a temporary and/or ephemeral */
+  assert((flags & BTREE_UNORDERED)==0 || (flags & BTREE_SINGLE)!=0); // Only a
+                            // BTREE_SINGLE database can be BTREE_UNORDERED
+  assert((flags & BTREE_SINGLE)==0 || isTempDb); // A BTREE_SINGLE database is
+                                     // always a temporary and/or ephemeral
 
   transientdb = (vfsFlags & SQLITE_OPEN_TRANSIENT_DB) ? 1 : 0;
 
   /* set flags */
   if (db->flags & SQLITE_NoReadlock) flags |= BTREE_NO_READLOCK;
-  if (isTempDb) isMemdb=1;  /* always stores temporary dbs in memory */
+  if (isTempDb) isMemdb=1;  // always stores temporary dbs in memory
   if (isMemdb) flags |= BTREE_MEMORY;
   if ((vfsFlags & SQLITE_OPEN_MAIN_DB)!=0 && (isMemdb || isTempDb)){
     vfsFlags = (vfsFlags & ~SQLITE_OPEN_MAIN_DB) | SQLITE_OPEN_TEMP_DB;
@@ -332,14 +336,16 @@ btree_open_out:
 }
 
 /*
-  This function does the actual work of creating a table (sqlite3BtreeCreateTable calls it).
+ This function does the actual work of creating a table
+  (sqlite3BtreeCreateTable calls it).
  Its interface is similar to the of sqlite3BtreeCreateTable, except that
  allocateiTable indicates if piTable should be set to a newly allocated
  iTable. It also takes a KVTransaction as a
  parameter instead of a Btree
 */
 
-static int DtCreateTable(KVTransaction *tx, u64 dbid, bool allocateiTable, Pgno *piTable, int createTabFlags){
+static int DtCreateTable(KVTransaction *tx, u64 dbid, bool allocateiTable,
+                         Pgno *piTable, int createTabFlags){
   COid coid, coidfirst;
   int res;
   SuperValue rootNode, firstNode;
@@ -356,8 +362,10 @@ static int DtCreateTable(KVTransaction *tx, u64 dbid, bool allocateiTable, Pgno 
   coidfirst.cid = coid.cid;
   setOid(&coidfirst.oid, 0, 2, 0);   // pick issuerid 0 and counter 2
   setRandomServerid(&coidfirst.oid); // pick random serverid for first node
-  DTreeNode::InitSuperValue(&firstNode, (createTabFlags == BTREE_INTKEY) ? 0 : 1);
-  firstNode.Attrs[DTREENODE_ATTRIB_FLAGS] = DTREENODE_FLAG_LEAF | ((createTabFlags == BTREE_INTKEY) ? DTREENODE_FLAG_INTKEY : 0);
+  DTreeNode::InitSuperValue(&firstNode,
+                            (createTabFlags == BTREE_INTKEY) ? 0 : 1);
+  firstNode.Attrs[DTREENODE_ATTRIB_FLAGS] = DTREENODE_FLAG_LEAF
+    | ((createTabFlags == BTREE_INTKEY) ? DTREENODE_FLAG_INTKEY : 0);
   firstNode.Attrs[DTREENODE_ATTRIB_HEIGHT] = 0;
   firstNode.Attrs[DTREENODE_ATTRIB_LASTPTR] = 0;
   firstNode.Attrs[DTREENODE_ATTRIB_LEFTPTR] = 0;
@@ -366,13 +374,16 @@ static int DtCreateTable(KVTransaction *tx, u64 dbid, bool allocateiTable, Pgno 
   if (res) return SQLITE_IOERR;
 #endif
 
-  DTreeNode::InitSuperValue(&rootNode, (createTabFlags == BTREE_INTKEY) ? 0 : 1);
+  DTreeNode::InitSuperValue(&rootNode,
+                            (createTabFlags == BTREE_INTKEY) ? 0 : 1);
 #ifndef DTREE_NOFIRSTNODE
-  rootNode.Attrs[DTREENODE_ATTRIB_FLAGS] = ((createTabFlags == BTREE_INTKEY) ? DTREENODE_FLAG_INTKEY : 0);
+  rootNode.Attrs[DTREENODE_ATTRIB_FLAGS] =
+    ((createTabFlags == BTREE_INTKEY) ? DTREENODE_FLAG_INTKEY : 0);
   rootNode.Attrs[DTREENODE_ATTRIB_HEIGHT] = 1;
   rootNode.Attrs[DTREENODE_ATTRIB_LASTPTR] = coidfirst.oid;
 #else
-  rootNode.Attrs[DTREENODE_ATTRIB_FLAGS] = DTREENODE_FLAG_LEAF | ((createTabFlags == BTREE_INTKEY) ? DTREENODE_FLAG_INTKEY : 0);
+  rootNode.Attrs[DTREENODE_ATTRIB_FLAGS] = DTREENODE_FLAG_LEAF |
+    ((createTabFlags == BTREE_INTKEY) ? DTREENODE_FLAG_INTKEY : 0);
   rootNode.Attrs[DTREENODE_ATTRIB_HEIGHT] = 0;
   rootNode.Attrs[DTREENODE_ATTRIB_LASTPTR] = 0;
 #endif
@@ -398,7 +409,8 @@ static int DtCreateTable(KVTransaction *tx, u64 dbid, bool allocateiTable, Pgno 
 **     BTREE_ZERODATA                  Used for SQL indices
 */
 // This function is like sqlite3BtreeCreateTable, except that it lets the
-// caller choose the table number (page) by setting *piTable to a number other than zero.
+// caller choose the table number (page) by setting *piTable to a number other
+// than zero.
 int sqlite3BtreeCreateTableChooseTable(Btree *p, Pgno *piTable, int flags){
   int res;
   BtShared *pBt = p->pBt;
@@ -410,7 +422,8 @@ int sqlite3BtreeCreateTableChooseTable(Btree *p, Pgno *piTable, int flags){
   assert(!pBt->readOnly);
   assert(pBt->inTransaction==TRANS_WRITE);
 
-  createtx = p->tx == 0; // create a transaction just for this, if p->tx is invalid
+  createtx = p->tx == 0; // create a transaction just for this, if p->tx is
+                         // invalid
 
  retry:
   if (createtx){
@@ -445,10 +458,9 @@ int sqlite3BtreeCreateTable(Btree *p, Pgno *piTable, int flags){
 }
 
 static int dtreeRestoreCursorPosition(BtCursor *pCur);
-/*
- * Restore cursor position. If cursor's eState is CURSOR_VALID or CURSOR_INVALID,
- * then do nothing and return SQLITE_OK. Otherwise, call btreeRestoreCursorPosition
- */
+// Restore cursor position. If cursor's eState is CURSOR_VALID or
+// CURSOR_INVALID, then do nothing and return SQLITE_OK.
+// Otherwise, call btreeRestoreCursorPosition
 #define restoreCursorPosition(p) \
   (p->eState>=CURSOR_REQUIRESEEK ? \
          dtreeRestoreCursorPosition(p) : \
@@ -526,7 +538,8 @@ static int btreeCursor(
   pCur->pBt = pBt;
   pCur->wrFlag = (u8)wrFlag;
   pCur->pNext = pBt->pCursor;
-  new(&pCur->data) Ptr<Valbuf>; // if this doesn't compile, try memset(&pCur->data, 0, sizeof(Ptr<Valbuf>));
+  new(&pCur->data) Ptr<Valbuf>; // if this doesn't compile,
+                           // try memset(&pCur->data, 0, sizeof(Ptr<Valbuf>));
   pCur->intKey = pKeyInfo ? 0 : 1;
   memset(pCur->node, 0, sizeof(Ptr<DTreeNode>) * DTREE_MAX_LEVELS);
 //#ifndef NDEBUG
@@ -559,20 +572,24 @@ int sqlite3BtreeCursor(
   return rc;
 }
 
-/* compares a cell key against intKey2/pIdxKey2. Use intKey2 if pIdxKey2==0 otherwise use pIdxKey2 */
+/* compares a cell key against intKey2/pIdxKey2. Use intKey2
+   if pIdxKey2==0 otherwise use pIdxKey2 */
 /* inline */
 int compareCellWithKey(u8 *cellData1, i64 intKey2, UnpackedRecord *pIdxKey2) {
   i64 nKey1;
   cellData1 += getVarint(cellData1, (u64*) &nKey1);
   assert(nKey1 == (int)nKey1);
-  if (pIdxKey2) return sqlite3VdbeRecordCompare((int) nKey1, cellData1, pIdxKey2);
+  if (pIdxKey2) return sqlite3VdbeRecordCompare((int) nKey1, cellData1,
+                                                pIdxKey2);
   else if (nKey1==intKey2) return 0;
   else return (nKey1 < intKey2) ? -1 : +1;
 }
 
-/* compares a cell key against intKey2/pIdxKey2. Use intKey2 if pIdxKey2==0 otherwise use pIdxKey2 */
+/* compares a cell key against intKey2/pIdxKey2. Use intKey2 if pIdxKey2==0
+   otherwise use pIdxKey2 */
 /* inline */
-int compareNpKeyWithKey(i64 nKey1, char *pKey1, i64 nKey2, UnpackedRecord *pIdxKey2) {
+int compareNpKeyWithKey(i64 nKey1, char *pKey1, i64 nKey2,
+                        UnpackedRecord *pIdxKey2) {
   if (pIdxKey2) return sqlite3VdbeRecordCompare((int)nKey1, pKey1, pIdxKey2);
   else if (nKey1==nKey2) return 0;
   else return (nKey1 < nKey2) ? -1 : +1;
@@ -580,19 +597,22 @@ int compareNpKeyWithKey(i64 nKey1, char *pKey1, i64 nKey2, UnpackedRecord *pIdxK
 
 // Searches the cells of a node for a given key, using binary search.
 // Returns the child pointer that needs to be followed for that key.
-// If biasRight!=0 then optimize for the case the key is larger than any entries in node.
+// If biasRight!=0 then optimize for the case the key is larger than any
+// entries in node.
 // Assumes that the path at the given level has some node (real or approx).
 // Guaranteed to return an index between 0 and N where N is the number of cells
 // in that node (N+1 is the number of pointers).
 // Returns *matches!=0 if found key, *matches==0 if did not find key.
-static int CellSearchNodeUnpacked(DTreeNode &node, UnpackedRecord *pIdxKey, i64 nkey, int biasRight, int *matches=0){
+static int CellSearchNodeUnpacked(DTreeNode &node, UnpackedRecord *pIdxKey,
+                                  i64 nkey, int biasRight, int *matches=0){
   int cmp;
   int bottom, top, mid;
   ListCell *cell;
 
   bottom=0;
   top=node.Ncells()-1; /* number of keys on node minus 1 */
-  if (top<0){ if (matches) *matches=0; return 0; } // there are no keys in node, so return index of only pointer there (index 0)
+  if (top<0){ if (matches) *matches=0; return 0; } // there are no keys in
+                    // node, so return index of only pointer there (index 0)
   do {
     if (biasRight){ mid = top; biasRight=0; } /* bias first search only */
     else mid=(bottom+top)/2;
@@ -604,24 +624,27 @@ static int CellSearchNodeUnpacked(DTreeNode &node, UnpackedRecord *pIdxKey, i64 
     else top=mid-1; /* mid > target */
   } while (bottom <= top);
   // if key was found, then mid points to its index and cmp==0
-  // if key was not found, then mid points to entry immediately before key (cmp<0) or after key (cmp>0)
+  // if key was not found, then mid points to entry immediately before key
+  //     (cmp<0) or after key (cmp>0)
 
-  if (cmp<0) ++mid; // now mid points to entry immediately after key or to one past the last entry
-                    // if key is greater than all entries
-  // note: if key matches a cell (cmp==0), we follow the pointer to the left of the cell, which
-  //       has the same index as the cell
+  if (cmp<0) ++mid; // now mid points to entry immediately after key or to one
+                    // past the last entry if key is greater than all entries
+  // note: if key matches a cell (cmp==0), we follow the pointer to the left of
+  // the cell, which has the same index as the cell
 
   if (matches) *matches = cmp == 0 ? 1 : 0;
   assert(0 <= mid && mid <= node.Ncells());
   return mid;
 }
-static int CellSearchNode(DTreeNode &node, i64 nkey, void *pkey, KeyInfo *ki, int biasRight){
+static int CellSearchNode(DTreeNode &node, i64 nkey, void *pkey, KeyInfo *ki,
+                          int biasRight){
   UnpackedRecord *pIdxKey;   /* Unpacked index key */
   char aSpace[150];          /* Temp space for pIdxKey - to avoid a malloc */
   int res;
 
   if (pkey){
-    pIdxKey = sqlite3VdbeRecordUnpack(ki, (int)nkey, pkey, aSpace, sizeof(aSpace));
+    pIdxKey = sqlite3VdbeRecordUnpack(ki, (int)nkey, pkey, aSpace,
+                                      sizeof(aSpace));
     if (pIdxKey == 0) return SQLITE_NOMEM;
   } else pIdxKey = 0;
   res = CellSearchNodeUnpacked(node, pIdxKey, nkey, biasRight);
@@ -630,7 +653,8 @@ static int CellSearchNode(DTreeNode &node, i64 nkey, void *pkey, KeyInfo *ki, in
 }
 
 // Adjusts the index at given level so that it points to the targetoid.
-// Returns 0 if index was adjusted, -1 if there were no pointers at given level to targetoid
+// Returns 0 if index was adjusted, -1 if there were no pointers at given
+// level to targetoid
 static int AdjustIndex(BtCursor *pCur, int level, Oid targetoid){
   int i, n;
   DTreeNode *dtn = &pCur->node[level]; // for convenience
@@ -652,10 +676,10 @@ static int AdjustIndex(BtCursor *pCur, int level, Oid targetoid){
 //
 // Returns 0 if successful, < 0 if error, >0 if confused.
 // The function returns a confused result due to cached nodes in the cursor.
-// Specifically, the function will first try reading the real value of the cached node at
-// the given level. If that real node does not point to the sought target
-// at level+1, then the cached information is bogus and the function returns
-// a confused status.
+// Specifically, the function will first try reading the real value of the
+// cached node at the given level. If that real node does not point to the
+// sought target at level+1, then the cached information is bogus and the
+// function returns a confused status.
 
 // In this case, this
 // function will perform a real search from the root, update the
@@ -664,7 +688,8 @@ static int AdjustIndex(BtCursor *pCur, int level, Oid targetoid){
 // Assumes that
 // (1) given level is higher than leaf,
 // (2) pCur->node[level+1] is a real node
-// (3) pCur->node[lvel+1] appears in the path from root to the leaf containing cellguide
+// (3) pCur->node[lvel+1] appears in the path from root to the leaf containing
+//     cellguide
 //
 // Returns the
 int DtFindRealLevelPath(BtCursor *pCur, int level, ListCell *cellguide){
@@ -676,7 +701,7 @@ int DtFindRealLevelPath(BtCursor *pCur, int level, ListCell *cellguide){
   assert(level < pCur->levelLeaf);
 
   coidtmp.cid = pCur->rootCid;
-  targetoid = pCur->node[level+1].NodeOid(); // this is the oid we are looking for
+  targetoid = pCur->node[level+1].NodeOid(); // this is the oid we seek
 
   // if node at level is not real, then read it
   if (pCur->nodetype[level] == 0){
@@ -689,18 +714,22 @@ int DtFindRealLevelPath(BtCursor *pCur, int level, ListCell *cellguide){
   assert(pCur->nodeIndex[level] <= pCur->node[level].Ncells());
   child = pCur->node[level].GetPtr(pCur->nodeIndex[level]);
   if (child == targetoid) return 0; // found
-  // index[level] is not correct then adjust it by looking for another index that points to target node
+  // index[level] is not correct then adjust it by looking for another index
+  // that points to target node
   res = AdjustIndex(pCur, level, targetoid);
-  if (!res) return 0; // successfully found pointer at "level" and adjusted index, so we are done
+  if (!res) return 0; // successfully found pointer at "level" and adjusted
+                      // index, so we are done
   return 1; // confused
 }
 
 // This function can be called when pCur is known to have bogus information.
 // It will perform a search of real nodes from the root, looking for cellguide,
-// until it arrives at a node pointing to targetoid or to a leaf node. It will set the search nodes in pCur
-// accordingly. If no level points to targetoid, it sets pCur->levelLeaf and returns -1.
+// until it arrives at a node pointing to targetoid or to a leaf node. It will
+// set the search nodes in pCur accordingly. If no level points to targetoid,
+// it sets pCur->levelLeaf and returns -1.
 // Otherwise, it returns the level pointing to targetoid.
-// The function may also return a gaia error node (<0) if it got one while reading nodes.
+// The function may also return a gaia error node (<0) if it got one while
+// reading nodes.
 int DtRefreshCursor(BtCursor *pCur, ListCell *cellguide, Oid targetoid){
   int res;
   int i, index;
@@ -717,7 +746,8 @@ int DtRefreshCursor(BtCursor *pCur, ListCell *cellguide, Oid targetoid){
     res = ReadReal(pCur, i, coidtmp, 0, 0); if (res) return res;
 
     // find index for key by doing a binary search
-    index = CellSearchNode(pCur->node[i], cellguide->nKey, cellguide->pKey, pCur->pKeyInfo, false);
+    index = CellSearchNode(pCur->node[i], cellguide->nKey, cellguide->pKey,
+                           pCur->pKeyInfo, false);
     assert(0 <= index && index <= pCur->node[i].Ncells());
     pCur->nodeIndex[i] = index;
 
@@ -771,12 +801,14 @@ int DtWriteData(BtCursor *pCur, u64 nkey, char *pdata, int ndata){
   coid.cid = DATA_CID(pCur->rootCid);
   coid.oid = nkey;
 
-  res = KVput2(pCur->pBtree->tx, coid, (char*) &dh, sizeof(DataHeader), pdata, ndata);
+  res = KVput2(pCur->pBtree->tx, coid, (char*) &dh, sizeof(DataHeader), pdata,
+               ndata);
   return res;
 }
 
 // bypass Dtree and try to retrieve data directly from KV store
-int DtMovetoDirect(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 intKey, int *pRes){
+int DtMovetoDirect(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 intKey,
+                   int *pRes){
   int res;
   assert(pIdxKey==0);
 
@@ -785,7 +817,8 @@ int DtMovetoDirect(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 intKey, int *pRe
   pCur->eState = CURSOR_DIRECT;
 
   res = DtReadData(pCur);
-  if (res || !pCur->data.isset() || pCur->data->len < (int)sizeof(DataHeader)){ // did not find it
+  if (res || !pCur->data.isset() || pCur->data->len < (int)sizeof(DataHeader)){
+    // did not find it
     pCur->data = 0;
     pCur->eState = CURSOR_INVALID;
     *pRes=-1;
@@ -806,14 +839,17 @@ int DtMovetoDirect(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 intKey, int *pRe
 //     *pRes>0      No entry matches key, and the cursor is left at entry
 //                  immediately after the key.
 // Sets pCur->levelLeaf
-int DtMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey, char *pKey, int biasRight, int *pRes, bool tryDirect){
-  // highest level at which key belongs inside the node. This is the negation of the situation
-  // where the key is smaller than the smallest key in node, or larger than the largest key.
+int DtMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey,
+                        char *pKey, int biasRight, int *pRes, bool tryDirect){
+  // highest level at which key belongs inside the node. This is the negation
+  // of the situation where the key is smaller than the smallest key in node,
+  // or larger than the largest key.
   // This is relevant for the following reason:
-  //   - if level is at the leaf (so the node is real not approximate) and key belongs in the node,
-  //     then the leaf node is authoritative for telling if key exists or not. On the other hand
-  //     if key does not belong to the node, the key may be somewhere else, since we traversed
-  //     the tree using approximate pointers
+  //   If level is at the leaf (so the node is real not approximate) and key
+  //     belongs in the node, then the leaf node is authoritative for telling
+  //     if key exists or not.
+  //  On the other hand if key does not belong to the node, the key may be
+  // somewhere else, since we traversed the tree using approximate pointers
   int highestNonExtremeLevel = -1;
   int level, real, res, index, matches;
   COid coid, coid2, prevcoid;
@@ -826,7 +862,8 @@ int DtMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey, char 
   if (pIdxKey) ki = (GKeyInfo*) pIdxKey->pKeyInfo;
   else ki = 0;
 
-  DTREELOG("BtCursor %p pIdxKey %p nKey %lld biasRight %d direct %d", pCur, pIdxKey, (long long)nKey, biasRight, tryDirect);
+  DTREELOG("BtCursor %p pIdxKey %p nKey %lld biasRight %d direct %d",
+           pCur, pIdxKey, (long long)nKey, biasRight, tryDirect);
 
   assert(cursorHoldsMutex(pCur));
   assert(sqlite3_mutex_held(pCur->pBtree->db->mutex));
@@ -837,7 +874,12 @@ int DtMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey, char 
   prevcoid.cid = coid2.cid = coid.cid = pCur->rootCid;
 
   if (tryDirect && pCur->eState==CURSOR_DIRECT && pCur->intKey){
-    if (pIdxKey==0 && pCur->directIntKey == nKey){ *pRes=0; DTREELOG("  return %d", 0); return 0; } // cursor key matches direct key
+    if (pIdxKey==0 && pCur->directIntKey == nKey){
+      // cursor key matches direct key
+      *pRes=0;
+      DTREELOG("  return %d", 0);
+      return 0;
+    }
   }
   if (pCur->eState==CURSOR_VALID && pCur->intKey){
     int levelleaf = pCur->levelLeaf;
@@ -848,12 +890,15 @@ int DtMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey, char 
       DTREELOG("  return %d", 0);
       return 0;
     }
-    if (pCur->node[levelleaf].RightPtr() == 0 &&   // last node in tree
-        pCur->nodeIndex[levelleaf] == pCur->node[levelleaf].Ncells()-1 &&   // at last cell
-        pCur->node[levelleaf].Cells()[pCur->nodeIndex[levelleaf]].nKey < nKey){ /* cursor key is last and smaller than requested key */
-        *pRes = -1; /* we are before the key */
-        DTREELOG("  return %d", 0);
-        return 0;
+    if (pCur->node[levelleaf].RightPtr() == 0    // last node in tree
+    && pCur->nodeIndex[levelleaf] == pCur->node[levelleaf].Ncells()-1 // at last
+                                                                      // cell
+    && pCur->node[levelleaf].Cells()[pCur->nodeIndex[levelleaf]].nKey < nKey)
+    {
+      // cursor key is last and smaller than requested key */
+      *pRes = -1; // we are before the key
+      DTREELOG("  return %d", 0);
+      return 0;
     }
   }
   if (tryDirect && pCur->intKey){
@@ -863,22 +908,35 @@ int DtMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey, char 
   }
 
   // using cached data, traverse from root to leaf, updating current path
-  // during traversal, if we did not follow the extreme pointers at a level, set highestNonExtremeTraversal
-  //    to that level. In the end, the variable ends up with the highest such level
+  // during traversal, if we did not follow the extreme pointers at a level,
+  // set highestNonExtremeTraversal to that level. In the end, the variable
+  // ends up with the highest such level
   level = 0;
   coid.oid = DTREE_ROOT_OID; // start with root
   do {
-    res = auxReadCacheOrReal(pCur->pBtree->tx, coid, pCur->node[level], real, &cell, ki);
+    res = auxReadCacheOrReal(pCur->pBtree->tx, coid, pCur->node[level], real,
+                             &cell, ki);
     if (res == GAIAERR_WRONG_TYPE){  // not a supervalue
       //printf("Found unexpected non-supervalue\n");
-      if (level == 0){ pCur->eState = CURSOR_INVALID; DTREELOG("  return %d", SQLITE_EMPTY); return SQLITE_EMPTY; } // root not supervalue, so tree is deleted
-      auxRemoveCache(prevcoid); // the node pointing to this non-supervalue node is bogus, remove it from cache
+      if (level == 0){
+       // root not supervalue, so tree is deleted        
+        pCur->eState = CURSOR_INVALID;
+        DTREELOG("  return %d", SQLITE_EMPTY);
+        return SQLITE_EMPTY;
+      } 
+      auxRemoveCache(prevcoid); // the node pointing to this non-supervalue
+                               // node is bogus, remove it from cache
       --level; // move up one level
       goto skip_cache_traversal; // start upward real traversal
     }
-    if (res){ pCur->eState = CURSOR_INVALID; DTREELOG("  return %d", SQLITE_IOERR); return SQLITE_IOERR; }
+    if (res){
+      pCur->eState = CURSOR_INVALID;
+      DTREELOG("  return %d", SQLITE_IOERR);
+      return SQLITE_IOERR;
+    }
     pCur->nodetype[level] = real ? 1 : 0;
-    index = CellSearchNodeUnpacked(pCur->node[level], pIdxKey, nKey, biasRight, &matches);
+    index = CellSearchNodeUnpacked(pCur->node[level], pIdxKey, nKey,
+                                   biasRight, &matches);
     pCur->nodeIndex[level] = index;
     if (matches || 0 < index && index < pCur->node[level].Ncells())
       highestNonExtremeLevel = level; // key belongs inside the node
@@ -896,9 +954,11 @@ int DtMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey, char 
   }
 
   if (pCur->nodetype[level] == 1){ // if node is real
-    if (highestNonExtremeLevel == level){ // key belongs inside a real leaf node, so traversal was fruitful
+    if (highestNonExtremeLevel == level){ // key belongs inside a real leaf
+                                         // node, so traversal was fruitful
       if (matches) *pRes=0;
-      else *pRes=1; // because CellSearchNodeUnpacked returns an index right after the found key, not before
+      else *pRes=1; // because CellSearchNodeUnpacked returns an index right
+                    // after the found key, not before
       pCur->eState = CURSOR_VALID;
       pCur->levelLeaf = level;
       DTREELOG("  return %d", 0);
@@ -906,8 +966,10 @@ int DtMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey, char 
     }
     // here index == pCur->nodeIndex[level]
 
-    // if leaf is rightmost leaf and key > largest key in node, then set pRes and return
-    if (pCur->node[level].RightPtr() == 0 && index == pCur->node[level].Ncells()){
+    // if leaf is rightmost leaf and key > largest key in node, then set pRes
+    // and return
+    if (pCur->node[level].RightPtr() == 0 &&
+        index == pCur->node[level].Ncells()){
       if (index == 0){ // no cells in the leaf node
         //assert(level==0);  // must be the root node; table is empty
         *pRes=-1;
@@ -926,7 +988,8 @@ int DtMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey, char 
       return 0;
     }
 
-    // if leaf is leftmost leaf and key < smallest key in node, then set pRes and return
+    // if leaf is leftmost leaf and key < smallest key in node, then set
+    // pRes and return
     if (pCur->node[level].LeftPtr() == 0 && index == 0){
       *pRes=1; // cursor after key
       pCur->eState = CURSOR_VALID;
@@ -936,7 +999,8 @@ int DtMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey, char 
     }
   }
 
-  // do the upward traversal looking for a place where key belongs inside a real node
+  // do the upward traversal looking for a place where key belongs inside
+  // a real node
   // level = highestNonExtremeLevel; // this is just an optimization
  skip_cache_traversal:
   assert(level >= 0);
@@ -947,18 +1011,29 @@ int DtMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey, char 
       res = auxReadReal(pCur->pBtree->tx, coid2, pCur->node[level], &cell, ki); 
       if (res==GAIAERR_WRONG_TYPE){
         // not supervalue
-        if (level == 0){ pCur->eState = CURSOR_INVALID; DTREELOG("  return %d", SQLITE_EMPTY); return SQLITE_EMPTY; } // root not supervalue, so tree is deleted
+        if (level == 0){
+          pCur->eState = CURSOR_INVALID;
+          DTREELOG("  return %d", SQLITE_EMPTY);
+          return SQLITE_EMPTY;
+        } // root not supervalue, so tree is deleted
         --level; // move up
         continue;
       }
-      if (res){ pCur->eState = CURSOR_INVALID; DTREELOG("  return %d", SQLITE_IOERR); return SQLITE_IOERR; }
+      if (res){
+        pCur->eState = CURSOR_INVALID;
+        DTREELOG("  return %d", SQLITE_IOERR);
+        return SQLITE_IOERR;
+      }
       pCur->nodetype[level] = 1; // now it is a real node
     } // else node is already real
-    index = CellSearchNodeUnpacked(pCur->node[level], pIdxKey, nKey, biasRight, &matches);
+    index = CellSearchNodeUnpacked(pCur->node[level], pIdxKey, nKey, biasRight,
+                                   &matches);
 
     // if key belongs inside the node
-    if (matches || 0 < index && index < pCur->node[level].Ncells()) break; // found a good level
-    if (level == 0) break; // did not find a good level, but no more levels to search
+    if (matches || 0 < index && index < pCur->node[level].Ncells())
+      break; // found a good level
+    if (level == 0)
+      break; // did not find a good level, but no more levels to search
     --level;
   }
 
@@ -973,11 +1048,17 @@ int DtMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey, char 
     assert(level < DTREE_MAX_LEVELS);
     // read child
     res = auxReadReal(pCur->pBtree->tx, coid, pCur->node[level], &cell, ki);
-    if (res == GAIAERR_WRONG_TYPE) res = SQLITE_CORRUPT; // not a supervalue, so tree is corrupted
-    if (res){ pCur->eState = CURSOR_INVALID; DTREELOG("  return %d", SQLITE_IOERR); return SQLITE_IOERR; }
+    if (res == GAIAERR_WRONG_TYPE)
+      res = SQLITE_CORRUPT; // not a supervalue, so tree is corrupted
+    if (res){
+      pCur->eState = CURSOR_INVALID;
+      DTREELOG("  return %d", SQLITE_IOERR);
+      return SQLITE_IOERR;
+    }
     pCur->nodetype[level] = 1; // mark it as real node
     // search for key
-    index = CellSearchNodeUnpacked(pCur->node[level], pIdxKey, nKey, biasRight, &matches);
+    index = CellSearchNodeUnpacked(pCur->node[level], pIdxKey, nKey,
+                                   biasRight, &matches);
     pCur->nodeIndex[level] = index;
   }
   pCur->levelLeaf = level;
@@ -1023,15 +1104,17 @@ int DtMovetoaux(
 
   if (pKey){
     assert(nKey==(i64)(int)nKey);
-    pIdxKey = sqlite3VdbeRecordUnpack(pCur->pKeyInfo, (int)nKey, pKey, aSpace, sizeof(aSpace));
+    pIdxKey = sqlite3VdbeRecordUnpack(pCur->pKeyInfo, (int)nKey, pKey, aSpace,
+                                      sizeof(aSpace));
     if (pIdxKey == 0) return SQLITE_NOMEM;
   } else pIdxKey = 0;
-  rc = DtMovetoUnpackedaux(pCur, pIdxKey, nKey, (char*) pKey, bias, pRes, tryDirect);
+  rc = DtMovetoUnpackedaux(pCur, pIdxKey, nKey, (char*) pKey, bias, pRes,
+                           tryDirect);
   if (pKey) sqlite3VdbeDeleteUnpackedRecord(pIdxKey);
   return rc;
 }
 int sqlite3BtreeMovetoUnpacked(BtCursor *pCur, UnpackedRecord *pIdxKey,
-                                              i64 intKey, int biasRight, int *pRes){
+                                   i64 intKey, int biasRight, int *pRes){
   char *pKey;
   int res, nKey;
   assert(testRecordPack(pIdxKey, BTREE_FILE_FORMAT));
@@ -1040,31 +1123,34 @@ int sqlite3BtreeMovetoUnpacked(BtCursor *pCur, UnpackedRecord *pIdxKey,
 #ifndef NODIRECTSEEK
   res = DtMovetoUnpackedaux(pCur, pIdxKey, intKey, pKey, biasRight, pRes, true);
 #else
-  res = DtMovetoUnpackedaux(pCur, pIdxKey, intKey, pKey, biasRight, pRes, false);
+  res = DtMovetoUnpackedaux(pCur, pIdxKey, intKey, pKey, biasRight, pRes,false);
 #endif
   free(pKey);
   return res;
 }
 
-int DtMovetoUnpackedNoDirect(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 intKey, int biasRight, int *pRes){
+int DtMovetoUnpackedNoDirect(BtCursor *pCur, UnpackedRecord *pIdxKey,
+                             i64 intKey, int biasRight, int *pRes){
   char *pKey;
   int res, nKey;
   assert(testRecordPack(pIdxKey, BTREE_FILE_FORMAT));
   pKey = myVdbeRecordPack(pIdxKey, BTREE_FILE_FORMAT, nKey);
   
-  res = DtMovetoUnpackedaux(pCur, pIdxKey, intKey, pKey, biasRight, pRes, false);
+  res = DtMovetoUnpackedaux(pCur, pIdxKey, intKey, pKey, biasRight, pRes,false);
   free(pKey);
   return res;
 }
 
 int btreeInsertOptimistic(BtCursor *pCur, const void *pKey, i64 nKey,
-                          const void *pData, int nData, int nZero, int appendBias);
+                     const void *pData, int nData, int nZero, int appendBias);
 
-//int btreeCheckOptimistic(BtCursor *pCur, const void *pKey, i64 nKey, int *pres);
+//int btreeCheckOptimistic(BtCursor *pCur, const void *pKey, i64 nKey,
+// int *pres);
 
 
 // // bypass Dtree and try to retrieve data directly from KV store
-// int DtExistsFast(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 intKey, int *pRes){
+// int DtExistsFast(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 intKey,
+//  int *pRes){
 //   int res;
 //   assert(pIdxKey==0); // currently only implemented for integer keys
 
@@ -1086,12 +1172,15 @@ int btreeInsertOptimistic(BtCursor *pCur, const void *pKey, i64 nKey,
 // Returns non-zero if there was a problem traversing in the cache
 // (e.g., a loop).
 // Stores in dest the place where we arrived.
-int DtCacheMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey, int biasRight, Oid *dest){
+int DtCacheMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey,
+                             int biasRight, Oid *dest){
   int level, res, index, matches;
   COid coid;
 
-  // algo is to just do a downward traversal using cached data, until cache read fails
-  DTREELOG("BtCursor %p pIdxKey %p nKey %lld biasRight %d", pCur, pIdxKey, (long long)nKey, biasRight);
+  // algo is to just do a downward traversal using cached data, until cache
+  // read fails
+  DTREELOG("BtCursor %p pIdxKey %p nKey %lld biasRight %d", pCur,
+           pIdxKey, (long long)nKey, biasRight);
   
 
   assert(cursorHoldsMutex(pCur));
@@ -1102,8 +1191,9 @@ int DtCacheMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey, 
   coid.cid = pCur->rootCid;
 
   // using cached data, traverse from root to leaf, updating current path
-  // during traversal, if we did not follow the extreme pointers at a level, set highestNonExtremeTraversal
-  //    to that level. In the end, the variable ends up with the highest such level
+  // during traversal, if we did not follow the extreme pointers at a level,
+  // set highestNonExtremeTraversal to that level. In the end, the variable
+  // ends up with the highest such level
   level = 0;
   coid.oid = DTREE_ROOT_OID; // start with root
   do {
@@ -1111,7 +1201,8 @@ int DtCacheMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey, 
     if (res) break;
     
     pCur->nodetype[level] = 0;
-    index = CellSearchNodeUnpacked(pCur->node[level], pIdxKey, nKey, biasRight, &matches);
+    index = CellSearchNodeUnpacked(pCur->node[level], pIdxKey, nKey, biasRight,
+                                   &matches);
     pCur->nodeIndex[level] = index;
     if (pCur->node[level].isLeaf()){ // got to leaf
       assert(0); // shouldn't happen reading data from cache
@@ -1125,21 +1216,24 @@ int DtCacheMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey, 
   if (level == DTREE_MAX_LEVELS) return -1; // too much garbage in cache
 
   pCur->nodetype[level] = 0;
-  pCur->nodeIndex[level] = 0; // we haven't actually read this level, so fake index at 0
+  pCur->nodeIndex[level] = 0; // we haven't actually read this level, so fake
+                             // index at 0
   
   if (dest) *dest = coid.oid;
   pCur->levelLeaf = level;
   return 0;
 }
 
-int DtCacheMovetoaux(BtCursor *pCur, const void *pKey, i64 nKey, int bias, Oid *dest){
-  int rc;                    /* Status code */
-  UnpackedRecord *pIdxKey;   /* Unpacked index key */
-  char aSpace[150];          /* Temp space for pIdxKey - to avoid a malloc */
+int DtCacheMovetoaux(BtCursor *pCur, const void *pKey, i64 nKey, int bias,
+                     Oid *dest){
+  int rc;                    // Status code
+  UnpackedRecord *pIdxKey;   // Unpacked index key
+  char aSpace[150];          // Temp space for pIdxKey - to avoid a malloc
 
   if (pKey){
     assert(nKey==(i64)(int)nKey);
-    pIdxKey = sqlite3VdbeRecordUnpack(pCur->pKeyInfo, (int)nKey, pKey, aSpace, sizeof(aSpace));
+    pIdxKey = sqlite3VdbeRecordUnpack(pCur->pKeyInfo, (int)nKey, pKey, aSpace,
+                                      sizeof(aSpace));
     if (pIdxKey == 0) return SQLITE_NOMEM;
   } else pIdxKey = 0;
   rc = DtCacheMovetoUnpackedaux(pCur, pIdxKey, nKey, bias, dest);
@@ -1152,7 +1246,8 @@ int DtCacheMovetoaux(BtCursor *pCur, const void *pKey, i64 nKey, int bias, Oid *
 int DtMovefromDirect(BtCursor *pCur){
   int pr, res;
   assert(pCur->eState == CURSOR_DIRECT && pCur->intKey);
-  res = DtMovetoUnpackedaux(pCur, 0, (i64)pCur->directIntKey, 0, 0, &pr, false); // seek
+  // seek
+  res = DtMovetoUnpackedaux(pCur, 0, (i64)pCur->directIntKey, 0, 0, &pr,false);
   if (res) return res;
   assert(pr==0 && pCur->eState == CURSOR_VALID); // must find it
   return 0;
@@ -1194,7 +1289,7 @@ int sqlite3BtreeInsert(
   int seekResult                 /* Result of prior MovetoUnpacked() call */
 ){
   i64 intKey;
-  int levelleaf, res;
+  int levelleaf=0, res;
   COid coid;
   KVTransaction *tx = pCur->pBtree->tx;
   ListCell cell;
@@ -1202,32 +1297,39 @@ int sqlite3BtreeInsert(
   int ncells=0, size=0;
 #endif
 
-  DTREELOG("BtCursor %p pKey %p nKey %lld pData %p nData %d nZero %d appendBias %d seekResult %d", pCur, pKey, (long long)nKey, pData, nData, nZero, appendBias, seekResult);
+  DTREELOG("BtCursor %p pKey %p nKey %lld pData %p nData %d nZero %d "
+           "appendBias %d seekResult %d", pCur, pKey,
+           (long long)nKey, pData, nData, nZero, appendBias, seekResult);
 
   pCur->data=0;
 
-  if (seekResult && pCur->eState == CURSOR_VALID){ // skip seeking, since we seeked before
+  if (seekResult && pCur->eState == CURSOR_VALID){
+    // skip seeking, since we seeked before
     //  printf("insert: No seek so no optimistic insert\n");
   } 
-  else if (pCur->eState == CURSOR_DIRECT && pCur->intKey && pKey==0 && pCur->directIntKey == nKey){
+  else if (pCur->eState == CURSOR_DIRECT && pCur->intKey && pKey==0 &&
+           pCur->directIntKey == nKey){
     // skip seeking since we did a directseek and found it
     //printf("insert: direct seek so no optimistic insert\n");
     seekResult=0;
   }
   else {
 #ifdef DTREE_OPTIMISTIC_INSERT
-    res = btreeInsertOptimistic(pCur, pKey, nKey, pData, nData, nZero, appendBias);
+    res = btreeInsertOptimistic(pCur, pKey, nKey, pData, nData, nZero,
+                                appendBias);
     if (res==0){ // successful optimistic insert
       DTREELOG("  return %d", 0);
       return 0;
     }
 #endif
-  //if (!seekResult || pCur->eState != CURSOR_VALID){ // traverse only if needed
+  //if (!seekResult || pCur->eState != CURSOR_VALID){ // traverse only if
+  //                                                  // needed
     res = DtMovetoaux(pCur, pKey, nKey, appendBias, &seekResult, false);
     if (res){ DTREELOG("  return %d", res); return res; }
   }
 
-  // here, if seekResult==0, then item is already on the tree, so no operation is needed
+  // here, if seekResult==0, then item is already on the tree, so no operation
+  // is needed
   if (seekResult){
     intKey = pCur->intKey;
     assert(intKey && !pKey || !intKey && pKey);
@@ -1244,7 +1346,8 @@ int sqlite3BtreeInsert(
 #if DTREE_SPLIT_LOCATION != 1    
     res = KVlistadd(tx, coid, &cell, (GKeyInfo*) pCur->pKeyInfo, 0);
 #else
-    res = KVlistadd(tx, coid, &cell, (GKeyInfo*) pCur->pKeyInfo, 0, &ncells, &size);
+    res = KVlistadd(tx, coid, &cell, (GKeyInfo*) pCur->pKeyInfo, 0, &ncells,
+                    &size);
 #endif
     if (res){ DTREELOG("  return %d", SQLITE_IOERR); return SQLITE_IOERR; }
   }
@@ -1258,10 +1361,10 @@ int sqlite3BtreeInsert(
   if (seekResult){
     if (tx->type==1){
       if (ncells > DTREE_SPLIT_SIZE || size > DTREE_SPLIT_SIZE_BYTES){
-        //printf("Need split: %d %d (%d %d)\n", ncells > DTREE_SPLIT_SIZE, size > DTREE_SPLIT_SIZE_BYTES, ncells, size);
         coid.cid = pCur->rootCid;
         coid.oid = pCur->node[levelleaf].NodeOid();
-        assert(!isDBIdEphemeral(getDbid(coid.cid)));  // container should not be ephemeral for remote txs
+        assert(!isDBIdEphemeral(getDbid(coid.cid)));  // container should not
+                                               // be ephemeral for remote txs
         tx->AddWork(coid, 1);
       }
     }
@@ -1274,7 +1377,7 @@ int sqlite3BtreeInsert(
 
 // returns 0 if successful, non-0 if optimistic insert failed
 int btreeInsertOptimistic(BtCursor *pCur, const void *pKey, i64 nKey,
-                          const void *pData, int nData, int nZero, int appendBias){
+                   const void *pData, int nData, int nZero, int appendBias){
   i64 intKey;
   int res;
   COid coid;
@@ -1284,7 +1387,9 @@ int btreeInsertOptimistic(BtCursor *pCur, const void *pKey, i64 nKey,
 
   //if (tx->type == 0) return -1; // don't do this for in-memory txs
 
-  DTREELOG("BtCursor %p pKey %p nKey %lld pData %p nData %d nZero %d appendBias %d", pCur, pKey, (long long)nKey, pData, nData, nZero, appendBias);
+  DTREELOG("BtCursor %p pKey %p nKey %lld pData %p nData %d nZero %d "
+           "appendBias %d", pCur, pKey, (long long)nKey, pData, nData,
+           nZero, appendBias);
 
   pCur->data=0;
 
@@ -1305,7 +1410,8 @@ int btreeInsertOptimistic(BtCursor *pCur, const void *pKey, i64 nKey,
   res = KVlistadd(tx, coid, &cell, (GKeyInfo*) pCur->pKeyInfo, 1);
 #else
   int ncells=0, size=0;
-  res = KVlistadd(tx, coid, &cell, (GKeyInfo*) pCur->pKeyInfo, 1, &ncells, &size);
+  res = KVlistadd(tx, coid, &cell, (GKeyInfo*) pCur->pKeyInfo, 1,
+                  &ncells, &size);
 #endif
 
   if (res){
@@ -1323,7 +1429,8 @@ int btreeInsertOptimistic(BtCursor *pCur, const void *pKey, i64 nKey,
 #if DTREE_SPLIT_LOCATION == 1
   if (tx->type==1){
     if (ncells > DTREE_SPLIT_SIZE || size > DTREE_SPLIT_SIZE_BYTES){
-      assert(!isDBIdEphemeral(getDbid(coid.cid))); // container should not be ephemeral for remote txs
+      assert(!isDBIdEphemeral(getDbid(coid.cid))); // container should
+                                             // not be ephemeral for remote txs
       tx->AddWork(coid, 1);
     }
   }
@@ -1333,8 +1440,8 @@ int btreeInsertOptimistic(BtCursor *pCur, const void *pKey, i64 nKey,
   return 0;
 }
 
-// Given a path with a real node at given level and a cell that can be used to find that node,
-// delete entry pointed to by index.
+// Given a path with a real node at given level and a cell that can be used to
+// find that node, delete entry pointed to by index.
 // Assumes that node in path at level is real.
 int DtDelete(BtCursor *pCur, int level, ListCell *lc){
   // ensure cursor is valid
@@ -1343,7 +1450,8 @@ int DtDelete(BtCursor *pCur, int level, ListCell *lc){
   // if ndeletable > 1  // node will not be destroyed by delete
   //    if within cell range then
   //      call range delete on cell
-  //      rewrite cell after (or lastpointer) to create WW conflict with another delete
+  //      rewrite cell after (or lastpointer) to create WW conflict with
+  //          another delete
   //    else // deleting lastpointer
   //      remember pointer of last real cell
   //      call range delete on last real cell
@@ -1353,7 +1461,8 @@ int DtDelete(BtCursor *pCur, int level, ListCell *lc){
   // if leftpointer != 0 then set its rightpointer to be our rightpointer
   // if rightpointer != 0 then set its leftpointer to be our leftpointer
   // if (level >= 1) // non-root
-  //   find real parent and index that points to us (write this info on current path)
+  //   find real parent and index that points to us (write this info on
+  //            current path)
   //   invoke DtDelete on level-1
   // else // root special handling
   //   // we are removing the last cell in root
@@ -1373,7 +1482,8 @@ int DtDelete(BtCursor *pCur, int level, ListCell *lc){
   int res;
   ListCell cell;
 
-  if (pCur->intKey && dtn->isLeaf()){ // if intkey table and leaf node, remove KV object with data
+  if (pCur->intKey && dtn->isLeaf()){ // if intkey table and leaf node,
+                                      // remove KV object with data
     coid.cid = DATA_CID(pCur->rootCid);
     coid.oid = dtn->Cells()[index].nKey;
     res = KVput(pCur->pBtree->tx, coid, 0, 0); // delete object
@@ -1394,19 +1504,24 @@ int DtDelete(BtCursor *pCur, int level, ListCell *lc){
     if (index < raw->Ncells){
       // call range delete on cell
       cell = dtn->Cells()[index];
-      res = KVlistdelrange(pCur->pBtree->tx, coid, 4, &cell, &cell, (GKeyInfo*) pCur->pKeyInfo);
+      res = KVlistdelrange(pCur->pBtree->tx, coid, 4, &cell, &cell,
+                           (GKeyInfo*) pCur->pKeyInfo);
       if (res) return SQLITE_IOERR;
 
-      // The stuff below is no longer needed since we are defining a delrange to conflict with a delrange in the same cell
-      //// rewrite cell after (or lastpointer) to create WW conflict with another delete
+      // The stuff below is no longer needed since we are defining a delrange
+      // to conflict with a delrange in the same cell
+      //// rewrite cell after (or lastpointer) to create WW conflict with
+      //// another delete
       //if (index+1 < raw->Ncells){
       //  // rewrite cell after
       //  ListCell cell2;
       //  cell2 = dtn->Cells()[index+1];
-      //  res = KVlistadd(pCur->pBtree->tx, coid, &cell2, (GKeyInfo*) pCur->pKeyInfo);
+      //  res = KVlistadd(pCur->pBtree->tx, coid, &cell2,
+      //                  (GKeyInfo*) pCur->pKeyInfo);
       //  if (res) return res;
       //} else { // rewrite lastpointer
-      //  res = KVattrset(pCur->pBtree->tx, coid, DTREENODE_ATTRIB_LASTPTR, dtn->LastPtr());
+      //  res = KVattrset(pCur->pBtree->tx, coid, DTREENODE_ATTRIB_LASTPTR,
+      //                  dtn->LastPtr());
       //  if (res) return res;
       //}
     }
@@ -1415,7 +1530,9 @@ int DtDelete(BtCursor *pCur, int level, ListCell *lc){
       // remember pointer of last real cell
       Oid child = raw->Cells[raw->Ncells-1].value;
       // call range delete on last real cell
-      res = KVlistdelrange(pCur->pBtree->tx, coid, 4, &raw->Cells[raw->Ncells-1], &raw->Cells[raw->Ncells-1], (GKeyInfo*) pCur->pKeyInfo);
+      res = KVlistdelrange(pCur->pBtree->tx, coid, 4,
+                 &raw->Cells[raw->Ncells-1], &raw->Cells[raw->Ncells-1],
+                           (GKeyInfo*) pCur->pKeyInfo);
       if (res) return SQLITE_IOERR;
       // set last pointer to remembered pointer
       res = KVattrset(pCur->pBtree->tx, coid, DTREENODE_ATTRIB_LASTPTR, child);
@@ -1433,13 +1550,15 @@ int DtDelete(BtCursor *pCur, int level, ListCell *lc){
   // if leftpointer != 0 then set its rightpointer to be our rightpointer
   if (dtn->LeftPtr()){
     coidneighbor.oid = dtn->LeftPtr();
-    res=KVattrset(pCur->pBtree->tx, coidneighbor, DTREENODE_ATTRIB_RIGHTPTR, dtn->RightPtr());
+    res=KVattrset(pCur->pBtree->tx, coidneighbor, DTREENODE_ATTRIB_RIGHTPTR,
+                  dtn->RightPtr());
     if (res) return SQLITE_IOERR;
   }
   // if rightpointer != 0 then set its leftpointer to be our leftpointer
   if (dtn->RightPtr()){
     coidneighbor.oid = dtn->RightPtr();
-    res=KVattrset(pCur->pBtree->tx, coidneighbor, DTREENODE_ATTRIB_LEFTPTR, dtn->LeftPtr());
+    res=KVattrset(pCur->pBtree->tx, coidneighbor, DTREENODE_ATTRIB_LEFTPTR,
+                  dtn->LeftPtr());
     if (res) return SQLITE_IOERR;
   }
 
@@ -1448,7 +1567,8 @@ int DtDelete(BtCursor *pCur, int level, ListCell *lc){
     res = KVput(pCur->pBtree->tx, coid, 0, 0); // delete object
     
     // find real parent and index that points to us (write this info on current path)
-    res = DtFindRealLevelPath(pCur, level-1, lc); if (res<0) return SQLITE_IOERR;
+    res = DtFindRealLevelPath(pCur, level-1, lc);
+    if (res<0) return SQLITE_IOERR;
     if (res>0){ // confused by cache
       level = DtRefreshCursor(pCur, lc, pCur->node[level].NodeOid());
       if (level < 0){
@@ -1471,14 +1591,17 @@ int DtDelete(BtCursor *pCur, int level, ListCell *lc){
       // set node level to 0
       res=KVattrset(pCur->pBtree->tx, coid, DTREENODE_ATTRIB_HEIGHT, 0);
       //  mark as leaf node     
-      res=KVattrset(pCur->pBtree->tx, coid, DTREENODE_ATTRIB_FLAGS, dtn->Flags() | DTREENODE_FLAG_LEAF);
+      res=KVattrset(pCur->pBtree->tx, coid, DTREENODE_ATTRIB_FLAGS,
+                    dtn->Flags() | DTREENODE_FLAG_LEAF);
       if (res) return SQLITE_IOERR;
     } else {
       // call delete on only cell
       cell = dtn->Cells()[index];
-      res = KVlistdelrange(pCur->pBtree->tx, coid, 4, &cell, &cell, (GKeyInfo*) pCur->pKeyInfo);
+      res = KVlistdelrange(pCur->pBtree->tx, coid, 4, &cell, &cell,
+                           (GKeyInfo*) pCur->pKeyInfo);
       if (res) return SQLITE_IOERR;
-      // the stuff below is no longer needed since a delrange conflicts with another delrange in the same cell
+      // the stuff below is no longer needed since a delrange conflicts with
+      // another delrange in the same cell
       //// write dummy last pointer to create WW conflict
       //res = KVattrset(pCur->pBtree->tx, coid, DTREENODE_ATTRIB_LASTPTR, 0);
       //if (res) return SQLITE_IOERR;
@@ -1502,7 +1625,10 @@ int sqlite3BtreeDelete(BtCursor *pCur){
     res = DtMovefromDirect(pCur);
     if (res){ DTREELOG("  return %d", SQLITE_IOERR); return SQLITE_IOERR; }
   }
-  if (pCur->eState != CURSOR_VALID){ DTREELOG("  return %d", SQLITE_ERROR); return SQLITE_ERROR; }
+  if (pCur->eState != CURSOR_VALID){
+    DTREELOG("  return %d", SQLITE_ERROR);
+    return SQLITE_ERROR;
+  }
   
   assert(pCur->node[pCur->levelLeaf].isLeaf());
   assert(pCur->nodetype[pCur->levelLeaf] == 1); // leaf must be real node
@@ -1511,7 +1637,8 @@ int sqlite3BtreeDelete(BtCursor *pCur){
   if (res){ DTREELOG("  return %d", SQLITE_IOERR); return SQLITE_IOERR; }
 
   // obtain a real cell at the leaf and its keyinfo. This is used to
-  // locate the ascentors of the leaf, in case we need to delete the cell and hence update the parents.
+  // locate the ascentors of the leaf, in case we need to delete the cell and
+  // hence update the parents.
   assert(pCur->node[pCur->levelLeaf].Ncells());
   ListCell lc(pCur->node[pCur->levelLeaf].Cells()[0]);
   //GKeyInfo *pki = CloneGKeyInfo(pCur->node[pCur->levelLeaf].Pki());
@@ -1544,9 +1671,14 @@ int DtFirst(BtCursor *pCur, int *pRes){
   level = 0;
   coid.oid = DTREE_ROOT_OID; // start with root
   do {
-    res = auxReadCacheOrReal(pCur->pBtree->tx, coid, pCur->node[level], real, 0, 0);
+    res = auxReadCacheOrReal(pCur->pBtree->tx, coid, pCur->node[level],
+                             real, 0, 0);
     if (res==GAIAERR_WRONG_TYPE){ // not supervalue
-      if (level == 0){ pCur->eState = CURSOR_INVALID; return SQLITE_EMPTY; } // root not supervalue, so tree is deleted
+      if (level == 0){
+        // root not supervalue, so tree is deleted        
+        pCur->eState = CURSOR_INVALID;
+        return SQLITE_EMPTY;
+      } 
       --level; // move up one level
       break; // skip rest of cache traversal
     }
@@ -1568,7 +1700,11 @@ int DtFirst(BtCursor *pCur, int *pRes){
       coid2.oid = pCur->node[level].NodeOid();
       res = auxReadReal(pCur->pBtree->tx, coid2, pCur->node[level], 0, 0); 
       if (res){
-        if (res == GAIAERR_WRONG_TYPE){ --level; continue; } // wrong node type, keep searching upwards
+        if (res == GAIAERR_WRONG_TYPE){
+          // wrong node type, keep searching upwards
+          --level;
+          continue;
+        } 
         pCur->eState = CURSOR_INVALID; return SQLITE_IOERR;
       }
       pCur->nodetype[level] = 1; // mark it as real node
@@ -1584,7 +1720,8 @@ int DtFirst(BtCursor *pCur, int *pRes){
     coid.oid = pCur->node[level].GetPtr(0);
     ++level;
     res = auxReadReal(pCur->pBtree->tx, coid, pCur->node[level], 0, 0);
-    if (res==GAIAERR_WRONG_TYPE) res = SQLITE_CORRUPT; // not a supervalue, so tree is corrupted
+    if (res==GAIAERR_WRONG_TYPE) res = SQLITE_CORRUPT; // not a supervalue,
+                                                        // so tree is corrupted
     if (res){ pCur->eState = CURSOR_INVALID; return SQLITE_IOERR; }
     pCur->nodetype[level] = 1;
     assert(pCur->node[level].LeftPtr() == 0); // must be leftmost node in level
@@ -1627,9 +1764,14 @@ int DtLast(BtCursor *pCur, int *pRes){
   level = 0;
   coid.oid = DTREE_ROOT_OID; // start with root
   do {
-    res = auxReadCacheOrReal(pCur->pBtree->tx, coid, pCur->node[level], real, 0, 0);
+    res = auxReadCacheOrReal(pCur->pBtree->tx, coid, pCur->node[level], real,
+                             0, 0);
     if (res==GAIAERR_WRONG_TYPE){ // not supervalue
-      if (level == 0){ pCur->eState = CURSOR_INVALID; return SQLITE_EMPTY; } // root not supervalue, so tree is deleted
+      if (level == 0){
+        // root not supervalue, so tree is deleted
+        pCur->eState = CURSOR_INVALID;
+        return SQLITE_EMPTY;
+      }
       --level; // move up one level
       break; // skip rest of cache traversal
     }
@@ -1651,7 +1793,11 @@ int DtLast(BtCursor *pCur, int *pRes){
       coid2.oid = pCur->node[level].NodeOid();
       res = auxReadReal(pCur->pBtree->tx, coid2, pCur->node[level], 0, 0); 
       if (res){
-        if (res == GAIAERR_WRONG_TYPE){ --level; continue; } // wrong node type, keep searching upwards
+        if (res == GAIAERR_WRONG_TYPE){
+          // wrong node type, keep searching upwards
+          --level;
+          continue;
+        }
         pCur->eState = CURSOR_INVALID; return SQLITE_IOERR;
       }
       pCur->nodetype[level] = 1; // mark it as real node
@@ -1667,7 +1813,8 @@ int DtLast(BtCursor *pCur, int *pRes){
     coid.oid = pCur->node[level].LastPtr();
     ++level;
     res = auxReadReal(pCur->pBtree->tx, coid, pCur->node[level], 0, 0);
-    if (res==GAIAERR_WRONG_TYPE) res = SQLITE_CORRUPT; // not a supervalue, so tree is corrupted
+    if (res==GAIAERR_WRONG_TYPE)  // not a supervalue, so tree is corrupted
+      res = SQLITE_CORRUPT;
     if (res){ pCur->eState = CURSOR_INVALID; return SQLITE_IOERR; }
     pCur->nodetype[level] = 1;
     assert(pCur->node[level].RightPtr() == 0); // most be leftmost node in level
@@ -1710,8 +1857,13 @@ int sqlite3BtreeNext(BtCursor *pCur, int *pRes){
     if (res){ DTREELOG("  return %d", SQLITE_IOERR); return SQLITE_IOERR; }
   }
   
-  res = restoreCursorPosition(pCur); if (res != SQLITE_OK){ DTREELOG("  return %d", res); return res; }
-  if (pCur->eState==CURSOR_INVALID){ *pRes = 1; DTREELOG("  return %d", 0); return 0; }
+  res = restoreCursorPosition(pCur);
+  if (res != SQLITE_OK){ DTREELOG("  return %d", res); return res; }
+  if (pCur->eState==CURSOR_INVALID){
+    *pRes = 1;
+    DTREELOG("  return %d", 0);
+    return 0;
+  }
   if (pCur->skipNext>0){
     pCur->skipNext = 0;
     *pRes = 0;
@@ -1723,7 +1875,8 @@ int sqlite3BtreeNext(BtCursor *pCur, int *pRes){
   assert(pCur->eState == CURSOR_VALID);
   int levelleaf = pCur->levelLeaf;
   ++pCur->nodeIndex[levelleaf];
-  if (pCur->nodeIndex[levelleaf] < pCur->node[levelleaf].Ncells()){ /* still cells in this node */
+  if (pCur->nodeIndex[levelleaf] < pCur->node[levelleaf].Ncells()){
+    // still cells in this node
     *pRes=0;
     DTREELOG("  return %d", 0);
     return 0;
@@ -1767,8 +1920,13 @@ int sqlite3BtreePrevious(BtCursor *pCur, int *pRes){
     if (res){ DTREELOG("  return %d", SQLITE_IOERR); return SQLITE_IOERR; }
   }
   
-  res = restoreCursorPosition(pCur); if (res){ DTREELOG("  return %d", res); return res; }
-  if (pCur->eState==CURSOR_INVALID){ *pRes = 1; DTREELOG("  return %d", 0); return 0; }
+  res = restoreCursorPosition(pCur);
+  if (res){ DTREELOG("  return %d", res); return res; }
+  if (pCur->eState==CURSOR_INVALID){
+    *pRes = 1;
+    DTREELOG("  return %d", 0);
+    return 0;
+  }
   if (pCur->skipNext<0){
     pCur->skipNext = 0;
     *pRes = 0;
@@ -1794,7 +1952,8 @@ int sqlite3BtreePrevious(BtCursor *pCur, int *pRes){
     if (res){ DTREELOG("  return %d", SQLITE_IOERR); return SQLITE_IOERR; }
     pCur->nodetype[levelleaf] = 1; // mark as real node
     assert(pCur->node[levelleaf].Ncells() > 0); // cannot be empty
-    pCur->nodeIndex[levelleaf] = pCur->node[levelleaf].Ncells()-1; // start at last cell
+    pCur->nodeIndex[levelleaf] = pCur->node[levelleaf].Ncells()-1; // start at
+                                                                   // last cell
     *pRes=0;
     pCur->eState = CURSOR_VALID;
   }
@@ -1823,8 +1982,14 @@ int sqlite3BtreeCount(BtCursor *pCur, i64 *pnEntry){
   pCur->data=0;
 
   // move cursor to first entry
-  res = DtFirst(pCur, &pres); if (res){ DTREELOG("  return %d", SQLITE_IOERR); return SQLITE_IOERR; }
-  if (pres == 1){ *pnEntry=0; DTREELOG("  return %d", 0); return 0; } // empty table
+  res = DtFirst(pCur, &pres);
+  if (res){ DTREELOG("  return %d", SQLITE_IOERR); return SQLITE_IOERR; }
+  if (pres == 1){
+    // empty table
+    *pnEntry=0;
+    DTREELOG("  return %d", 0);
+    return 0;
+  }
 
   coid.cid = pCur->rootCid;
   levelleaf = pCur->levelLeaf;
@@ -1842,9 +2007,11 @@ int sqlite3BtreeCount(BtCursor *pCur, i64 *pnEntry){
   return 0;
 }
 
-// Delete all child nodes of given oid and below, recursively, including any data nodes of leaf nodes.
+// Delete all child nodes of given oid and below, recursively, including any
+// data nodes of leaf nodes.
 // Also current oid if it is not the root, or it eraseRoot=true.
-static int auxClearTable(Btree *pBtree, int level, COid coid, int *pnChange, bool eraseRoot){
+static int auxClearTable(Btree *pBtree, int level, COid coid, int *pnChange,
+                         bool eraseRoot){
   int res;
   SuperValue *raw;
   COid childcoid;
@@ -1891,7 +2058,8 @@ static int auxClearTable(Btree *pBtree, int level, COid coid, int *pnChange, boo
   else { // root node, but we should not erase it, just empty it
     SuperValue sv;
     DTreeNode::InitSuperValue(&sv, ptrNode.isIntKey() ? 0 : 1);
-    sv.Attrs[DTREENODE_ATTRIB_FLAGS] = DTREENODE_FLAG_LEAF | (ptrNode.isIntKey() ? DTREENODE_FLAG_INTKEY : 0);
+    sv.Attrs[DTREENODE_ATTRIB_FLAGS] = DTREENODE_FLAG_LEAF |
+      (ptrNode.isIntKey() ? DTREENODE_FLAG_INTKEY : 0);
     sv.Attrs[DTREENODE_ATTRIB_HEIGHT] = 0;
     sv.Attrs[DTREENODE_ATTRIB_LASTPTR] = 0;
     sv.Attrs[DTREENODE_ATTRIB_LEFTPTR] = 0;
@@ -2030,7 +2198,8 @@ const void *sqlite3BtreeDataFetch(BtCursor *pCur, int *pAmt){
 int sqlite3BtreeKeySize(BtCursor *pCur, i64 *pSize){
   DTREELOG("BtCursor %p", pCur);
   assert(cursorHoldsMutex(pCur));
-  assert(pCur->eState==CURSOR_INVALID || pCur->eState==CURSOR_VALID || pCur->eState==CURSOR_DIRECT);
+  assert(pCur->eState==CURSOR_INVALID || pCur->eState==CURSOR_VALID ||
+         pCur->eState==CURSOR_DIRECT);
   if (pCur->eState != CURSOR_VALID && pCur->eState != CURSOR_DIRECT){
     *pSize = 0;
   } else {
@@ -2141,7 +2310,10 @@ int sqlite3BtreePutData(BtCursor *pCur, u32 offset, u32 amt, void *z){
   rc = restoreCursorPosition(pCur);
   if (rc){ DTREELOG("  return %d", rc); return rc; }
   assert(pCur->eState!=CURSOR_REQUIRESEEK);
-  if (pCur->eState!=CURSOR_VALID && pCur->eState!=CURSOR_DIRECT){ DTREELOG("  return %d", SQLITE_ABORT); return SQLITE_ABORT; }
+  if (pCur->eState!=CURSOR_VALID && pCur->eState!=CURSOR_DIRECT){
+    DTREELOG("  return %d", SQLITE_ABORT);
+    return SQLITE_ABORT;
+  }
 
   /* Check some assumptions: 
   **   (a) the cursor is open for writing,
@@ -2171,7 +2343,8 @@ int sqlite3BtreePutData(BtCursor *pCur, u32 offset, u32 amt, void *z){
   i64 nkey = pCur->node[levelleaf].Cells()[index].nKey;
 
   assert(pCur->data->type==0);
-  res = DtWriteData(pCur, nkey, (char*) pCur->data->u.buf+sizeof(DataHeader), pCur->data->len-sizeof(DataHeader)); /* write to KV store */
+  res = DtWriteData(pCur, nkey, (char*) pCur->data->u.buf+sizeof(DataHeader),
+                    pCur->data->len-sizeof(DataHeader)); // write to KV store
   if (res){ DTREELOG("  return %d", SQLITE_IOERR); return SQLITE_IOERR; }
   pCur->data = vbuf;
 
@@ -2179,7 +2352,7 @@ int sqlite3BtreePutData(BtCursor *pCur, u32 offset, u32 amt, void *z){
   return 0;
 }
 
-// --------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 /*
 ** Change the way data is synced to disk in order to increase or decrease
@@ -2195,8 +2368,10 @@ int sqlite3BtreeSetSafetyLevel(
   int fullSync,          /* PRAGMA fullfsync. */
   int ckptFullSync       /* PRAGMA checkpoint_fullfync */
 ){
-  /* do nothing, this function passes through to the pager, but there is no pager */
-  DTREELOG("btree %p level %d fullsync %d ckptfullsync %d", p, level, fullSync, ckptFullSync);
+  // do nothing, this function passes through to the pager,
+  // but there is no pager
+  DTREELOG("btree %p level %d fullsync %d ckptfullsync %d", p, level,
+           fullSync, ckptFullSync);
   return 0;
 }
 
@@ -2233,7 +2408,8 @@ int sqlite3BtreeSetPageSize(Btree *p, int pageSize, int nReserve, int iFix){
   int rc = 0;
   BtShared *pBt = p->pBt;
 
-  DTREELOG("btree %p pagesize %d nreserve %d ifix %d", p, pageSize, nReserve, iFix);
+  DTREELOG("btree %p pagesize %d nreserve %d ifix %d", p, pageSize, nReserve,
+           iFix);
   assert(nReserve>=-1 && nReserve<=255);
   sqlite3BtreeEnter(p);
   if (pBt->pageSizeFixed){
@@ -2625,9 +2801,10 @@ int sqlite3BtreeRollback(Btree *p){
 */
 int sqlite3BtreeBeginStmt(Btree *p, int iStatement){
   DTREELOG("btree %p iStatement %d", p, iStatement);
-  printf("Yesquel critical error: substatement transactions not supported yet\n");
-  fflush(stdout);
-  abort();
+  int res;
+  assert(p->tx);
+  res = beginSubTx(p->tx, iStatement);
+  if (res) return SQLITE_INTERNAL;
   return SQLITE_OK;
 }
 
@@ -2723,7 +2900,8 @@ int sqlite3BtreeSchemaLocked(Btree *p){
 
 
 int sqlite3BtreeLockTable(Btree *p, u64 iTable, u8 isWriteLock){
-  DTREELOG("btree %p itable %llx iswritelock %d", p, (long long)iTable, (int) isWriteLock);
+  DTREELOG("btree %p itable %llx iswritelock %d", p, (long long)iTable,
+           (int) isWriteLock);
   return 0; /* nothing to do, there are no locks for tables */
 }
 
@@ -2742,11 +2920,23 @@ int sqlite3BtreeLockTable(Btree *p, u64 iTable, u8 isWriteLock){
 */
 int sqlite3BtreeSavepoint(Btree *p, int op, int iSavepoint){
   DTREELOG("btree %p op %d iSavepoint %d", p, op, iSavepoint);
-  printf("Yesquel critical error: savepoints not supported yet\n");
-  fflush(stdout);
-  abort();
+  int res;
+  assert(p->tx);
   
-  return 0;
+  switch(op){
+  case SAVEPOINT_RELEASE:
+    res = releaseSubTx(p->tx, iSavepoint);
+    break;
+  case SAVEPOINT_ROLLBACK:
+    res = abortSubTx(p->tx, iSavepoint);
+    break;
+  default:
+    assert(0);
+    res = -1;
+    break;
+  }
+  if (res) return SQLITE_INTERNAL;
+  else return SQLITE_OK;
 }
 
 /*
@@ -2842,7 +3032,8 @@ int sqlite3BtreeGetMeta(Btree *p, int idx, u32 *pMeta){
 #if YS_SCHEMA_CACHE == 1
   // this option reads the metadata only once, and therefore does not
   // support changes in the metadata (= changes in table schemas)
-  if (!pBt->pPage1) res = ReadDbMetadata(p->tx, pBt->KVdbid, &len, (char**) &pBt->pPage1);
+  if (!pBt->pPage1) res = ReadDbMetadata(p->tx, pBt->KVdbid, &len,
+                                         (char**) &pBt->pPage1);
   if (res) rc = SQLITE_IOERR;
   else *pMeta = pBt->pPage1->metadata[idx];
 #else
@@ -2970,8 +3161,8 @@ static int cursorHoldsMutex(BtCursor *p){
 /*
 ** Save the current cursor position in the variables BtCursor.nKey 
 ** and BtCursor.pKey. The cursor's state is set to CURSOR_REQUIRESEEK, and
-** the buffer is released. This function is normally called when the caller knows
-** that a subsequent operation will possibly mess up with cursor.
+** the buffer is released. This function is normally called when the caller
+** knows that a subsequent operation will possibly mess up with cursor.
 **
 ** The caller must ensure that the cursor is valid (has eState==CURSOR_VALID)
 ** prior to calling this routine.  
@@ -3050,7 +3241,8 @@ static int dtreeRestoreCursorPosition(BtCursor *pCur){
   }
   pCur->eState = CURSOR_INVALID;
   
-  rc = DtMovetoaux(pCur, pCur->savepKey, pCur->savenKey, 0, &pCur->skipNext, true);
+  rc = DtMovetoaux(pCur, pCur->savepKey, pCur->savenKey, 0, &pCur->skipNext,
+                   true);
   if (rc==SQLITE_OK){
     sqlite3_free(pCur->savepKey);
     pCur->savepKey = 0;
@@ -3077,7 +3269,8 @@ int sqlite3BtreeCursorHasMoved(BtCursor *pCur, int *pHasMoved){
   DTREELOG("BtCursor %p", pCur);
   rc = restoreCursorPosition(pCur);
   if (rc){ *pHasMoved = 1; return rc; }
-  if ((pCur->eState != CURSOR_VALID && pCur->eState != CURSOR_DIRECT) || pCur->skipNext!=0) *pHasMoved = 1;
+  if ((pCur->eState != CURSOR_VALID && pCur->eState != CURSOR_DIRECT) ||
+      pCur->skipNext!=0) *pHasMoved = 1;
   else *pHasMoved = 0;
   return 0;
 }
@@ -3168,7 +3361,8 @@ void DtFreeCursorFields(BtCursor *pCur){
   int i;
   if (pCur->savepKey){ sqlite3_free(pCur->savepKey); pCur->savepKey=0; }
   pCur->data = 0;
-  for (i=0; i < DTREE_MAX_LEVELS; ++i) pCur->node[i].raw = 0; // zero out smart pointers
+  for (i=0; i < DTREE_MAX_LEVELS; ++i)
+    pCur->node[i].raw = 0; // zero out smart pointers
 }
 
 /*
@@ -3199,7 +3393,8 @@ int sqlite3BtreeSetVersion(Btree *pBtree, int iVersion){
 
   rc = sqlite3BtreeBeginTrans(pBtree, 0);
   if (rc==SQLITE_OK){
-    if (pBt->pPage1->readVersion!=(u8)iVersion || pBt->pPage1->writeVersion !=(u8)iVersion){
+    if (pBt->pPage1->readVersion!=(u8)iVersion ||
+        pBt->pPage1->writeVersion !=(u8)iVersion){
       rc = sqlite3BtreeBeginTrans(pBtree, 2);
       if (rc==SQLITE_OK){
         /* rc = sqlite3PagerWrite(pBt->pPage1->pDbPage); */

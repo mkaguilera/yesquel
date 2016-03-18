@@ -56,7 +56,8 @@ StorageConfig::StorageConfig(const char *configfile) {
   CS = ConfigState::ParseConfig(configfile);
   if (!CS) exit(1); // cannot read config file
 
-  u32 myip = IPMisc::getMyIP(parser_cs->PreferredIP, parser_cs->PreferredIPMask);
+  u32 myip = IPMisc::getMyIP(parser_cs->PreferredIP,
+                             parser_cs->PreferredIPMask);
   UniqueId::init(myip);
   Rpcc->clientinit();
 
@@ -75,7 +76,8 @@ StorageConfig::StorageConfig(const char *configfile, Ptr<RPCTcp> rpcc) {
   CS = ConfigState::ParseConfig(configfile);
   if (!CS) exit(1); // cannot read config file
 
-  u32 myip = IPMisc::getMyIP(parser_cs->PreferredIP, parser_cs->PreferredIPMask);
+  u32 myip = IPMisc::getMyIP(parser_cs->PreferredIP,
+                             parser_cs->PreferredIPMask);
   UniqueId::init(myip);
 
   CS->connectHosts(Rpcc);
@@ -103,7 +105,8 @@ void StorageConfig::pingCallback(char *data, int len, void *callbackdata){
   return; // free return results of RPC
 }
 
-// ping and wait for response once to each server (eg, to make sure they are all up)
+// ping and wait for response once to each server
+// (eg, to make sure they are all up)
 void StorageConfig::pingServers(void){
   NullRPCData *parm;
   HostConfig *hc;
@@ -112,7 +115,8 @@ void StorageConfig::pingServers(void){
   pingCallbackData *pcd;
 
   count = 0;
-  for (hc = CS->Hosts.getFirst(); hc != CS->Hosts.getLast(); hc = CS->Hosts.getNext(hc)){
+  for (hc = CS->Hosts.getFirst(); hc != CS->Hosts.getLast();
+       hc = CS->Hosts.getNext(hc)){
     ++count;
     printf("Pinging server %08x port %d\n", hc->ipport.ip, hc->ipport.port);
     parm = new NullRPCData;
@@ -132,7 +136,8 @@ void StorageConfig::pingServers(void){
 
 struct GetStatusCallbackData {
   Semaphore *sem;
-  GetStatusRPCRespData resp; // this field gets filled by getStatusCallback with server response
+  GetStatusRPCRespData resp; // this field gets filled by getStatusCallback
+                             // with server response
 };
 
 void StorageConfig::getStatusCallback(char *data, int len, void *callbackdata){
@@ -157,7 +162,8 @@ void StorageConfig::getStatusServers(void){
   list<GetStatusCallbackData*> responses;
 
   count = 0;
-  for (hc = CS->Hosts.getFirst(); hc != CS->Hosts.getLast(); hc = CS->Hosts.getNext(hc)){
+  for (hc = CS->Hosts.getFirst(); hc != CS->Hosts.getLast();
+       hc = CS->Hosts.getNext(hc)){
     ++count;
     printf("GetStatus server %08x port %d\n", hc->ipport.ip, hc->ipport.port);
     parm = new GetStatusRPCData;
@@ -167,14 +173,16 @@ void StorageConfig::getStatusServers(void){
     gscd = new GetStatusCallbackData;
     gscd->sem = &sem;
     responses.push_back(gscd);
-    Rpcc->asyncRPC(hc->ipport, GETSTATUS_RPCNO, 0, parm, getStatusCallback, (void *) gscd);
+    Rpcc->asyncRPC(hc->ipport, GETSTATUS_RPCNO, 0, parm, getStatusCallback,
+                   (void *) gscd);
   }
   printf("Waiting for responses\n");
   for (i=0; i < count; ++i){
     // wait for responses for all issued RPCs
     sem.wait(INFINITE);
   }
-  for (list<GetStatusCallbackData*>::iterator it = responses.begin(); it != responses.end(); ++it){
+  for (list<GetStatusCallbackData*>::iterator it = responses.begin();
+       it != responses.end(); ++it){
     gscd = *it;
     // **!** do something with gscd->resp
     delete gscd;
@@ -211,8 +219,10 @@ void StorageConfig::shutdownServers(int level){
   SimpleLinkList<HostConfig*> toshutdown;
   ShutdownCallbackData *scd;
   
-  for (hc = CS->Hosts.getFirst(); hc != CS->Hosts.getLast(); hc = CS->Hosts.getNext(hc)){
-    printf("Shutting down server %08x port %d\n", hc->ipport.ip, hc->ipport.port);
+  for (hc = CS->Hosts.getFirst(); hc != CS->Hosts.getLast();
+       hc = CS->Hosts.getNext(hc)){
+    printf("Shutting down server %08x port %d\n", hc->ipport.ip,
+           hc->ipport.port);
     toshutdown.pushTail(hc);
   }
 
@@ -231,7 +241,8 @@ void StorageConfig::shutdownServers(int level){
       scd->sem = &sem;
       scd->hc = hc;
       scd->toshutdown = &toshutdown;
-      Rpcc->asyncRPC(hc->ipport, SHUTDOWN_RPCNO, 0, parm, shutdownCallback, (void *) scd);
+      Rpcc->asyncRPC(hc->ipport, SHUTDOWN_RPCNO, 0, parm, shutdownCallback,
+                     (void *) scd);
     }
     
     // wait to receive replies
@@ -246,8 +257,9 @@ void StorageConfig::shutdownServers(int level){
   printf("Shutdown done\n");
 }
 
-//---------------------------------------------------------------------------------------------------
-void StorageConfig::startsplitterServersCallback(char *data, int len, void *callbackdata){
+//----------------------------------------------------------------------------
+void StorageConfig::startsplitterServersCallback(char *data, int len,
+                                                 void *callbackdata){
   StartSplitterRPCRespData resp;
   Semaphore *sem = (Semaphore*) callbackdata;
   dprintf(2, "Start splitter: got a response");
@@ -263,14 +275,17 @@ void StorageConfig::startsplitterServers(void){
   int i, count;
   
   count = 0;
-  for (hc = CS->Hosts.getFirst(); hc != CS->Hosts.getLast(); hc = CS->Hosts.getNext(hc)){
+  for (hc = CS->Hosts.getFirst(); hc != CS->Hosts.getLast();
+       hc = CS->Hosts.getNext(hc)){
     ++count;
-    printf("Starting splitter on server %08x port %d\n", hc->ipport.ip, hc->ipport.port);
+    printf("Starting splitter on server %08x port %d\n", hc->ipport.ip,
+           hc->ipport.port);
     parm = new StartSplitterRPCData;
     parm->data = new StartSplitterRPCParm;
     parm->data->reserved = 0;
     parm->freedata = true;
-    Rpcc->asyncRPC(hc->ipport, STARTSPLITTER_RPCNO, 0, parm, startsplitterServersCallback, (void *) &sem);
+    Rpcc->asyncRPC(hc->ipport, STARTSPLITTER_RPCNO, 0, parm,
+                   startsplitterServersCallback, (void *) &sem);
   }
   printf("Waiting for responses\n");
   for (i=0; i < count; ++i){
@@ -279,7 +294,8 @@ void StorageConfig::startsplitterServers(void){
   }
 }
 
-void StorageConfig::flushServersCallback(char *data, int len, void *callbackdata){
+void StorageConfig::flushServersCallback(char *data, int len,
+                                         void *callbackdata){
   FlushFileRPCRespData resp;
   Semaphore *sem = (Semaphore*) callbackdata;
   dprintf(2, "Save server: got a response");
@@ -299,7 +315,8 @@ void StorageConfig::flushServers(char *filename){
   if (!filename) filename = (char*)"";
   
   count = 0;
-  for (hc = CS->Hosts.getFirst(); hc != CS->Hosts.getLast(); hc = CS->Hosts.getNext(hc)){
+  for (hc = CS->Hosts.getFirst(); hc != CS->Hosts.getLast();
+       hc = CS->Hosts.getNext(hc)){
     ++count;
     printf("Saving server %08x port %d\n", hc->ipport.ip, hc->ipport.port);
     parm = new FlushFileRPCData;
@@ -311,7 +328,8 @@ void StorageConfig::flushServers(char *filename){
     parm->freedata = true;
     parm->freefilenamebuf = parm->data->filename;
 
-    Rpcc->asyncRPC(hc->ipport, FLUSHFILE_RPCNO, 0, parm, flushServersCallback, (void *) &sem);
+    Rpcc->asyncRPC(hc->ipport, FLUSHFILE_RPCNO, 0, parm,
+                   flushServersCallback, (void *) &sem);
   }
   printf("Waiting for responses\n");
   for (i=0; i < count; ++i){
@@ -320,7 +338,8 @@ void StorageConfig::flushServers(char *filename){
   }
 }
 
-void StorageConfig::loadServersCallback(char *data, int len, void *callbackdata){
+void StorageConfig::loadServersCallback(char *data, int len,
+                                        void *callbackdata){
   LoadFileRPCRespData resp;
   Semaphore *sem = (Semaphore*) callbackdata;
   dprintf(2, "Load server: got a response");
@@ -340,7 +359,8 @@ void StorageConfig::loadServers(char *filename){
   if (!filename) filename = (char*)"";
   
   count = 0;
-  for (hc = CS->Hosts.getFirst(); hc != CS->Hosts.getLast(); hc = CS->Hosts.getNext(hc)){
+  for (hc = CS->Hosts.getFirst(); hc != CS->Hosts.getLast();
+       hc = CS->Hosts.getNext(hc)){
     ++count;
     printf("Loading server %08x port %d\n", hc->ipport.ip, hc->ipport.port);
     parm = new LoadFileRPCData;
@@ -351,7 +371,8 @@ void StorageConfig::loadServers(char *filename){
     parm->data->filenamelen = len+1;
     parm->freedata = true;
     parm->freefilenamebuf = parm->data->filename;
-    Rpcc->asyncRPC(hc->ipport, LOADFILE_RPCNO, 0, parm, loadServersCallback, (void *) &sem);
+    Rpcc->asyncRPC(hc->ipport, LOADFILE_RPCNO, 0, parm, loadServersCallback,
+                   (void *) &sem);
   }
   dprintf(1, "Waiting for responses");
   for (i=0; i < count; ++i){
@@ -360,9 +381,10 @@ void StorageConfig::loadServers(char *filename){
   }
 }
 
-//---------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------
 
-static inline unsigned GetServerNumber(const COid &coid, int nservers, int method, int parm){
+static inline unsigned GetServerNumber(const COid &coid, int nservers,
+                                       int method, int parm){
   switch(method){
   case 0:
     // parm is not used for method 0
@@ -376,7 +398,8 @@ void ObjectDirectory::GetServerId(const COid& coid, IPPortServerno &ipps){
   unsigned serverno;
 
   // get server number
-  serverno = GetServerNumber(coid, Config->Nservers, Config->StripeMethod, Config->StripeParm);
+  serverno = GetServerNumber(coid, Config->Nservers, Config->StripeMethod,
+                             Config->StripeParm);
   ipps.ipport = Config->Servers[serverno]->ipport;
   ipps.serverno = serverno;
 }
@@ -385,7 +408,8 @@ void ObjectDirectory::GetServerId(const COid& coid, IPPortServerno &ipps){
 //   unsigned serverno;
 
 //   // get server number
-//   serverno = GetServerNumber(coid, Config->Nservers, Config->StripeMethod, Config->StripeParm);
+//   serverno = GetServerNumber(coid, Config->Nservers, Config->StripeMethod,
+//                              Config->StripeParm);
 //   ipport = Config->Servers[serverno]->ipport;
 // }
 

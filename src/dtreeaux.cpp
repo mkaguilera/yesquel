@@ -63,14 +63,17 @@ void DTreeNode::InitSuperValue(SuperValue *sv, u8 celltype){
 // and in TxReadCache.
 // We can return data from either cache without making a copy, since that
 // data is private to this transaction.
-// Then try nodes in the NodeCache, but only if it would bring real data (NOT IMPLEMENTED).
+// Then try nodes in the NodeCache, but only if it would bring real data
+//          (NOT IMPLEMENTED).
 // If reading from NodeCache, make a private copy to return.
 // If neither worked, finally read from the TKVS.
-// Puts a copy in NodeCache if read node is not leaf and it is more recent than the one there.
+// Puts a copy in NodeCache if read node is not leaf and it is more recent than
+//      the one there.
 // Puts the read node (not copy) in TxReadCache if it is not in TxWriteCache.
 // Returns a status: 0 if ok, != 0 if problem.
 // The read node is returned in variable outptr.
-int auxReadReal(KVTransaction *tx, COid coid, DTreeNode &outptr, ListCell *cell, GKeyInfo *ki){
+int auxReadReal(KVTransaction *tx, COid coid, DTreeNode &outptr,
+                ListCell *cell, GKeyInfo *ki){
   DTreeNode dtn;
   int res;
 
@@ -86,7 +89,8 @@ int auxReadReal(KVTransaction *tx, COid coid, DTreeNode &outptr, ListCell *cell,
   return 0;
 }
 
-// Read a node from the global cache. The data will be immutable (caller should not modify it).
+// Read a node from the global cache. The data will be immutable
+//   (caller should not modify it).
 // Returns a status: 0 if found, non-zero if not found
 // The read node is returned in variable outptr.
 int auxReadCache(COid coid, DTreeNode &outptr){
@@ -98,15 +102,17 @@ void auxRemoveCache(COid coid){
 }
 
 // read data from cache or, if it is not there, from the TKVS.
-// If the returned node is a leaf node, it will be real (cache should not have it).
+// If the returned node is a leaf node, it will be real (cache should not
+//   have it).
 // Returns three things:
 //    real=1 if value came from TKVS, real=0 if value came from cache
 //    outptr has the read node
 //    return value is 0 iff there were no errors
-// If the data returned is from the cache (non-real), caller is not allowed to change it
-//    since the value may be shared with other threads.
+// If the data returned is from the cache (non-real), caller is not allowed to
+// change it since the value may be shared with other threads.
 // Otherwise, the data is private and the caller can change it.
-int auxReadCacheOrReal(KVTransaction *tx, COid coid, DTreeNode &outptr, int &real, ListCell *cell, GKeyInfo *ki){
+int auxReadCacheOrReal(KVTransaction *tx, COid coid, DTreeNode &outptr,
+                       int &real, ListCell *cell, GKeyInfo *ki){
   int res;
   res = auxReadCache(coid, outptr);
   if (res==0){ 

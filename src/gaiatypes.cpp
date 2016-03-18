@@ -51,17 +51,19 @@
 #include "util.h"
 
 
-// ---------------------------------------------- Tid  ---------------------------------------------
+// ------------------------------------ Tid  ---------------------------------
 Align4 u32 Tid::count=0;
 
 void Tid::setNew(void){
   u32 c = AtomicInc32(&count);
-  d1 = UniqueId::getUniqueId(); // first 64 bits: unique id for this process (IP+PID)
-  d2 = ( ((u64) (Time::now() / 1000) & 0xffffffffffffffff) << 32)  // next 32 bits: seconds from clock
-         | c; // final 32 bits: counter
+  d1 = UniqueId::getUniqueId(); // first 64 bits: unique id for this
+                                // process (IP+PID)
+  d2 = ( ((u64) (Time::now() / 1000) & 0xffffffffffffffff) << 32)
+                                 // next 32 bits: seconds from clock
+         | c;                    // final 32 bits: counter
 }
 
-// ------------------------------------------ Timestamp --------------------------------------------
+// -------------------------------- Timestamp --------------------------------
 
 Tlocal i64 Timestamp::advance = 0;// offset by which to correct local clock
 Tlocal u32 Timestamp::count = 0;  // count of last returned timestamp
@@ -70,7 +72,8 @@ Tlocal u32 Timestamp::countoverflow = 0; // for debugging purposes
 
 #define B48LL   0x0000ffffffffffffLL // lowest 48 bits
 #define B16     0x0000ffff           // lowest 16 bits
-#define TSMAGIC 0xbeec000000000000LL // magic string at beginning of timestamp, to help debugging
+#define TSMAGIC 0xbeec000000000000LL // magic string at beginning of timestamp,
+                                     // to help debugging
 
 void Timestamp::setNew(void){
   u64 us = (Time::nowus()+advance) & B48LL;
@@ -150,7 +153,7 @@ void Timestamp::catchup(Timestamp &ts){
   }
 }
 
-// ------------------------------------------ UniqueId ---------------------------------------------
+// -------------------------------- UniqueId -----------------------------------
 
 Tlocal u64 UniqueId::myid = 0;
 
@@ -160,7 +163,10 @@ void UniqueId::init(u32 myip){
   if (!myip) myip = IPMisc::getMyIP();
   u64 mytid = gettid();
   if ((mytid & ~0xffff)){
-    printf("Error: thread id %lld has more than 16 bits. This will cause problems with unique ids, which reserve only 16 bits for the thread id. If two threads get the same unique id, data will get corrupted. Exiting.\n", (long long) mytid);
+    printf("Error: thread id %lld has more than 16 bits. This will cause "
+           "problems with unique ids, which reserve only 16 bits for the "
+           "thread id. If two threads get the same unique id, data will get "
+           "corrupted. Exiting.\n", (long long) mytid);
     exit(1);
   }
   myid = ((u64) myip)<<16 | (mytid & B16);

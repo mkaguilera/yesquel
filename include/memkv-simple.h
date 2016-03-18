@@ -52,8 +52,13 @@ struct StoredItem {
   // HashTable stuff
   StoredItem *prev, *next, *sprev, *snext;
   COid *GetKeyPtr(){ return &coid; }
-  static unsigned HashKey(COid *coid){ return *((u32*)coid) ^ *((u32*)coid+1) ^ *((u32*)coid+2) ^ *((u32*)coid+3); }
-  static int CompareKey(COid *c1, COid *c2){ return memcmp((void*)c1, (void*)c2, sizeof(COid)); }
+  static unsigned HashKey(COid *coid){
+    return *((u32*)coid) ^ *((u32*)coid+1) ^
+      *((u32*)coid+2) ^ *((u32*)coid+3);
+  }
+  static int CompareKey(COid *c1, COid *c2){
+    return memcmp((void*)c1, (void*)c2, sizeof(COid));
+  }
 };
 
 extern HashTableBK<COid,StoredItem> *MemKVStore;
@@ -63,8 +68,10 @@ int memKVget(KVTransaction *tx, COid coid, char **buf, int *len);
 
 int memKVgetPad(KVTransaction *tx, COid coid, char **buf, int *len, int pad);
 int memKVput(KVTransaction *tx, COid &coid, char *data, int len);
-int memKVput2(KVTransaction* tx, COid &coid,  char *data1, int len1, char *data2, int len2);
-int memKVput3(KVTransaction *tx, COid &coid,  char* data1, int len1, char *data2, int len2, char *data3, int len3);
+int memKVput2(KVTransaction* tx, COid &coid,  char *data1, int len1,
+              char *data2, int len2);
+int memKVput3(KVTransaction *tx, COid &coid,  char* data1, int len1,
+              char *data2, int len2, char *data3, int len3);
 int membeginTx(KVTransaction **tx);
 int memcommitTx(KVTransaction* tx);
 int memabortTx(KVTransaction* tx);

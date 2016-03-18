@@ -61,12 +61,13 @@ void LoadStats::report(COid &coid, ListCellPlus *cell){ // reports an access
   int res;
   res = Stats.lookupInsert(coid, csptr);
   if (res){ // item was created
-    *csptr = 0; // do not record exact cell for the first access. This is because
-                // we expect lots of items with a single access only
+    *csptr = 0; // do not record exact cell for the first access. This is
+                // because we expect lots of items with a single access only
     delete cell;
     return;
   }
-  if (!*csptr){ // this is the second time this coid is accessed; create a COidStat for it
+  if (!*csptr){
+    // this is the second time this coid is accessed; create a COidStat for it
     *csptr = new COidStat;
   }
   cs = *csptr;
@@ -80,7 +81,8 @@ void LoadStats::report(COid &coid, ListCellPlus *cell){ // reports an access
   ++*countptr; // bump counter for cell
 }
 
-// check if period is done. If so, find heavy hitters, call the splitter and start new period.
+// check if period is done. If so, find heavy hitters, call the splitter and
+// start new period.
 // Returns 0 if period continues, non-zero if new period started
 int LoadStats::check(void){
   u64 now;
@@ -92,19 +94,22 @@ int LoadStats::check(void){
   SkipListNode<COid,COidStat*> *ptr;
   COidStat *cs;
     
-  for (ptr = Stats.getFirst(); ptr != Stats.getLast(); ptr = Stats.getNext(ptr)){
+  for (ptr = Stats.getFirst(); ptr != Stats.getLast();
+       ptr = Stats.getNext(ptr)){
     cs = ptr->value;
     if (cs && cs->Hits > HeavyHitterThreshold){
       SkipListNodeBK<ListCellPlus,int> *nptr;
       int hitthres = cs->Hits / 2;
       int count = 0;
-      for (nptr = cs->CellStat.getFirst(); nptr != cs->CellStat.getLast(); nptr = cs->CellStat.getNext(nptr)){
+      for (nptr = cs->CellStat.getFirst(); nptr != cs->CellStat.getLast();
+           nptr = cs->CellStat.getNext(nptr)){
 	count += nptr->value;
-	if (count >= hitthres) break; // stop when we are past half the number of hits
+	if (count >= hitthres)
+          break; // stop when we are past half the number of hits
       }
       assert(count >= hitthres);
-      // nptr points to ListCellPlus where split should happen. The cell pointed to is the first
-      // cell of the second half of the split.
+      // nptr points to ListCellPlus where split should happen. The cell
+      // pointed to is the first cell of the second half of the split.
 
       // split coid ptr->key at cell nptr->key
 #ifndef DISABLE_NODESPLITS
@@ -131,7 +136,8 @@ void LoadStats::print(void){
   COidStat *cs;
   COid coid;
     
-  for (ptr = Stats.getFirst(); ptr != Stats.getLast(); ptr = Stats.getNext(ptr)){
+  for (ptr = Stats.getFirst(); ptr != Stats.getLast();
+       ptr = Stats.getNext(ptr)){
     coid = ptr->key;
     printf("%08llx:%08llx", (long long)coid.cid, (long long)coid.oid);
     cs = ptr->value;
@@ -139,7 +145,8 @@ void LoadStats::print(void){
     printf(" %d [", cs->Hits);
     SkipListNodeBK<ListCellPlus,int> *nptr;
     int notfirst=0;
-    for (nptr = cs->CellStat.getFirst(); nptr != cs->CellStat.getLast(); nptr = cs->CellStat.getNext(nptr)){
+    for (nptr = cs->CellStat.getFirst(); nptr != cs->CellStat.getLast();
+         nptr = cs->CellStat.getNext(nptr)){
       if (notfirst) printf(", ");
       else notfirst = 1;
       nptr->key->printShort(false, false);

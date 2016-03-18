@@ -95,10 +95,12 @@ i64 GetRowidFromServer(Cid cid, i64 hint){
 
   assert(SC);
 
-  if (cid >> 48 & EPHEMDB_CID_BIT) return GetRowidLocal(cid, hint);  // local container
+  if (cid >> 48 & EPHEMDB_CID_BIT)
+    return GetRowidLocal(cid, hint);  // local container
 
   fakecoid.cid = cid;
-  fakecoid.oid = 0;    // use oid 0 to determine what server will handle getrowid requests for a given cid
+  fakecoid.oid = 0;    // use oid 0 to determine what server will
+                       // handle getrowid requests for a given cid
 
   SC->Od->GetServerId(fakecoid, dest);
   
@@ -107,7 +109,8 @@ i64 GetRowidFromServer(Cid cid, i64 hint){
   parm->data->cid = cid;
   parm->data->hint = hint;
   parm->freedata = true;
-  resp = SC->Rpcc->syncRPC(dest.ipport, SS_GETROWID_RPCNO, FLAG_HID((u32)cid),parm);
+  resp = SC->Rpcc->syncRPC(dest.ipport, SS_GETROWID_RPCNO,
+                           FLAG_HID((u32)cid), parm);
 
   if (!resp) return 0;
   rpcresp.demarshall(resp);
@@ -118,13 +121,15 @@ i64 GetRowidFromServer(Cid cid, i64 hint){
 }
 
 // computes delay and expiration due to a node that is too large
-int SplitterThrottle::computeDelayFromQueue(SplitterStats &load, u64& expiration){
+int SplitterThrottle::computeDelayFromQueue(SplitterStats &load,
+                                            u64& expiration){
   int duration=0;
   int delay=0;
   int m;
   //m = load.splitQueueSize/10;
   //if (m >= 1){ // kick in when queue size is 10 or more
-  //  // at size 10 add 1ms, at size 100 add 1s, increasing exponentially between these
+  //  // at size 10 add 1ms, at size 100 add 1s, increasing exponentially
+  //  // between these
   //  if (m < 10) delay = 1<<m;
   //  else delay = 1024; // capped at 1024ms
   //  duration = (int) ceil(load.splitTimeAvg * load.splitQueueSize/2);
@@ -134,7 +139,8 @@ int SplitterThrottle::computeDelayFromQueue(SplitterStats &load, u64& expiration
   m = load.splitQueueSize/10;
   if (m >= 5){ // kick in when queue size is 50 or more
     m -= 4;
-    // at size 50 add 1ms, at size 500 add 1s, increasing exponentially between these
+    // at size 50 add 1ms, at size 500 add 1s, increasing exponentially
+    // between these
     if (m < 10) delay = 1<<m;
     else delay = 1024; // capped at 1024ms
     duration = (int) ceil(load.splitTimeAvg * load.splitQueueSize/2);
@@ -143,7 +149,8 @@ int SplitterThrottle::computeDelayFromQueue(SplitterStats &load, u64& expiration
   return delay;
 }
 
-int SplitterThrottle::computeDelayFromTimeRetrying(SplitterStats &load, u64& expiration){
+int SplitterThrottle::computeDelayFromTimeRetrying(SplitterStats &load,
+                                                   u64& expiration){
   int m;
   int delay=0;
   int duration=0;
@@ -170,12 +177,15 @@ int SplitterThrottle::computeDelayFromTimeRetrying(SplitterStats &load, u64& exp
   return delay;
 }
 
-// Currently, this is not enabled since no place in the code reports the node size.
+// Currently, this is not enabled since no place in the code reports
+// the node size.
 // To report the node size, add this statement:
 //     SD->GetThrottle(coid)->ReportNodeSize(node.Ncells(), node.CellsSize());
-// The problem is that we should report a real node size at the storage server, not the node
-// size within a transaction, as the latter can grow very quickly beyond the limit
-int SplitterThrottle::computeDelayFromNodesize(unsigned nelements, unsigned nbytes, u64& expiration){
+// The problem is that we should report a real node size at the storage server,
+// not the node size within a transaction, as the latter can grow very
+// quickly beyond the limit
+int SplitterThrottle::computeDelayFromNodesize(unsigned nelements,
+                                              unsigned nbytes, u64& expiration){
   int m;
   int delayelements=0;
   int delaybytes=0;
@@ -183,12 +193,14 @@ int SplitterThrottle::computeDelayFromNodesize(unsigned nelements, unsigned nbyt
   int duration;
   m = nelements/DTREE_SPLIT_SIZE;
   if (m >= 2){ // kick in at twice the expected number of elements
-    if (m < 12) delayelements = 1<<(m-2); // at 2x add 1ms, at 12x add 1s, increasing exponentially between these
+    if (m < 12) delayelements = 1<<(m-2); // at 2x add 1ms, at 12x add 1s,
+                                       // increasing exponentially between these
     else delayelements = 1024; // capped at 1024ms
   }
   m = nbytes/DTREE_SPLIT_SIZE_BYTES;
   if (m >= 2){ // kick in at twice the expected size
-    if (m < 12) delaybytes = 1<<(m-2); // at 2x add 1ms, at 12x add 1s, increasing exponentially between these
+    if (m < 12) delaybytes = 1<<(m-2); // at 2x add 1ms, at 12x add 1s,
+                                      // increasing exponentially between these
     else delaybytes = 1024; // capped at 1024ms
   }
   // pick max delay due to node size or node bytes
@@ -196,7 +208,7 @@ int SplitterThrottle::computeDelayFromNodesize(unsigned nelements, unsigned nbyt
   else delay = delaybytes;
 
   duration = delay*2; 
-  //if (duration < 1000 && delay > 0) duration=1000; // ...but at least one second
+  //if (duration < 1000 && delay > 0) duration=1000;//...but at least one second
   expiration = Time::now() + duration;
   return delay;
 }
@@ -221,10 +233,6 @@ void SplitterThrottle::ReportLoad(SplitterStats &newload){
   Expirations[0] = expiration0;
   Expirations[1] = expiration1;
   //lock.unlock();
-  // debugging printfs
-  //u64 now = Time::now();
-  //printf("ReportLoad queuesize %d ave %f retrying %d\n", newload.splitQueueSize, newload.splitTimeAvg, newload.splitTimeRetryingMs);
-  //printf("Delay %d %d Exp %d %d\n", Delays[0], Delays[1], Expirations[0]>now ? Expirations[0]-now : 0, Expirations[1]>now ? Expirations[1]-now : 0);
 }
 
 void SplitterThrottle::ReportNodeSize(unsigned nelements, unsigned nbytes){
@@ -239,10 +247,6 @@ void SplitterThrottle::ReportNodeSize(unsigned nelements, unsigned nbytes){
     Delays[2] = delay;
   }
   //lock.unlock();
-  // debugging printfs
-  //u64 now = Time::now();
-  //printf("ReportLoad Nelements %d Nbytes %d\n", nelements, nbytes);
-  //printf("Delay %d Exp %d\n", Delays[2], Expirations[2]>now ? Expirations[2]-now : 0);
 }
 
 int SplitterThrottle::getCurrentDelay(void){

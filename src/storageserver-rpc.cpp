@@ -177,7 +177,8 @@ int prepareRpcStub(RPCTaskInfo *rti){
     if (rti->hasMessage()){
       TaskMsgData msg;
       res = rti->getMessage(msg); assert(res == 0);
-      assert(msg.data[0] == 0xb0); // this is just to check the response (which has no relevant data)
+      assert(msg.data[0] == 0xb0); // this is just to check the response
+                                   // (which has no relevant data)
     }
     resp = prepareRpc(&d, rti->State, (void*) rti);
     assert(resp);
@@ -192,6 +193,15 @@ int commitRpcStub(RPCTaskInfo *rti){
   Marshallable *resp;
   d.demarshall(rti->data);
   resp = commitRpc(&d);
+  rti->setResp(resp);
+  return SchedulerTaskStateEnding;
+}
+
+int subtransRpcStub(RPCTaskInfo *rti){
+  SubtransRPCData d;
+  Marshallable *resp;
+  d.demarshall(rti->data);
+  resp = subtransRpc(&d);
   rti->setResp(resp);
   return SchedulerTaskStateEnding;
 }

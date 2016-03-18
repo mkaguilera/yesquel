@@ -51,12 +51,14 @@
 #include "treedirect.h"
 
 // forward definitions
-int DtMovetoaux(BtCursor *pCur, const void *pKey, i64 nKey, int bias, int *pRes, bool tryDirect);
+int DtMovetoaux(BtCursor *pCur, const void *pKey, i64 nKey, int bias,
+                int *pRes, bool tryDirect);
 int sqlite3BtreeCreateTableChooseTable(Btree *p, Pgno *piTable, int flags);
 
 int DdInit(){
   return sqlite3_initialize();
-  //InitYesql(); // not necessary to call this since sqlite3_open() already calls it
+  //InitYesql(); // not necessary to call this since sqlite3_open() already
+                 // calls it
 }
 
 void DdUninit(){
@@ -84,19 +86,22 @@ int DdCloseConnection(DdConnection *conn){
 
 int DdStartTx(DdConnection *conn){
   int res;
-  res=sqlite3BtreeBeginTrans(conn->pBtree, 1); if (res){ dprintf(1, "sqlite3BtreeBeginTrans fails: %d\n", res); return -1; }
+  res=sqlite3BtreeBeginTrans(conn->pBtree, 1);
+  if (res){ dprintf(1, "sqlite3BtreeBeginTrans fails: %d\n", res); return -1; }
   return 0;
 }
 
 int DdRollbackTx(DdConnection *conn){
   int res;
-  res = sqlite3BtreeRollback(conn->pBtree); if (res){ dprintf(1, "sqlite3BtreeRollback fails: %d\n", res); return -1; }
+  res = sqlite3BtreeRollback(conn->pBtree);
+  if (res){ dprintf(1, "sqlite3BtreeRollback fails: %d\n", res); return -1; }
   return 0;
 }
 
 int DdCommitTx(DdConnection *conn){
   int res;
-  res = sqlite3BtreeCommit(conn->pBtree); if (res){ dprintf(1, "sqlite3BtreeCommit fails: %d\n", res); return -1; }
+  res = sqlite3BtreeCommit(conn->pBtree);
+  if (res){ dprintf(1, "sqlite3BtreeCommit fails: %d\n", res); return -1; }
   return 0;
 }
 
@@ -111,7 +116,8 @@ int DdOpenTable(DdConnection *conn, u64 iTable, DdTable *&table){
 int DdCreateTable(DdConnection *conn, u64 iTable, DdTable *&table){
   int res;
   DdStartTx(conn);
-  res = sqlite3BtreeCreateTableChooseTable(conn->pBtree, &iTable, BTREE_INTKEY); if (res) return res;
+  res = sqlite3BtreeCreateTableChooseTable(conn->pBtree, &iTable, BTREE_INTKEY);
+  if (res) return res;
   res = DdCommitTx(conn); if (res) return res;
   return DdOpenTable(conn, iTable, table);
 }
@@ -133,17 +139,25 @@ void DdCloseTable(DdTable *table){
 int DdInitCursor(DdTable *table){
   int res;
   if (table->pCur) DdCloseCursor(table);
-  table->pCur = (BtCursor*) malloc(sqlite3BtreeCursorSize()); assert(table->pCur);
+  table->pCur = (BtCursor*) malloc(sqlite3BtreeCursorSize());
+  assert(table->pCur);
   sqlite3BtreeCursorZero(table->pCur);
-  res=sqlite3BtreeCursor(table->conn->pBtree, table->iTable & ~0xffff800000000000LL, 1, 0, table->pCur); if (res){ dprintf(1, "sqlite3BtreeCursor fails: %d\n", res); return -1; }
+  res=sqlite3BtreeCursor(table->conn->pBtree,
+                  table->iTable & ~0xffff800000000000LL, 1, 0, table->pCur);
+  if (res){ dprintf(1, "sqlite3BtreeCursor fails: %d\n", res); return -1; }
   return 0;
 }
 
 int DdInsert(DdTable *table, i64 key, const char *value, int valuelen){
   int res;
   DdInitCursor(table);
-  res = sqlite3BtreeInsert(table->pCur, 0, key, (void*) value, valuelen, 0, 0, 0);
-  if (res){ dprintf(1, "sqlite3BtreeInsert fails: %d\n", res); DdCloseCursor(table); return res; }
+  res = sqlite3BtreeInsert(table->pCur, 0, key, (void*) value, valuelen, 0, 0,
+                           0);
+  if (res){
+    dprintf(1, "sqlite3BtreeInsert fails: %d\n", res);
+    DdCloseCursor(table);
+    return res;
+  }
   DdCloseCursor(table);
   return 0;
 }
@@ -155,12 +169,28 @@ int DdDelete(DdTable *table, i64 key){
 
   DdInitCursor(table);
   res = DtMovetoaux(table->pCur, 0, key, 0, &pres, false);
-  if (res){ dprintf(1, "DtMovetoaux fails: %d pres %d\n", res, pres); DdCloseCursor(table); return res; }
-  if (pres != 0){ dprintf(1, "Did not find element %lld\n", (long long)key); DdCloseCursor(table); return res; }
-  if (table->pCur->eState != CURSOR_VALID){ dprintf(1, "BAD CURSOR %d\n", table->pCur->eState); DdCloseCursor(table); return SQLITE_IOERR; }
+  if (res){
+    dprintf(1, "DtMovetoaux fails: %d pres %d\n", res, pres);
+    DdCloseCursor(table);
+    return res;
+  }
+  if (pres != 0){
+    dprintf(1, "Did not find element %lld\n", (long long)key);
+    DdCloseCursor(table);
+    return res;
+  }
+  if (table->pCur->eState != CURSOR_VALID){
+    dprintf(1, "BAD CURSOR %d\n", table->pCur->eState);
+    DdCloseCursor(table);
+    return SQLITE_IOERR;
+  }
     //ptr = (char*)sqlite3BtreeKeyFetch(pCur, &amt);
   res = sqlite3BtreeDelete(table->pCur);
-  if (res){ dprintf(1, "sqlite3BtreeDelete fails: %d\n", res); DdCloseCursor(table); return res; }
+  if (res){
+    dprintf(1, "sqlite3BtreeDelete fails: %d\n", res);
+    DdCloseCursor(table);
+    return res;
+  }
   DdCloseCursor(table);
   return 0;
 }
@@ -174,11 +204,24 @@ int DdLookup(DdTable *table, i64 key, char *buf, int buflen, int *valuelen,
 
   DdInitCursor(table);
   res = DtMovetoaux(table->pCur, 0, key, 0, &pres, tryDirect);
-  if (res){ dprintf(1, "DtMovetoaux fails: %d pres %d", res, pres); DdCloseCursor(table); return res; }
-  if (pres != 0){ dprintf(1, "Lookup did not find element; pres %d", pres); DdCloseCursor(table); *valuelen=0; return 0; }
+  if (res){
+    dprintf(1, "DtMovetoaux fails: %d pres %d", res, pres);
+    DdCloseCursor(table);
+    return res;
+  }
+  if (pres != 0){
+    dprintf(1, "Lookup did not find element; pres %d", pres);
+    DdCloseCursor(table);
+    *valuelen=0;
+    return 0;
+  }
   if (table->pCur->eState != CURSOR_VALID &&
-      table->pCur->eState != CURSOR_DIRECT)
-  { dprintf(1, "Lookup did not find element: bad cursor"); DdCloseCursor(table); *valuelen=0; return 0; }
+      table->pCur->eState != CURSOR_DIRECT){
+    dprintf(1, "Lookup did not find element: bad cursor");
+    DdCloseCursor(table);
+    *valuelen=0;
+    return 0;
+  }
 
   //ptr = (char*)sqlite3BtreeKeyFetch(pCur, &amt);
   ptr = (char*) sqlite3BtreeDataFetch(table->pCur, &len);
@@ -217,12 +260,24 @@ int DdUpdate(DdTable *table, i64 key, char *buf, int buflen,
   int len;
 
   DdInitCursor(table);
-  res = DtMovetoaux(table->pCur, 0, key, 0, &pres, true); // Change last argument to false/true to disable/enable direct seeks
-  if (res){ dprintf(1, "DtMovetoaux fails: %d pres %d", res, pres); DdCloseCursor(table); return res; }
-  if (pres != 0){ dprintf(1, "Lookup did not find element; pres %d", pres); DdCloseCursor(table); return 0; }
+  res = DtMovetoaux(table->pCur, 0, key, 0, &pres, true); // Change last
+                      // argument to false/true to disable/enable direct seeks
+  if (res){
+    dprintf(1, "DtMovetoaux fails: %d pres %d", res, pres);
+    DdCloseCursor(table);
+    return res;
+  }
+  if (pres != 0){
+    dprintf(1, "Lookup did not find element; pres %d", pres);
+    DdCloseCursor(table);
+    return 0;
+  }
   if (table->pCur->eState != CURSOR_VALID &&
-      table->pCur->eState != CURSOR_DIRECT)
-  { dprintf(1, "Lookup did not find element: bad cursor"); DdCloseCursor(table); return 0; }
+      table->pCur->eState != CURSOR_DIRECT){
+    dprintf(1, "Lookup did not find element: bad cursor");
+    DdCloseCursor(table);
+    return 0;
+  }
 
   //ptr = (char*)sqlite3BtreeKeyFetch(pCur, &amt);
   ptr = (char*) sqlite3BtreeDataFetch(table->pCur, &len);
@@ -254,7 +309,11 @@ int DdScan(DdTable *table, i64 key, int nelems,
   if (nelems <= 0) return 0;
   DdInitCursor(table);
   res = DtMovetoaux(table->pCur, 0, key, 0, &pres, false);
-  if (res){ dprintf(1, "DtMovetoaux fails: %d pres %d", res, pres); DdCloseCursor(table); return res; }
+  if (res){
+    dprintf(1, "DtMovetoaux fails: %d pres %d", res, pres);
+    DdCloseCursor(table);
+    return res;
+  }
   if (table->pCur->eState != CURSOR_VALID){ // did not find anything
     dprintf(1, "DtMovetoaux did not find an element >= given one");
     if (callback)

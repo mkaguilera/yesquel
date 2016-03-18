@@ -60,10 +60,9 @@ public:
   void incPreparing(); // increments preparing. This is called in
                        // successful prepare phase (yes vote) of a transaction
                        // that changes cachable state.
-  void donePreparing(bool committed, const Timestamp &newts); // decrements preparing and, if
-                      // committed is true, bump version. This is called
-                       // after the commit of a transaction that changes
-                       // cachable state.
+  void donePreparing(bool committed, const Timestamp &newts); // decrements
+        // preparing and, if committed is true, bump version. This is called
+        // after the commit of a transaction that changes cachable state.
   Timestamp updateAdvanceTs(); // update advance timestamp
 };
 
@@ -83,4 +82,3 @@ public:
 #endif
 
 #endif
-

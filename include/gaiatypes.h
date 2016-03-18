@@ -50,7 +50,8 @@ struct COid {
   Cid cid;
   Oid oid;
   static unsigned hash(const COid &c) {
-    return (unsigned) ((u32)c.cid ^ (u32)(c.cid>>32) ^ (u32)c.oid ^ (u32)(c.oid>>32));
+    return (unsigned) ((u32)c.cid ^ (u32)(c.cid>>32) ^
+                       (u32)c.oid ^ (u32)(c.oid>>32));
   }
   static int cmp(const COid &l, const COid &r) {
     if (l.cid < r.cid) return -1;
@@ -102,7 +103,8 @@ public:
   }
 
   static unsigned hash(const Tid &l){
-    return (unsigned)((u32)l.d1 ^ (u32)(l.d1>>32) ^ (u32)l.d2 ^ (u32)(l.d2>>32));
+    return (unsigned)((u32)l.d1 ^ (u32)(l.d1>>32) ^
+                      (u32)l.d2 ^ (u32)(l.d2>>32));
   }
 };
 
@@ -115,13 +117,15 @@ private:
   static Tlocal u32 count;
   static Tlocal i64 advance;
   static Tlocal u64 lastus;
-  static Tlocal u32 countoverflow; // for debugging purposes. Number of times count has overflown
+  static Tlocal u32 countoverflow; // for debugging purposes. Number of times
+                                   // count has overflown
   u64 d[2];
 public:
   u64 getd1(void){ return d[0]; }
   u64 getd2(void){ return d[1]; }
   static u64 getadvance(){ return advance; } // for debugging purposes
-  static u32 getcountoverflow(){ return countoverflow; } // for debugging purposes
+  static u32 getcountoverflow(){ return countoverflow; } // for debugging
+                                                         // purposes
 
   // set timestamp to a new fresh timestamp
   void setNew();
@@ -141,7 +145,8 @@ public:
   void setLowest(void);
   void setHighest(void);
 
-  // sets timestamp as an illegal timestamp. It is also the real lowest timestamp.
+  // sets timestamp as an illegal timestamp. It is also the real lowest
+  // timestamp.
   void setIllegal(void){ d[0] = d[1] = 0; }
   bool isIllegal(void){ return (d[0]==0 && d[1]==0); }
   static int cmp(const Timestamp &l, const Timestamp &r){
@@ -156,7 +161,8 @@ public:
   // adds time to the timstamp. The time is given in ms, and it can be negative
   void addMs(i64 ms){ d[0] = d[0] + 1000*ms; }
 
-  // gets a timestamp a little bit bigger while maintaining the same unique id part
+  // gets a timestamp a little bit bigger while maintaining the same unique
+  // id part
   void addEpsilon();
 
   // check if ts is bigger than time now, and if so set advance appropriately

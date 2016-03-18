@@ -55,7 +55,8 @@ struct EventData {
 class Event {
   public:
   u64 when;        // time of next call to handler
-  EventData *ed;   // separating rest to make class small since it gets copied a lot
+  EventData *ed;   // separating rest to make class small since it gets
+                   // copied a lot
   Event(){ ed=0; }
 };
 
@@ -76,12 +77,17 @@ private:
   static OSTHREAD_FUNC executorThread(void *parm);
 
 public:
-  EventScheduler(char *appname){ Launched = false; ForceStop = false; AppName = appname; }
+  EventScheduler(char *appname){
+    Launched = false;
+    ForceStop = false;
+    AppName = appname;
+  }
   ~EventScheduler(){ stop(); }
 
   // Schedule an event to be called.
   // If type=0 then it is called once. Event handler return value is ignored.
-  // If type=1 then it is called periodically as long as event handler returns 0.
+  // If type=1 then it is called periodically as long as event handler
+  //                returns 0.
   void AddEvent(EventHandler handler, void *data, int type, int msFromNow);
 
   // start executing events

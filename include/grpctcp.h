@@ -63,14 +63,14 @@ using namespace std;
 typedef void (*RPCCallbackFunc)(char *data, int len, void *callbackdata);
 
 
-// *********************************** CLIENT STUFF ************************************
+// ***************************** CLIENT STUFF ********************************
 class RPCTcp;
 struct OutstandingRPC;
 
 // This is the callback function passed on to an asynchronous RPC call.
 // The callback is invoked when the RPC response arrives. Data has
-// the unmarshalled response with length len, and callbackdata is any data chosen
-// by the entity which set up the callback function.
+// the unmarshalled response with length len, and callbackdata is any data
+// chosen by the entity which set up the callback function.
 // The callback function should not free data, as it will be freed by the
 // RPC library.
 typedef void (*RPCCallbackFunc)(char *data, int len, void *callbackdata);
@@ -86,24 +86,32 @@ struct OutstandingRPC
   //int currtimeout;           // current timeout value
   //int nretransmit;           // number of retransmits
   int done;                  // whether reply has arrived already or not
-                             // Invariant: done=true iff xid is not in OutstandingRequests
+                             // Invariant: done=true iff xid is not in
+                             // OutstandingRequests
   // HashTable stuff
   OutstandingRPC *next, *prev, *snext, *sprev;
   int GetKey(){ return dmsg.xid; }
   static unsigned HashKey(int i){ return (unsigned)i; }
-  static int CompareKey(int i1, int i2){ if (i1<i2) return -1; else if (i1==i2) return 0; else return 1; }
+  static int CompareKey(int i1, int i2){
+    if (i1<i2) return -1;
+    else if (i1==i2) return 0;
+    else return 1;
+  }
 };
 
 
 
-// *********************************** SERVER STUFF ************************************
+// ******************************* SERVER STUFF ******************************
 
 #define MAXRPCSERVERS 16
 
 
 class RPCTaskInfo : public TaskInfo {
 public:
- RPCTaskInfo(int hid, ProgFunc pf, void *taskdata, IPPort *s, u32 r, u32 x, u32 f, TaskMultiBuffer *t, char *d, int l) : TaskInfo(pf, taskdata) {
+ RPCTaskInfo(int hid, ProgFunc pf, void *taskdata, IPPort *s, u32 r, u32 x,
+             u32 f, TaskMultiBuffer *t, char *d, int l)
+   : TaskInfo(pf, taskdata)
+  {
     handlerid = hid;
     src = *s;
     req = r;
@@ -137,14 +145,16 @@ public:
   Marshallable *resp;
 };
 
-typedef int (*RPCProc)(RPCTaskInfo *); // Parameter RPCTaskInfo includes all information about the RPC
+typedef int (*RPCProc)(RPCTaskInfo *); // Parameter RPCTaskInfo includes
+                                       // all information about the RPC
 
 // information for an individual server
 struct RPCServerInfo {
   RPCProc *procs; // handler of all procedure
   int nprocs;     // number of procedures
   int portno;
-  int handlerid;  // id of the handler. This is currently just the index in the array.
+  int handlerid;  // id of the handler. This is currently just the index in
+                  // the array.
 };
 
 
@@ -154,11 +164,14 @@ struct RPCServerInfo {
 class RPCTcp : private TCPDatagramCommunication
 {
 private:
-  HashTableMT<U32,OutstandingRPC*> OutstandingRequests; // outstanding RPC's. A map from xid to OutstandingRPC*
+  HashTableMT<U32,OutstandingRPC*> OutstandingRequests; // outstanding RPC's.
+                                           // A map from xid to OutstandingRPC*
   Align4 u32 CurrXid;
-  Align4 int refcount; friend class Ptr<RPCTcp>; // to support smart pointers to it
+  Align4 int refcount;
+  friend class Ptr<RPCTcp>; // to support smart pointers to it
   
-  static void waitCallBack(char *data, int len, void *callbackdata); // internal callback for synchronous RPCs
+  // internal callback for synchronous RPCs
+  static void waitCallBack(char *data, int len, void *callbackdata);
 
   RPCServerInfo Servers[MAXRPCSERVERS];
   int NextServer; // index of next server to be added
@@ -167,15 +180,19 @@ protected:
   OutstandingRPC *RequestLookupAndDelete(u32 xid);
   
   RPCProc *Procs;
-  unsigned NProcs; // number of registered procedures, which will range from 0 to NFuncs-1
+  unsigned NProcs; // number of registered procedures, which will range
+                   // from 0 to NFuncs-1
 
   static int RPCStart(RPCTaskInfo *rti);
   static int RPCEnd(RPCTaskInfo *rti);
   
   // handles a message from the TCP layer and dispatches RPCs
-  void handleMsg(int handlerid, IPPort *dest, u32 req, u32 xid, u32 flags, TaskMultiBuffer *tmb, char *data, int len);
-  virtual void startupWorkerThread();  // workerThread calls this method upon startup
-  virtual void finishWorkerThread();   // workerThread calls this method when ending
+  void handleMsg(int handlerid, IPPort *dest, u32 req, u32 xid, u32 flags,
+                 TaskMultiBuffer *tmb, char *data, int len);
+  virtual void startupWorkerThread();  // workerThread calls this method
+                                       // upon startup
+  virtual void finishWorkerThread();   // workerThread calls this method
+                                       // when ending
   
 public:
   RPCTcp();
@@ -190,24 +207,36 @@ public:
 
   // ---------------------------- Client methods ------------------------------
 
-  // creates a thread that can make RPCs. Returns a local thread id (not a pthread handle)
-  int createThread(const char *threadname, OSTHREAD_FUNC_PTR startroutine, void *threaddata, bool pinthread){
-    return SLauncher->createThread(threadname, startroutine, threaddata, pinthread);
+  // creates a thread that can make RPCs. Returns a local thread id
+  // (not a pthread handle)
+  int createThread(const char *threadname, OSTHREAD_FUNC_PTR startroutine,
+                   void *threaddata, bool pinthread){
+    return SLauncher->createThread(threadname, startroutine, threaddata,
+                                   pinthread);
   }
 
   // wait for a thread to finish
-  unsigned long waitThread(int threadno){ return SLauncher->waitThread(threadno); }
+  unsigned long waitThread(int threadno){
+    return SLauncher->waitThread(threadno);
+  }
 
   // initializes clients. Must be called once before clientconnect()
   void clientinit(){ TCPDatagramCommunication::clientinit(); }
 
-  // connect as a client to a server. Needs to be called before calling syncRPC or asyncRPC
-  int clientconnect(IPPort dest){ return TCPDatagramCommunication::clientconnect(dest); }
-  int clientdisconnect(IPPort dest){ return TCPDatagramCommunication::clientdisconnect(dest); }
+  // connect as a client to a server. Needs to be called before
+  // calling syncRPC or asyncRPC
+  int clientconnect(IPPort dest){
+    return TCPDatagramCommunication::clientconnect(dest);
+  }
+  int clientdisconnect(IPPort dest){
+    return TCPDatagramCommunication::clientdisconnect(dest);
+  }
     
   // callbackdata is data to be passed to the callback function
-  // When RPC gets response, argument "data" will be deleted automatically, so caller should not delete it again
-  void asyncRPC(IPPort dest, int rpcno, u32 flags, Marshallable *data, RPCCallbackFunc callback, void *callbackdata);
+  // When RPC gets response, argument "data" will be deleted automatically,
+  // so caller should not delete it again
+  void asyncRPC(IPPort dest, int rpcno, u32 flags, Marshallable *data,
+                RPCCallbackFunc callback, void *callbackdata);
 
   // Returns a buffer that caller must later free using free().
   // Comment about parameter "data" for asyncRPC applies here too

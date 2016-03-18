@@ -48,18 +48,31 @@
 #include "util.h"
 
 static void print16(unsigned char *ptr, int n)
-{ int i; if (n > 16) n = 16; for (i = 0; i < n; ++i){
-    printf("%02x", *ptr++); if (i % 8 == 7)  putchar('-');
-    else putchar(' '); }
-  ptr -= n; for (;i<16;i++) printf("   "); printf("  ");
-  for (i = 0; i < n; i++) if (isprint((u8)*ptr)) putchar(*ptr++);
-                          else { ++ptr; putchar('.'); }
+{ int i;
+  if (n > 16) n = 16;
+  for (i = 0; i < n; ++i){
+    printf("%02x", *ptr++);
+    if (i % 8 == 7)  putchar('-');
+    else putchar(' ');
+  }
+  ptr -= n;
+  for (;i<16;i++) printf("   ");
+  printf("  ");
+  for (i = 0; i < n; i++)
+    if (isprint((u8)*ptr)) putchar(*ptr++);
+    else { ++ptr; putchar('.'); }
   putchar('\n'); }
 
 // Pretty printer for binary data
 void DumpData(char *ptr, int i, int firstoff){
-  while (i>0){ printf("%04x:  ", firstoff); print16((unsigned char*)ptr,
-  i); ptr += 16; i -= 16; firstoff += 16; }}
+  while (i>0){
+    printf("%04x:  ", firstoff);
+    print16((unsigned char*)ptr, i);
+    ptr += 16;
+    i -= 16;
+    firstoff += 16;
+  }
+}
 
 void DumpDataShort(char *ptr, int n){
   if (!ptr) return;
@@ -77,7 +90,8 @@ int opterr=1;  // whether to print error messages
 int optopt;    // returned last processed option character
 char *optarg;  // returned option argument
 int getopt(int argc, char **argv, const char *options){
-  static char *contopt=0; // point from where to continue processing options in the same argv
+  static char *contopt=0; // point from where to continue processing options
+                          // in the same argv
   const char *ptr;
 
   if (!contopt){
@@ -95,7 +109,12 @@ int getopt(int argc, char **argv, const char *options){
     return '?';
   }
   if (ptr[1]==':'){ // expecting argument
-    if (contopt && contopt[1]){ optarg=contopt+1; contopt=0; ++optind; return optopt; }
+    if (contopt && contopt[1]){
+      optarg=contopt+1;
+      contopt=0;
+      ++optind;
+      return optopt;
+    }
     contopt=0;
     if (++optind == argc){
       optarg=0; 

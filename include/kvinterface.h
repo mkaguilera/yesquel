@@ -136,36 +136,51 @@ int memcommitTx(KVTransaction *tx);
 int memabortTx(KVTransaction *tx);
 int memKVget(KVTransaction *tx, COid coid, char **buf, int *len);
 
-/* get variation that allocates pad extra space in buffer beyond received data. Padded space is NOT zeroed */
+// get variation that allocates pad extra space in buffer beyond received data.
+// Padded space is NOT zeroed.
 int memKVgetPad(KVTransaction *tx, COid coid, char **buf, int *len, int pad); 
 int memKVput(KVTransaction *tx, COid &coid,  char *data, int len);
-int memKVput2(KVTransaction *tx, COid &coid,  char *data1, int len1, char *data2, int len2);
-int memKVput3(KVTransaction *tx, COid &coid,  char *data1, int len1, char *data2, int len2, char *data3, int len3);
+int memKVput2(KVTransaction *tx, COid &coid,  char *data1, int len1,
+              char *data2, int len2);
+int memKVput3(KVTransaction *tx, COid &coid,  char *data1, int len1,
+              char *data2, int len2, char *data3, int len3);
 
 int beginTx(KVTransaction **txp, bool remote=true, bool deferred=false);
 int commitTx(KVTransaction *tx, Timestamp *retcommitts=0);
 int abortTx(KVTransaction *tx);
 int freeTx(KVTransaction *tx);
+int beginSubTx(KVTransaction *tx, int level);
+int abortSubTx(KVTransaction *tx, int level);
+int releaseSubTx(KVTransaction *tx, int level);
+  
 int KVget(KVTransaction *tx, COid coid, Ptr<Valbuf> &buf);
 
-/* get variation that allocates pad extra space in buffer beyond received data. Padded space is NOT zeroed */
+// get variation that allocates pad extra space in buffer beyond received data.
+// Padded space is NOT zeroed */
 int KVput(KVTransaction *tx, COid coid,  char *data, int len);
-int KVput2(KVTransaction *tx, COid coid,  char *data1, int len1, char *data2, int len2);
-int KVput3(KVTransaction *tx, COid coid,  char *data1, int len1, char *data2, int len2, char *data3, int len3);
+int KVput2(KVTransaction *tx, COid coid,  char *data1, int len1,
+           char *data2, int len2);
+int KVput3(KVTransaction *tx, COid coid,  char *data1, int len1,
+           char *data2, int len2, char *data3, int len3);
 
-int KVreadSuperValue(KVTransaction *tx, COid coid, Ptr<Valbuf> &buf, ListCell *cell, GKeyInfo *ki);
+int KVreadSuperValue(KVTransaction *tx, COid coid, Ptr<Valbuf> &buf,
+                     ListCell *cell, GKeyInfo *ki);
 int KVwriteSuperValue(KVTransaction *tx, COid coid, SuperValue *sv);
 #if DTREE_SPLIT_LOCATION != 1
-  int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell, GKeyInfo *ki, int flags);
+  int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell,
+                GKeyInfo *ki, int flags);
 #else
-  // when split occurs at client, KVlistadd returns some extra information for client to determine
-  // whether to split or not
-  int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell, GKeyInfo *ki, int flags, int *ncells, int *size);
+  // when split occurs at client, KVlistadd returns some extra information for
+  // client to determine whether to split or not
+  int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell, GKeyInfo *ki,
+                int flags, int *ncells, int *size);
 #endif
-int KVlistdelrange(KVTransaction *tx, COid coid, u8 intervalType, ListCell *cell1, ListCell *cell2, GKeyInfo *ki);
+int KVlistdelrange(KVTransaction *tx, COid coid, u8 intervalType,
+                   ListCell *cell1, ListCell *cell2, GKeyInfo *ki);
 int KVattrset(KVTransaction *tx, COid coid, u32  attrid, u64 attrval);
 
-int KVtxreadonly(KVTransaction *tx); // return whether transaction is read-only so far
+int KVtxreadonly(KVTransaction *tx); // return whether transaction is
+                                     // read-only so far
   
 #ifdef __cplusplus
 }; // extern "C"

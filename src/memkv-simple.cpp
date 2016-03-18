@@ -122,7 +122,8 @@ int memKVput(KVTransaction *tx, COid &coid, char *data, int len) {
   return 0;
 }
 
-int memKVput2(KVTransaction* tx, COid &coid,  char *data1, int len1, char *data2, int len2){
+int memKVput2(KVTransaction* tx, COid &coid,  char *data1, int len1,
+              char *data2, int len2){
   int len;
   len = len1+len2;
   if (len == 0) return auxmemKVremove(tx, coid);
@@ -135,7 +136,8 @@ int memKVput2(KVTransaction* tx, COid &coid,  char *data1, int len1, char *data2
   return 0;
 }
 
-int memKVput3(KVTransaction *tx, COid &coid,  char* data1, int len1, char *data2, int len2, char *data3, int len3){
+int memKVput3(KVTransaction *tx, COid &coid,  char* data1, int len1,
+              char *data2, int len2, char *data3, int len3){
   int len;
 
   len = len1+len2+len3;

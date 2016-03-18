@@ -61,7 +61,8 @@ bool Warning::hasinit = false;
 PastWarnings Warning::WarningList[MAX_WARNINGS];
 int Warning::MaxWarning=0;
 
-void Warning::ImmediateFuncWarning(TaskMsgData &msgdata, TaskScheduler *ts, int srcthread){
+void Warning::ImmediateFuncWarning(TaskMsgData &msgdata, TaskScheduler *ts,
+                                   int srcthread){
   TaskMsgDataWarning *tmdw = (TaskMsgDataWarning*) &msgdata;
   PastWarnings *w;
   u64 now;
@@ -101,7 +102,8 @@ void Warning::init(){
     // assign immediate function
     ts->assignImmediateFunc(IMMEDIATEFUNC_WARNING, ImmediateFuncWarning);
     // add event to periodically flush repeated warnings
-    TaskEventScheduler::AddEvent(tgetThreadNo(), flushWarnings, 0, 1, WARNING_FLUSHER_PERIOD);
+    TaskEventScheduler::AddEvent(tgetThreadNo(), flushWarnings, 0, 1,
+                                 WARNING_FLUSHER_PERIOD);
     // set tclass for warnings
     gContext.setNThreads(TCLASS_WARNING, 1);
     gContext.setThread(TCLASS_WARNING, 0, tgetThreadNo());
@@ -141,7 +143,8 @@ void Warning::log(int level, unsigned number, const char *format, ...){
   tmdw->msg = (char*) malloc(MAX_WARNING_LENGTH);
   vsnprintf(tmdw->msg, MAX_WARNING_LENGTH, format, vl);
   tmdw->msg[MAX_WARNING_LENGTH-1] = 0;
-  msg.dest = TASKID_CREATE(gContext.getThread(TCLASS_WARNING, 0), IMMEDIATEFUNC_WARNING);
+  msg.dest = TASKID_CREATE(gContext.getThread(TCLASS_WARNING, 0),
+                           IMMEDIATEFUNC_WARNING);
   msg.flags = TMFLAG_FIXDEST | TMFLAG_IMMEDIATEFUNC;
 
   tgetTaskScheduler()->sendMessage(msg);

@@ -88,8 +88,12 @@ struct IPPortInfo {
 struct MsgIdentifier {
   IPPort source;
   u32 xid;
-  static unsigned hash(const MsgIdentifier &m){ return *((u32*)&m) ^ *((u32*)&m+1) ^ *((u32*)&m+2); }
-  static int cmp(const MsgIdentifier &l, const MsgIdentifier &r){ return memcmp(&l, &r, sizeof(MsgIdentifier)); }
+  static unsigned hash(const MsgIdentifier &m){
+    return *((u32*)&m) ^ *((u32*)&m+1) ^ *((u32*)&m+2);
+  }
+  static int cmp(const MsgIdentifier &l, const MsgIdentifier &r){
+    return memcmp(&l, &r, sizeof(MsgIdentifier));
+  }
 };
 
 class Marshallable {
@@ -114,10 +118,15 @@ public:
 
 class IPMisc {
 public:
-  static u32 resolveName(const char *name, u32 preferip=0, u32 prefermask=0); // return IP address of a given name
-  static u32 getMyIP(u32 preferip=0, u32 prefermask=0); // return my own ip address
-  static char *ipToStr(u32 ip); // Return printable string for given ip.
-                                // Returned value is overwritten on each call.
+  // return IP address of a given name
+  static u32 resolveName(const char *name, u32 preferip=0, u32 prefermask=0);
+
+   // return my own ip address
+  static u32 getMyIP(u32 preferip=0, u32 prefermask=0);
+
+  // Return printable string for given ip.
+  // Returned value is overwritten on each call.  
+  static char *ipToStr(u32 ip); 
 };
 
 #endif

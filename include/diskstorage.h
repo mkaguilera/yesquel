@@ -53,25 +53,28 @@ private:
 public:
   DiskStorage(char *diskstoragepath);
   static char *searchseparator(char *name);
-  static int Makepath(char *dirname); // creates directories in path if they don't exit
+  // creates directories in path if they do not exist
+  static int Makepath(char *dirname); 
   char *getDiskStoragePath(){ return DiskStoragePath; }
 
   // converts a filename to a COid
   static COid FilenameToCOid(char *filename);
 
   // aux function to read a Coid from the current position in a file
-  int readCOidFromFile(FILE *f, const COid &coid, Ptr<TxInfoCoid> &ticoid);
+  int readCOidFromFile(FILE *f, const COid &coid, Ptr<TxUpdateCoid> &tucoid);
 
   // aux function to write coid at current position of file f
-  int writeCOidToFile(FILE *f, Ptr<TxInfoCoid> ticoid);
+  int writeCOidToFile(FILE *f, Ptr<TxUpdateCoid> tucoid);
 
-  // Read an object id into memory. A length of -1 means reading as much as available.
+  // Read an object id into memory. A length of -1 means reading as much as
+  // available.
   // Set offset to 0 and length to -1 to read entire object.
   // Returns number of bytes read, or -1 if error (e.g., object does not exist)
-  int readCOid(const COid& coid, int len, Ptr<TxInfoCoid> &ticoid, Timestamp& version);
+  int readCOid(const COid& coid, int len, Ptr<TxUpdateCoid> &tucoid,
+               Timestamp& version);
 
   // Write an object id to disk.
-  int writeCOid(const COid& coid, Ptr<TxInfoCoid> ticoid, Timestamp version);
+  int writeCOid(const COid& coid, Ptr<TxUpdateCoid> tucoid, Timestamp version);
 
   // returns size of a given oid
   int getCOidSize(const COid& coid);

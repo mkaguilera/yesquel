@@ -64,7 +64,8 @@ void RPCTcp::startupWorkerThread(){
 void RPCTcp::finishWorkerThread(){
 }
 
-void RPCTcp::handleMsg(int handlerid, IPPort *dest, u32 req, u32 xid, u32 flags, TaskMultiBuffer *tmb, char *data, int len){
+void RPCTcp::handleMsg(int handlerid, IPPort *dest, u32 req, u32 xid,
+                       u32 flags, TaskMultiBuffer *tmb, char *data, int len){
   if (handlerid == -1){ // client stuff
     OutstandingRPC *orpc;
     orpc = RequestLookupAndDelete(xid);
@@ -81,14 +82,15 @@ void RPCTcp::handleMsg(int handlerid, IPPort *dest, u32 req, u32 xid, u32 flags,
     assert(0 <= handlerid && handlerid < NextServer);
     
     TaskScheduler *ts = tgetTaskScheduler();
-    TaskInfo *ti = new RPCTaskInfo(handlerid, (ProgFunc) RPCStart, 0, dest, req, xid, flags, tmb, data, len);
+    TaskInfo *ti = new RPCTaskInfo(handlerid, (ProgFunc) RPCStart, 0, dest,
+                                   req, xid, flags, tmb, data, len);
     ti->setEndFunc((ProgFunc) RPCEnd); // set ending function
     ts->createTask(ti); // creates task
   }
   return;
 }
 
-/**************************************** CLIENT ************************************************/
+//*********************************** CLIENT *********************************
 
 OutstandingRPC *RPCTcp::RequestLookupAndDelete(u32 xid){
   U32 Xid(xid);
@@ -101,7 +103,8 @@ OutstandingRPC *RPCTcp::RequestLookupAndDelete(u32 xid){
   return it;
 }
 
-void RPCTcp::asyncRPC(IPPort dest, int rpcno, u32 flags, Marshallable *data, RPCCallbackFunc callback, void *callbackdata){
+void RPCTcp::asyncRPC(IPPort dest, int rpcno, u32 flags, Marshallable *data,
+                      RPCCallbackFunc callback, void *callbackdata){
   OutstandingRPC *orpc = new OutstandingRPC;
   orpc->dmsg.xid = AtomicInc32(&CurrXid);
   orpc->dmsg.flags = flags;
@@ -145,18 +148,20 @@ char *RPCTcp::syncRPC(IPPort dest, int rpcno, u32 flags, Marshallable *data){
   return wcbd.retdata;
 }
 
-/**************************************** SERVER ************************************************/
+/******************************* SERVER **************************************/
 
 int RPCTcp::RPCStart(RPCTaskInfo *rti){
   RPCTcp *rpctcp = (RPCTcp*) tgetSharedSpace(THREADCONTEXT_SPACE_TCPDATAGRAM);
 
-  assert((int)rti->req < rpctcp->Servers[rti->handlerid].nprocs); // ensure rpcno is within range
+  assert((int)rti->req < rpctcp->Servers[rti->handlerid].nprocs); // ensure
+                                                     // rpcno is within range
 
   rti->msgid.source = rti->src;
   rti->msgid.xid = rti->xid;
 
   rti->setFunc((ProgFunc)rpctcp->Servers[rti->handlerid].procs[rti->req]);
-  return rpctcp->Servers[rti->handlerid].procs[rti->req](rti); // invoke procedure
+  return rpctcp->Servers[rti->handlerid].procs[rti->req](rti); // invoke
+                                                               // procedure
 }
 
 int RPCTcp::RPCEnd(RPCTaskInfo *rti){
@@ -169,8 +174,10 @@ int RPCTcp::RPCEnd(RPCTaskInfo *rti){
   dmsg.req = rti->req;
   dmsg.xid = rti->xid;
   dmsg.flags = rti->flags; // or should we clear the flags?
-  //dmsg.freedata = idempotent ? true : false;  // if not idempotent then do not free result after sending since we are caching it
-  //                                              // if idempotent then we can free result
+  //dmsg.freedata = idempotent ? true : false;
+  // // if not idempotent then do not free result after sending
+  // //    since we are caching it
+  // // if idempotent then we can free result
   dmsg.freedata = true;
   
   rpctcp->sendMsgFromWorker(&dmsg);

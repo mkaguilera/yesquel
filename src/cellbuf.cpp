@@ -64,7 +64,8 @@ void CellBuffer::parseBuffer(void){
   assert(UsedBuf <= TotalBuf);
 }
 
-// performs a sanity check on cells; generates an assert() error if there is a problem
+// performs a sanity check on cells; generates an assert() error if there
+// is a problem
 void CellBuffer::validate(void){
   int i;
   u8 *ptr;
@@ -128,7 +129,8 @@ void CellBuffer::ResizeCell(int cellno, int newsize){
 
   // move content
   if (cellno+1 < Ncells)
-    memmove(CellPtrs[cellno+1] + newsize - currsize, CellPtrs[cellno+1], CellPtrs[Ncells]-CellPtrs[cellno+1]);
+    memmove(CellPtrs[cellno+1] + newsize - currsize, CellPtrs[cellno+1],
+            CellPtrs[Ncells]-CellPtrs[cellno+1]);
 
   UsedBuf = UsedBuf - currsize + newsize;
 
@@ -141,7 +143,8 @@ void CellBuffer::ResizeCell(int cellno, int newsize){
 void CellBuffer::InsertEmptyCell(int cellno){
   assert(cellno <= Ncells && Ncells < MaxCells);
   // insert space in vector of pointers
-  memmove(&CellPtrs[cellno+1], &CellPtrs[cellno], sizeof(u8*) * (Ncells+1-cellno));
+  memmove(&CellPtrs[cellno+1], &CellPtrs[cellno], sizeof(u8*) *
+          (Ncells+1-cellno));
   // remember, there is always an extra pointer at the end we need to keep
   ++Ncells;
 }
@@ -178,7 +181,8 @@ void CellBuffer::InsertCell(int cellno, i64 nkey, u8 *pkey){
 void CellBuffer::DeleteCell(int cellno){
   assert(Ncells>0);
   ResizeCell(cellno, 0);
-  memmove(&CellPtrs[cellno], &CellPtrs[cellno+1], sizeof(u8*) * (Ncells-cellno));
+  memmove(&CellPtrs[cellno], &CellPtrs[cellno+1], sizeof(u8*) *
+          (Ncells-cellno));
   // remember, there is always an extra pointer at the end we need to keep
   --Ncells;
   //validate();
@@ -228,7 +232,8 @@ void CellBuffer::truncAfter(int cellno){
 
 
 
-CellBuffer::CellBuffer(u8 *bufptr, int totalbuf, int ncells, int maxcells, int intkey, int howfree){
+CellBuffer::CellBuffer(u8 *bufptr, int totalbuf, int ncells, int maxcells,
+                       int intkey, int howfree){
   assert(totalbuf >= 0 && ncells >= 0 && maxcells >= 0);
   BufPtr = bufptr;  // initial buffer
   TotalBuf = totalbuf;

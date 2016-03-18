@@ -66,6 +66,7 @@ void DiskLog::BufFlush(void){}
 DiskLog::DiskLog(const char *logname){}
 DiskLog::~DiskLog(){}
 void DiskLog::launch(void){}
-int DiskLog::logUpdatesAndYesVote(Tid tid, Timestamp ts, Ptr<PendingTxInfo> pti, void *notify){ return 0; }
+int DiskLog::logUpdatesAndYesVote(Tid tid, Timestamp ts,
+                           Ptr<PendingTxInfo> pti, void *notify){ return 0; }
 void DiskLog::logCommitAsync(Tid tid, Timestamp ts){}
 void DiskLog::logAbortAsync(Tid tid, Timestamp ts){}

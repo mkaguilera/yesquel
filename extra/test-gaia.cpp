@@ -87,7 +87,8 @@ GKeyInfo *createki(void){
 // debugging function, not part of test
 void printpkey(int nkey, char *pkey){
   if (!pkey) putchar('_');
-  else printf("%c%c%c%c%c%c", pkey[0], pkey[1], pkey[2], pkey[3], pkey[4], pkey[5]);
+  else printf("%c%c%c%c%c%c", pkey[0], pkey[1], pkey[2], pkey[3],
+              pkey[4], pkey[5]);
 }
 
 // this version is taylored for the specific KeyInfo we define below
@@ -112,7 +113,8 @@ void printSV(SuperValue *sv){
   }
   printf("]\nCells=");
   for (i=0; i < sv->Ncells; ++i){
-    if (sv->CellType==0) printf("%lld[%llx] ", (long long)sv->Cells[i].nKey, (long long)sv->Cells[i].value);
+    if (sv->CellType==0) printf("%lld[%llx] ", (long long)sv->Cells[i].nKey,
+                                (long long)sv->Cells[i].value);
     else {
       printf("%lld[", (long long)sv->Cells[i].nKey);
       printpkey(sv->Cells[i].nKey, sv->Cells[i].pKey);
@@ -122,7 +124,7 @@ void printSV(SuperValue *sv){
   putchar('\n');
 }
 
-// aux functions for attributes ---------------------------------------------------
+// aux functions for attributes ------------------------------------------------
 #define NATTRS 6
 void SetAttrs(SuperValue *svp){
   svp->Nattrs = NATTRS;
@@ -138,7 +140,7 @@ void CheckAttrs(SuperValue *svp){
     assert((int)svp->Attrs[i] == i + 1000);
 }
 
-// aux functions for integer cells -------------------------------------------------
+// aux functions for integer cells ---------------------------------------------
 
 ListCell SetIntCell(int v){
   ListCell r;
@@ -189,7 +191,7 @@ void CheckIntCellsList(SuperValue *svp, int *list, int n){
   }
 }
 
-// aux functions for str cells -----------------------------------------------------
+// aux functions for str cells -------------------------------------------------
 
 ListCell GetStrCell(char *str){
   ListCell r;
@@ -261,7 +263,7 @@ void CheckStrCellsList(SuperValue *svp, char **list, int n){
   }
 }
 
-// test1:   simple test to put, vget, abort,and vget
+// test1: simple test to put, vget, abort,and vget
 void test1(void){
   COid coid;
   Ptr<Valbuf> buf;
@@ -382,7 +384,8 @@ OSTHREAD_FUNC test3thread(void *parm){
     res = t.tryCommit();
     count += res==0 ? 1 : 0;
     //if (res5==0){
-    //printf("v1 %d>%d v2 %d>%d res %d %d %d %d %d\n", v1-tosum, v1, v2-tosum, v2, res1, res2, res3, res4, res5);
+    //printf("v1 %d>%d v2 %d>%d res %d %d %d %d %d\n", v1-tosum, v1,
+    //       v2-tosum, v2, res1, res2, res3, res4, res5);
     t.start();
   }
   return 0;
@@ -541,7 +544,8 @@ void test6(){
   t.vsuperget(coid, buf, 0, 0);
   SuperValue *svp = buf->u.raw;
   CheckAttrs(svp);
-  static int values[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 };
+  static int values[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 30, 31, 32, 33, 34, 35,
+                          36, 37, 38, 39, 40 };
   CheckIntCellsList(svp, values, sizeof(values)/sizeof(int));
 }
 
@@ -589,7 +593,9 @@ void test7(){
   t.vsuperget(coid, buf, 0, 0);
   SuperValue *svp = buf->u.raw;
   CheckAttrs(svp);
-  static char *values[] = { "000", "001", "002", "003", "004", "005", "006", "007", "008", "009", "031", "032", "033", "034", "035", "036", "037", "038", "039", "040" };
+  static char *values[] = { "000", "001", "002", "003", "004", "005", "006",
+                            "007", "008", "009", "031", "032", "033", "034",
+                            "035", "036", "037", "038", "039", "040" };
   CheckStrCellsList(svp, values, sizeof(values)/sizeof(char*));
 }
 
@@ -614,7 +620,8 @@ void test7b_populate(int n){ // 0,2,4,...,2*(n-1)
 }
 
 // do test where we read in the same transaction
-void test7b_onetx(int n, int left, int right, int intervtype, char **vals, int len){
+void test7b_onetx(int n, int left, int right, int intervtype, char **vals,
+                  int len){
   ListCell lc, lc2;
   COid coid;
   int res;
@@ -636,7 +643,8 @@ void test7b_onetx(int n, int left, int right, int intervtype, char **vals, int l
   t.abort();
 }
 
-void test7b_twotx(int n, int left, int right, int intervtype, char **vals, int len){
+void test7b_twotx(int n, int left, int right, int intervtype, char **vals,
+                  int len){
   ListCell lc, lc2;
   COid coid;
   int res;
@@ -660,7 +668,8 @@ void test7b_twotx(int n, int left, int right, int intervtype, char **vals, int l
   CheckStrCellsList(svp, vals, len);
 }
 
-void test7b_bothtx(int n, int left, int right, int intervtype, char **vals, int len){
+void test7b_bothtx(int n, int left, int right, int intervtype, char **vals,
+                   int len){
   test7b_onetx(n, left, right, intervtype, vals, len);
   test7b_twotx(n, left, right, intervtype, vals, len);
 }
@@ -924,7 +933,9 @@ void test9(){
   assert(res==0);
   SuperValue *svp = buf->u.raw;
   CheckAttrs(svp);
-  static char *values[] = { "000", "021", "022", "023", "024", "025", "026", "027", "028", "029", "030", "031", "032", "033", "034", "035", "036", "037", "038", "039", "040" };
+  static char *values[] = { "000", "021", "022", "023", "024", "025", "026",
+                            "027", "028", "029", "030", "031", "032", "033",
+                            "034", "035", "036", "037", "038", "039", "040" };
   CheckStrCellsList(svp, values, sizeof(values)/sizeof(char*));
 
   res = t.writeSuperValue(coid, &sv);
@@ -1052,7 +1063,8 @@ void test11(){
 
   threads = new OSThread_t[nthreads];
   for (i=0; i < nthreads; ++i){
-    res = OSCreateThread(threads+i, test11Worker, (void*) (long long) i); assert(res==0);
+    res = OSCreateThread(threads+i, test11Worker, (void*) (long long) i);
+    assert(res==0);
   }
 
   void *tres;
@@ -1065,7 +1077,8 @@ void test11(){
 
   for (i=0; i < nthreads; ++i){
     thistput = (double)TEST11_NREADS / test11_durations[i];
-    printf("  Thread %d: tput %f ops/ms latency %f ms/op\n", i, thistput, 1/thistput);
+    printf("  Thread %d: tput %f ops/ms latency %f ms/op\n", i, thistput,
+           1/thistput);
     totaltput += thistput;
   }
 
@@ -1075,7 +1088,8 @@ void test11(){
   delete [] test11_durations;
 }
 
-// test12: contention test for listadd, delrange, readv on single object with many threads
+// test12: contention test for listadd, delrange, readv on single object with
+// many threads
 
 #define TEST12_NOBJECTS 100
 #define TEST12_NOPS 1000
@@ -1191,7 +1205,8 @@ void test12(){
 
   threads = new OSThread_t[nthreads];
   for (i=0; i < nthreads; ++i){
-    res = OSCreateThread(threads+i, test12Worker, (void*) (long long) i); assert(res==0);
+    res = OSCreateThread(threads+i, test12Worker, (void*) (long long) i);
+    assert(res==0);
   }
 
   void *tres;
@@ -1204,7 +1219,8 @@ void test12(){
 
   for (i=0; i < nthreads; ++i){
     thistput = (double)TEST12_NOPS / test12td[i].duration;
-    printf("  Thread %d: tput %f ops/ms latency %f ms/op commitfail %d countoverflow %d advance %d\n", i, thistput, 1/thistput, (int) test12td[i].commitfail, test12td[i].countoverflow, test12td[i].advance);
+    printf("  Thread %d: tput %f ops/ms latency %f ms/op commitfail %d countoverflow %d advance %d\n", i, thistput, 1/thistput, (int) test12td[i].commitfail,
+           test12td[i].countoverflow, test12td[i].advance);
     totaltput += thistput;
   }
 
@@ -1214,7 +1230,8 @@ void test12(){
   delete [] test12td;
 }
 
-// test13: contention test where reader keeps reading, and writer writes successive values
+// test13: contention test where reader keeps reading, and writer writes
+// successive values
 #define TEST13_NOPS_READ 50000
 #define TEST13_NOPS_WRITE 1000
 Align8 int test13_failed_read;
@@ -1282,13 +1299,16 @@ void test13(){
   
   test13_failed_read = 0;
   test13_failed_write = 0;
-  res = OSCreateThread(&treader, test13Worker, (void*) (long long) 0); assert(res==0);
-  res = OSCreateThread(&twriter, test13Worker, (void*) (long long) 1); assert(res==0);
+  res = OSCreateThread(&treader, test13Worker, (void*) (long long) 0);
+  assert(res==0);
+  res = OSCreateThread(&twriter, test13Worker, (void*) (long long) 1);
+  assert(res==0);
   void *tres;
   OSWaitThread(treader, &tres);
   OSWaitThread(twriter, &tres);
   MemBarrier();
-  printf("  failed_read %d failed_write %d\n", test13_failed_read, test13_failed_write);
+  printf("  failed_read %d failed_write %d\n", test13_failed_read,
+         test13_failed_write);
 }
 
 // test14: various error conditions
@@ -1325,12 +1345,16 @@ void test14(){
   res = t.tryCommit(); assert(res==0);
   t.start();
   res = t.vsuperget(coid, buf, 0, 0); assert(res==GAIAERR_WRONG_TYPE);
-  //res = t.attrSet(coid, 0, 0); assert(res==GAIAERR_WRONG_TYPE); // chk not implemented
-  //res = t.listAdd(coid, &lc, 0, 0); assert(res==GAIAERR_WRONG_TYPE); // chk not implemented
-  //res = t.listDelRange(coid, 4, &lc, &lc, 0); assert(res==GAIAERR_WRONG_TYPE); // chk not implemented
+  //res = t.attrSet(coid, 0, 0);
+  // assert(res==GAIAERR_WRONG_TYPE); // chk not implemented
+  //res = t.listAdd(coid, &lc, 0, 0);
+  // assert(res==GAIAERR_WRONG_TYPE); // chk not implemented
+  //res = t.listDelRange(coid, 4, &lc, &lc, 0);
+  // assert(res==GAIAERR_WRONG_TYPE); // chk not implemented
 }
 
-// test15: move random value from one place to another, check that sum is constant
+// test15: move random value from one place to another, check that sum is
+// constant
 #define TEST15_NTHREADS 16
 #define TEST15_NOPS 10000
  
@@ -1404,7 +1428,8 @@ void test15(){
   // create threads
   threads = new OSThread_t[nthreads];
   for (i=0; i < nthreads; ++i){
-    res = OSCreateThread(threads+i, test15Worker, (void*) (long long) i); assert(res==0);
+    res = OSCreateThread(threads+i, test15Worker, (void*) (long long) i);
+    assert(res==0);
   }
 
   void *tres;
@@ -1419,7 +1444,8 @@ void test15(){
 }
 
 
-// test16: move random item from one supervalue to another, check that supervalues partition initial list
+// test16: move random item from one supervalue to another, check that
+//         supervalues partition initial list
 #define TEST16_NTHREADS 16
 #define TEST16_NOPS 10000
 #define TEST16_NITEMS 20
@@ -1529,7 +1555,8 @@ void test16(){
   // create threads
   threads = new OSThread_t[nthreads];
   for (i=0; i < nthreads; ++i){
-    res = OSCreateThread(threads+i, test16Worker, (void*) (long long) i); assert(res==0);
+    res = OSCreateThread(threads+i, test16Worker, (void*) (long long) i);
+    assert(res==0);
   }
 
   void *tres;
@@ -1545,7 +1572,8 @@ void test16(){
 
 // t1 adds add, t2 deletes range del1..del2 with intervtype,
 // conflict indicates whether those transactions should conflict
-void test17adddelrange(int add, int del1, int del2, int intervtype, int conflict){
+void test17adddelrange(int add, int del1, int del2, int intervtype,
+                       int conflict){
   ListCell lc, lc1, lc2;
   int res;
   COid coid;
@@ -1593,7 +1621,8 @@ void test17adddelrange(int add, int del1, int del2, int intervtype, int conflict
 
 // t1 deletes range dela1..dela2, t2 deletes range delb1..delb2
 // conflict indicates whether those transactions should conflict
-void test17delranges(int dela1, int dela2, int delb1, int delb2, int intervtype1, int intervtype2, int conflict){
+void test17delranges(int dela1, int dela2, int delb1, int delb2,
+                     int intervtype1, int intervtype2, int conflict){
   ListCell lca1, lca2, lcb1, lcb2;
   int res;
   COid coid;
@@ -1639,7 +1668,6 @@ void test17delranges(int dela1, int dela2, int delb1, int delb2, int intervtype1
   if (conflict) assert(res);
   else assert(res==0);
 }
-
 
 // test17: conflicting and non-conflicting transactions
 void test17(){
@@ -1992,7 +2020,6 @@ void test17(){
   res = t1.tryCommit(); assert(res!=0);
 }  
 
-
 // test18: consistent client cache
 #define TEST18_NREADS  5000000
 #define TEST18_NWRITES 5
@@ -2071,8 +2098,1430 @@ void test18(){
   latWrite = *(float*) &resWrite;
   printf("  Lat read: %f\n", (double) latRead);
   printf("  Lat write: %f\n", (double) latWrite);
-  assert(latWrite > 500.00 & latRead < 0.05);
+  assert(latWrite > 500.00 && latRead < 0.05);
 }
+
+// test19: subtransactions
+void test19(){
+  int i, j, k, res;
+  COid coid;
+  Ptr<Valbuf> buf;
+  
+  coid.cid = 19;
+
+  TRANSACTION_VAR(t);
+
+  // test values
+  // abort -----------------------
+  coid.oid = 0;
+
+  // start, startsub, put, abortsub
+  for (k=0; k < 8; ++k){
+    // setup
+    t.start();
+    i=15;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k%1){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==15);
+    }
+    t.startSubtrans(1);
+    i=16;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    if (k%2){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==16);
+    }
+    t.abortSubtrans(0);
+    if (k%4){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==15);
+    }
+    res = t.tryCommit(); assert(res==0);
+    // check
+    t.start();
+    res = t.vget(coid, buf); assert(res==0);
+    assert(buf->type == 0); assert(buf->len == 4);
+    j = *(int*)buf->u.buf;
+    assert(j==15);
+  }
+
+  // start, put, startsub, put, abortsub
+  for (k=0; k < 4; ++k){
+    // setup
+    t.start();
+    i=15;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vget(coid, buf); assert(res==0); // version with vget at beginning
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==15);
+    }
+    i=14;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    t.startSubtrans(1);
+    i=16;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    t.abortSubtrans(0);
+    if (k&2){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==14);
+    }
+    res = t.tryCommit(); assert(res==0);
+    // check
+    t.start();
+    res = t.vget(coid, buf); assert(res==0);
+    assert(buf->type == 0); assert(buf->len == 4);
+    j = *(int*)buf->u.buf;
+    assert(j==14);
+  }
+
+
+  // release ---------------------
+  // start, startsub, put, releasesub
+  for (k=0; k < 8; ++k){
+    // setup
+    t.start();
+    i=15;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==15);
+    }
+    t.startSubtrans(1);
+    i=16;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    if (k&2){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==16);
+    }
+    t.releaseSubtrans(0);
+    if (k&4){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==16);
+    }
+    res = t.tryCommit(); assert(res==0);
+    // check
+    t.start();
+    res = t.vget(coid, buf); assert(res==0);
+    assert(buf->type == 0); assert(buf->len == 4);
+    j = *(int*)buf->u.buf;
+    assert(j==16);
+  }    
+
+  // start, put, startsub, put, releasesub
+  for (k=0; k < 8; ++k){
+    // setup
+    t.start();
+    i=15;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vget(coid, buf); assert(res==0); // version with vget at beginning
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==15);
+    }
+    i=14;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    t.startSubtrans(1);
+    if (k&2){
+      res = t.vget(coid, buf); assert(res==0); // version with vget at beginning
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==14);
+    }
+    i=17;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    t.releaseSubtrans(0);
+    if (k&4){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==17);
+    }
+    res = t.tryCommit(); assert(res==0);
+    // check
+    t.start();
+    res = t.vget(coid, buf); assert(res==0);
+    assert(buf->type == 0); assert(buf->len == 4);
+    j = *(int*)buf->u.buf;
+    assert(j==17);
+  }
+
+  // abort with two levels -----------------------
+  // start, startsub, put, startsub, put, abortsub, abortsub
+  for (k=0; k < 32; ++k){
+    // setup
+    t.start();
+    i=15;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==15);
+    }
+    t.startSubtrans(1);
+    i=16;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    if (k&2){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==16);
+    }
+    t.startSubtrans(2);
+    i=17;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    if (k&4){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==17);
+    }
+    t.abortSubtrans(1);
+    if (k&8){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==16);
+    }
+    t.abortSubtrans(0);
+    if (k&16){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==15);
+    }
+    res = t.tryCommit(); assert(res==0);
+    // check
+    t.start();
+    res = t.vget(coid, buf); assert(res==0);
+    assert(buf->type == 0); assert(buf->len == 4);
+    j = *(int*)buf->u.buf;
+    assert(j==15);
+  }
+  
+  // start, startsub, put, startsub, put, abortsub0
+  for (k=0; k < 16; ++k){
+    // setup
+    t.start();
+    i=15;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==15);
+    }
+    t.startSubtrans(1);
+    i=16;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    if (k&2){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==16);
+    }
+    t.startSubtrans(2);
+    i=17;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    if (k&4){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==17);
+    }
+    t.abortSubtrans(0);
+    if (k&8){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==15);
+    }
+    res = t.tryCommit(); assert(res==0);
+    // check
+    t.start();
+    res = t.vget(coid, buf); assert(res==0);
+    assert(buf->type == 0); assert(buf->len == 4);
+    j = *(int*)buf->u.buf;
+    assert(j==15);
+  }
+
+
+  // start, put, startsub, put, startsub, put, abortsub, abortsub
+  for (k=0; k < 256; ++k){
+    // setup
+    t.start();
+    i=15;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==15);
+    }
+    i=14;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    if (k&2){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==14);
+    }
+    
+    t.startSubtrans(1);
+    if (k&4){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==14);
+    }
+    i=16;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    if (k&8){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==16);
+    }
+    t.startSubtrans(2);
+    if (k&16){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==16);
+    }
+    i=18;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    if (k&32){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==18);
+    }
+    
+    t.abortSubtrans(1);
+    if (k&64){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==16);
+    }
+    t.abortSubtrans(0);
+    if (k&128){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==14);
+    }
+    res = t.tryCommit(); assert(res==0);
+    // check
+    t.start();
+    res = t.vget(coid, buf); assert(res==0);
+    assert(buf->type == 0); assert(buf->len == 4);
+    j = *(int*)buf->u.buf;
+    assert(j==14);
+  }
+
+  // start, put, startsub, put, startsub, put, abortsub0
+  for (k=0; k < 128; ++k){
+    // setup
+    t.start();
+    i=15;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==15);
+    }
+    i=14;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    if (k&2){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==14);
+    }
+    
+    t.startSubtrans(1);
+    if (k&4){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==14);
+    }
+    i=16;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    if (k&8){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==16);
+    }
+    t.startSubtrans(2);
+    if (k&16){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==16);
+    }
+    i=18;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    if (k&32){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==18);
+    }
+    
+    t.abortSubtrans(0);
+    if (k&64){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==14);
+    }
+    res = t.tryCommit(); assert(res==0);
+    // check
+    t.start();
+    res = t.vget(coid, buf); assert(res==0);
+    assert(buf->type == 0); assert(buf->len == 4);
+    j = *(int*)buf->u.buf;
+    assert(j==14);
+  }
+  
+  // release with two levels -----------------------
+  // start, startsub, put, startsub, put, [releasesub], [releasesub]
+  for (k=0; k < 512; ++k){
+    // setup
+    t.start();
+    i=15;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==15);
+    }
+    t.startSubtrans(1);
+    if (k&2){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==15);
+    }
+    i=16;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    if (k&4){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==16);
+    }
+    t.startSubtrans(2);
+    if (k&8){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==16);
+    }
+    i=17;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    if (k&16){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==17);
+    }
+    if (k&32) t.releaseSubtrans(1);
+    if (k&64){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==17);
+    }
+    if (k&128) t.releaseSubtrans(0);
+    if (k&256){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==17);
+    }
+    res = t.tryCommit(); assert(res==0);
+    // check
+    t.start();
+    res = t.vget(coid, buf); assert(res==0);
+    assert(buf->type == 0); assert(buf->len == 4);
+    j = *(int*)buf->u.buf;
+    assert(j==17);
+  }
+
+  // start, put, startsub, put, startsub, put, [releasesub], [releasesub]
+  for (k=0; k < 1024; ++k){
+    // setup
+    t.start();
+    i=15;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==15);
+    }
+    i=14;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    if (k&2){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==14);
+    }
+    t.startSubtrans(1);
+    if (k&4){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==14);
+    }
+    i=16;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    if (k&8){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==16);
+    }
+    
+    t.startSubtrans(2);
+    if (k&16){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==16);
+    }
+    i=18;
+    res = t.put(coid, (char*)&i, 4); assert(res==0);
+    if (k&32){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==18);
+    }
+    if (k&64) t.releaseSubtrans(1);
+    if (k&128){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==18);
+    }
+    if (k&256) t.releaseSubtrans(0);
+    if (k&512){
+      res = t.vget(coid, buf); assert(res==0);
+      assert(buf->type == 0); assert(buf->len == 4);
+      j = *(int*)buf->u.buf;
+      assert(j==18);
+    }
+    res = t.tryCommit(); assert(res==0);
+    // check
+    t.start();
+    res = t.vget(coid, buf); assert(res==0);
+    assert(buf->type == 0); assert(buf->len == 4);
+    j = *(int*)buf->u.buf;
+    assert(j==18);
+  }
+
+    
+  // test supervalues  
+  SuperValue sv;
+  ListCell c1,c2, c3, c4, c8, c10, c12;
+  
+  c1 = SetIntCell(1);
+  c2 = SetIntCell(2);
+  c3 = SetIntCell(3);
+  c4 = SetIntCell(4);
+  c8 = SetIntCell(8);
+  c10 = SetIntCell(10);
+  c12 = SetIntCell(12);
+  coid.oid = 1;
+
+  // check that listadd, listdelrange, attrset get aborted or released correctly
+  
+  // listadd #1
+  static int vals0[] = { 0,1,2,3,4 };
+  static int vals1[] = { 0,1,2,3,4,8,10 };
+  static int vals2[] = { 0,1,2,3,4,8 };
+
+  // start, add, startsub, add, abortsub
+  for (k=0; k < 32; ++k){
+    // setup
+    t.start();
+    SetAttrs(&sv);
+    SetIntCells(&sv, 5);
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    res = t.listAdd(coid, &c8, 0, 0); assert(res==0);
+    if (k&2){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    }
+    
+    t.startSubtrans(1);
+    if (k&4){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    }
+    res = t.listAdd(coid, &c10, 0, 0); assert(res==0);
+    if (k&8){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals1, sizeof(vals1)/sizeof(int));
+    }
+    t.abortSubtrans(0);
+    if (k&16){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    }
+    res = t.tryCommit(); assert(res == 0);
+    // check
+    t.start();
+    res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    res = t.tryCommit(); assert(res == 0);
+  }
+
+  // start, startsub, add, startsub, add, abortsub
+  for (k=0; k < 64; ++k){
+    // setup
+    t.start();
+    SetAttrs(&sv);
+    SetIntCells(&sv, 5);
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    t.startSubtrans(1);
+    if (k&2){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    res = t.listAdd(coid, &c8, 0, 0); assert(res==0);
+    if (k&4){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    }
+    t.startSubtrans(2);
+    if (k&8){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    }
+    res = t.listAdd(coid, &c10, 0, 0); assert(res==0);
+    if (k&16){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals1, sizeof(vals1)/sizeof(int));
+    }
+    t.abortSubtrans(1);
+    if (k&32){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    }
+    res = t.tryCommit(); assert(res == 0);
+    // check
+    t.start();
+    res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    res = t.tryCommit(); assert(res == 0);
+  }
+
+  // listadd #5b
+  static int vals3[] = { 0,1,2,3,4,8,10,12 };
+  // start, add, startsub, add, startsub, add, abortsub0
+  for (k=0; k < 128; ++k){
+    // setup
+    t.start();
+    SetAttrs(&sv);
+    SetIntCells(&sv, 5);
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    res = t.listAdd(coid, &c8, 0, 0); assert(res==0);
+    if (k&2){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    }
+    t.startSubtrans(1);
+    if (k&4){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    }
+    res = t.listAdd(coid, &c10, 0, 0); assert(res==0);
+    if (k&8){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals1, sizeof(vals1)/sizeof(int));
+    }
+    t.startSubtrans(2);
+    if (k&16){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals1, sizeof(vals1)/sizeof(int));
+    }
+    res = t.listAdd(coid, &c12, 0, 0); assert(res==0);
+    if (k&32){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals3, sizeof(vals3)/sizeof(int));
+    }
+    t.abortSubtrans(0);
+    if (k&64){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    }
+    res = t.tryCommit(); assert(res == 0);
+    // check
+    t.start();
+    res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    res = t.tryCommit(); assert(res == 0);
+  }
+
+  // listadd with release
+  // start, add, startsub, add, release
+  for (k=0; k < 32; ++k){
+    // setup
+    t.start();
+    SetAttrs(&sv);
+    SetIntCells(&sv, 5);
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    res = t.listAdd(coid, &c8, 0, 0); assert(res==0);
+    if (k&2){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    }
+    t.startSubtrans(1);
+    if (k&4){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    }
+    res = t.listAdd(coid, &c10, 0, 0); assert(res==0);
+    if (k&8){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals1, sizeof(vals1)/sizeof(int));
+    }
+    t.releaseSubtrans(0);
+    if (k&16){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals1, sizeof(vals1)/sizeof(int));
+    }
+    res = t.tryCommit(); assert(res == 0);
+    // check
+    t.start();
+    res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    CheckIntCellsList(buf->u.raw, vals1, sizeof(vals1)/sizeof(int));
+    res = t.tryCommit(); assert(res == 0);
+  }
+
+  // start, startsub, add, startsub, add, [release], [release]
+  for (k=0; k < 512; ++k){
+    // setup
+    t.start();
+    SetAttrs(&sv);
+    SetIntCells(&sv, 5);
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    t.startSubtrans(1);
+    if (k&2){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    res = t.listAdd(coid, &c8, 0, 0); assert(res==0);
+    if (k&4){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    }
+    t.startSubtrans(2);
+    if (k&8){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    }
+    res = t.listAdd(coid, &c10, 0, 0); assert(res==0);
+    if (k&16){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals1, sizeof(vals1)/sizeof(int));
+    }
+    if (k&32) t.releaseSubtrans(1);
+    if (k&64){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals1, sizeof(vals1)/sizeof(int));
+    }
+    if (k&128) t.releaseSubtrans(0);
+    if (k&256){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals1, sizeof(vals1)/sizeof(int));
+    }
+    res = t.tryCommit(); assert(res == 0);
+    // check
+    t.start();
+    res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    CheckIntCellsList(buf->u.raw, vals1, sizeof(vals1)/sizeof(int));
+    res = t.tryCommit(); assert(res == 0);
+  }
+
+  // start, add, startsub, add, startsub, add, [release], [release]
+  for (k=0; k < 1024; ++k){
+    // setup
+    t.start();
+    SetAttrs(&sv);
+    SetIntCells(&sv, 5);
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    res = t.listAdd(coid, &c8, 0, 0); assert(res==0);
+    if (k&2){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    }
+    t.startSubtrans(1);
+    if (k&4){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    }
+    res = t.listAdd(coid, &c10, 0, 0); assert(res==0);
+    if (k&8){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals1, sizeof(vals1)/sizeof(int));
+    }
+    t.startSubtrans(2);
+    if (k&16){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals1, sizeof(vals1)/sizeof(int));
+    }
+    res = t.listAdd(coid, &c12, 0, 0); assert(res==0);
+    if (k&32){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals3, sizeof(vals3)/sizeof(int));
+    }
+    if (k&64) t.releaseSubtrans(1);
+    if (k&128){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals3, sizeof(vals3)/sizeof(int));
+    }
+    if (k&256) t.releaseSubtrans(0);
+    if (k&512){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals3, sizeof(vals3)/sizeof(int));
+    }
+    res = t.tryCommit(); assert(res == 0);
+    // check
+    t.start();
+    res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    CheckIntCellsList(buf->u.raw, vals3, sizeof(vals3)/sizeof(int));
+    res = t.tryCommit(); assert(res == 0);
+  }
+
+  // --------------------------------------------------- listdelrange
+
+  // listDelRange #1
+  static int vals4[] = { 0,4 };
+  static int vals5[] = { 0,3,4 };
+
+  // start, del, startsub, del, abort
+  for (k=0; k < 32; ++k){
+    // setup
+    t.start();
+    SetAttrs(&sv);
+    SetIntCells(&sv, 5);
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    res = t.listDelRange(coid, 4, &c1, &c2, 0); assert(res==0);
+    if (k&2){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals5, sizeof(vals5)/sizeof(int));
+    }
+    t.startSubtrans(1);
+    if (k&4){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals5, sizeof(vals5)/sizeof(int));
+    }
+    res = t.listDelRange(coid, 4, &c2, &c3, 0); assert(res==0);
+    if (k&8){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals4, sizeof(vals4)/sizeof(int));
+    }
+    t.abortSubtrans(0);
+    if (k&16){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals5, sizeof(vals5)/sizeof(int));
+    }
+    res = t.tryCommit(); assert(res == 0);
+    // check
+    t.start();
+    res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    CheckIntCellsList(buf->u.raw, vals5, sizeof(vals5)/sizeof(int));
+    res = t.tryCommit(); assert(res == 0);
+  }
+
+  // start, startsub, del, startsub, del, abort
+  for (k=0; k < 64; ++k){
+    // setup
+    t.start();
+    SetAttrs(&sv);
+    SetIntCells(&sv, 5);
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    t.startSubtrans(1);
+    if (k&2){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    res = t.listDelRange(coid, 4, &c1, &c2, 0); assert(res==0);
+    if (k&4){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals5, sizeof(vals5)/sizeof(int));
+    }
+    t.startSubtrans(2);
+    if (k&8){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals5, sizeof(vals5)/sizeof(int));
+    }
+    res = t.listDelRange(coid, 4, &c2, &c3, 0); assert(res==0);
+    if (k&16){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals4, sizeof(vals4)/sizeof(int));
+    }
+    t.abortSubtrans(1);
+    if (k&32){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals5, sizeof(vals5)/sizeof(int));
+    }
+    res = t.tryCommit(); assert(res == 0);
+    // check
+    t.start();
+    res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    CheckIntCellsList(buf->u.raw, vals5, sizeof(vals5)/sizeof(int));
+    res = t.tryCommit(); assert(res == 0);
+  }
+
+  static int vals6[] = { 0 };
+  // start, del, startsub, del, startsub, del, abort0
+  for (k=0; k < 128; ++k){
+    // setup
+    t.start();
+    SetAttrs(&sv);
+    SetIntCells(&sv, 5);
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    res = t.listDelRange(coid, 4, &c1, &c2, 0); assert(res==0);
+    if (k&2){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals5, sizeof(vals5)/sizeof(int));
+    }
+    t.startSubtrans(1);
+    if (k&4){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals5, sizeof(vals5)/sizeof(int));
+    }
+    res = t.listDelRange(coid, 4, &c2, &c3, 0); assert(res==0);
+    if (k&8){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals4, sizeof(vals4)/sizeof(int));
+    }
+    t.startSubtrans(2);
+    if (k&16){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals4, sizeof(vals4)/sizeof(int));
+    }
+    res = t.listDelRange(coid, 4, &c3, &c4, 0); assert(res==0);
+    if (k&32){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals6, sizeof(vals6)/sizeof(int));
+    }
+    t.abortSubtrans(0);
+    if (k&64){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals5, sizeof(vals5)/sizeof(int));
+    }
+    res = t.tryCommit(); assert(res == 0);
+    // check
+    t.start();
+    res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    CheckIntCellsList(buf->u.raw, vals5, sizeof(vals5)/sizeof(int));
+    res = t.tryCommit(); assert(res == 0);
+  }
+
+  // listDelRange with release
+  // start, del, startsub, del, release
+  for (k=0; k < 32; ++k){
+    // setup
+    t.start();
+    SetAttrs(&sv);
+    SetIntCells(&sv, 5);
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    res = t.listDelRange(coid, 4, &c1, &c2, 0); assert(res==0);
+    if (k&2){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals5, sizeof(vals5)/sizeof(int));
+    }
+    t.startSubtrans(1);
+    if (k&4){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals5, sizeof(vals5)/sizeof(int));
+    }
+    res = t.listDelRange(coid, 4, &c2, &c3, 0); assert(res==0);
+    if (k&8){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals4, sizeof(vals4)/sizeof(int));
+    }
+    t.releaseSubtrans(0);
+    if (k&16){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals4, sizeof(vals4)/sizeof(int));
+    }
+    res = t.tryCommit(); assert(res == 0);
+    // check
+    t.start();
+    res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    CheckIntCellsList(buf->u.raw, vals4, sizeof(vals4)/sizeof(int));
+    res = t.tryCommit(); assert(res == 0);
+  }
+  
+  // start, startsub, del, startsub, del, [release], [release]
+  for (k=0; k < 512; ++k){
+    // setup
+    t.start();
+    SetAttrs(&sv);
+    SetIntCells(&sv, 5);
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    t.startSubtrans(1);
+    if (k&2){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    res = t.listDelRange(coid, 4, &c1, &c2, 0); assert(res==0);
+    if (k&4){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals5, sizeof(vals5)/sizeof(int));
+    }
+    t.startSubtrans(2);
+    if (k&8){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals5, sizeof(vals5)/sizeof(int));
+    }
+    res = t.listDelRange(coid, 4, &c2, &c3, 0); assert(res==0);
+    if (k&16){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals4, sizeof(vals4)/sizeof(int));
+    }
+    if (k&32) t.releaseSubtrans(1);
+    if (k&64){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals4, sizeof(vals4)/sizeof(int));
+    }
+    if (k&128) t.releaseSubtrans(0);
+    if (k&256){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals4, sizeof(vals4)/sizeof(int));
+    }
+    res = t.tryCommit(); assert(res == 0);
+    // check
+    t.start();
+    res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    CheckIntCellsList(buf->u.raw, vals4, sizeof(vals4)/sizeof(int));
+    res = t.tryCommit(); assert(res == 0);
+  }
+
+  // start, del, startsub, del, startsub, del, [release], [release]
+  for (k=0; k < 1024; ++k){
+    // setup
+    t.start();
+    SetAttrs(&sv);
+    SetIntCells(&sv, 5);
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    res = t.listDelRange(coid, 4, &c1, &c2, 0); assert(res==0);
+    if (k&2){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals5, sizeof(vals5)/sizeof(int));
+    }
+    t.startSubtrans(1);
+    if (k&4){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals5, sizeof(vals5)/sizeof(int));
+    }
+    res = t.listDelRange(coid, 4, &c2, &c3, 0); assert(res==0);
+    if (k&8){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals4, sizeof(vals4)/sizeof(int));
+    }
+    t.startSubtrans(2);
+    if (k&16){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals4, sizeof(vals4)/sizeof(int));
+    }
+    res = t.listDelRange(coid, 4, &c3, &c4, 0); assert(res==0);
+    if (k&32){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals6, sizeof(vals6)/sizeof(int));
+    }
+    if (k&64) t.releaseSubtrans(1);
+    if (k&128){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals6, sizeof(vals6)/sizeof(int));
+    }
+    if (k&256) t.releaseSubtrans(0);
+    if (k&512){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals6, sizeof(vals6)/sizeof(int));
+    }
+    res = t.tryCommit(); assert(res == 0);
+    // check
+    t.start();
+    res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    CheckIntCellsList(buf->u.raw, vals6, sizeof(vals6)/sizeof(int));
+    res = t.tryCommit(); assert(res == 0);
+  }
+  
+    
+  // check that listadd and listdelrange work together in different levels
+  static int vals7[] = { 0,1,2,3,12 };
+  static int vals8[] = { 0,1,2,3,4,8,12 };
+
+  // start, add, startsub, del, abortsub
+  for (k=0; k < 32; ++k){
+    // setup
+    t.start();
+    SetAttrs(&sv);
+    SetIntCells(&sv, 5);
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    res = t.listAdd(coid, &c8, 0, 0); assert(res==0);
+    res = t.listAdd(coid, &c12, 0, 0); assert(res==0);
+    if (k&2){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals8, sizeof(vals8)/sizeof(int));
+    }
+    t.startSubtrans(1);
+    if (k&4){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals8, sizeof(vals8)/sizeof(int));
+    }
+    res = t.listDelRange(coid, 4, &c4, &c10, 0); assert(res==0);
+    if (k&8){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals7, sizeof(vals7)/sizeof(int));
+    }
+    t.abortSubtrans(0);
+    if (k&16){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals8, sizeof(vals8)/sizeof(int));
+    }
+    res = t.tryCommit(); assert(res == 0);
+    // check
+    t.start();
+    res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    CheckIntCellsList(buf->u.raw, vals8, sizeof(vals8)/sizeof(int));
+    res = t.tryCommit(); assert(res == 0);
+  }
+
+  // now with release
+  // start, add, startsub, del, releasesub
+  for (k=0; k < 32; ++k){
+    // setup
+    t.start();
+    SetAttrs(&sv);
+    SetIntCells(&sv, 5);
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    res = t.listAdd(coid, &c8, 0, 0); assert(res==0);
+    res = t.listAdd(coid, &c12, 0, 0); assert(res==0);
+    if (k&2){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals8, sizeof(vals8)/sizeof(int));
+    }
+    t.startSubtrans(1);
+    if (k&4){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals8, sizeof(vals8)/sizeof(int));
+    }
+    res = t.listDelRange(coid, 4, &c4, &c10, 0); assert(res==0);
+    if (k&8){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals7, sizeof(vals7)/sizeof(int));
+    }
+    t.releaseSubtrans(0);
+    if (k&16){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals7, sizeof(vals7)/sizeof(int));
+    }
+    res = t.tryCommit(); assert(res == 0);
+    // check
+    t.start();
+    res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    CheckIntCellsList(buf->u.raw, vals7, sizeof(vals7)/sizeof(int));
+    res = t.tryCommit(); assert(res == 0);
+  }
+  
+    
+  // invert listadd and listdelrange above
+  static int vals9[] = { 0,1,2,3 };
+  static int vals10[] = { 0,1,2,3,8,12 };
+
+  // start, del, startsub, add, abortsub
+  for (k=0; k < 32; ++k){
+    // setup
+    t.start();
+    SetAttrs(&sv);
+    SetIntCells(&sv, 5);
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals0, sizeof(vals0)/sizeof(int));
+    }
+    res = t.listDelRange(coid, 4, &c4, &c10, 0); assert(res==0);
+    if (k&2){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals9, sizeof(vals9)/sizeof(int));
+    }
+    t.startSubtrans(1);
+    if (k&4){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals9, sizeof(vals9)/sizeof(int));
+    }
+    
+    res = t.listAdd(coid, &c8, 0, 0); assert(res==0);
+    res = t.listAdd(coid, &c12, 0, 0); assert(res==0);
+    if (k&8){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals10, sizeof(vals10)/sizeof(int));
+    }
+    
+    t.abortSubtrans(0);
+    if (k&16){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals9, sizeof(vals9)/sizeof(int));
+    }
+    res = t.tryCommit(); assert(res == 0);
+    // check
+    t.start();
+    res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    CheckIntCellsList(buf->u.raw, vals9, sizeof(vals9)/sizeof(int));
+    res = t.tryCommit(); assert(res == 0);
+  }
+
+  // check that writesupervalue works
+  //   writesupervalue at 0
+  //   listadd at 1
+  //   abort 0
+  //   check that supervalue is there
+  for (k=0; k < 16; ++k){
+    // setup
+    t.start();
+    SetAttrs(&sv);
+    SetIntCells(&sv, 5);
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    SetAttrs(&sv);
+    SetIntCells(&sv, 4);
+    if (k&1){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    }
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    if (k&2){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals9, sizeof(vals9)/sizeof(int));
+    }
+    t.startSubtrans(1);
+    res = t.listAdd(coid, &c8, 0, 0); assert(res==0);
+    res = t.listAdd(coid, &c12, 0, 0); assert(res==0);
+    if (k&4){
+      res = t.vsuperget(coid, buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals10, sizeof(vals10)/sizeof(int));
+    }
+    t.abortSubtrans(0);
+    if (k&8){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals9, sizeof(vals9)/sizeof(int));
+    }
+    res = t.tryCommit(); assert(res == 0);
+    // check
+    t.start();
+    res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    CheckIntCellsList(buf->u.raw, vals9, sizeof(vals9)/sizeof(int));
+    res = t.tryCommit(); assert(res == 0);
+  }
+  
+  //   listadd at 0
+  //   writesupervalue at 1
+  //   abort 0
+  //   check that listadd is there
+  for (k=0; k < 16; ++k){
+    // setup
+    t.start();
+    SetAttrs(&sv);
+    SetIntCells(&sv, 5);
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    res = t.tryCommit(); assert(res==0);
+    // test
+    t.start();
+    if (k&1){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    }
+    res = t.listAdd(coid, &c8, 0, 0); assert(res==0);
+    if (k&2){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    }
+    t.startSubtrans(1);
+    SetAttrs(&sv);
+    SetIntCells(&sv, 4);
+    res = t.writeSuperValue(coid, &sv); assert(res==0);
+    if (k&4){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals9, sizeof(vals9)/sizeof(int));
+    }
+    t.abortSubtrans(0);
+    if (k&8){
+      res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+      CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    }
+    res = t.tryCommit(); assert(res == 0);
+    // check
+    t.start();
+    res = t.vsuperget(coid,buf, 0, 0); assert(res==0);
+    CheckIntCellsList(buf->u.raw, vals2, sizeof(vals2)/sizeof(int));
+    res = t.tryCommit(); assert(res == 0);
+  }
+}  
 
 class HostConfig;
 extern StorageServerState *S;
@@ -2086,12 +3535,14 @@ int main(void){
 #else
   void initStorageServer(HostConfig *hc);
   initStorageServer(0);
-  S->cLogInMemory.setSingleVersion(false); // some tests require multiple versions
+  S->cLogInMemory.setSingleVersion(false); // some tests require multiple
+                                           // versions
 #endif  
   KI = createki();
 
 #if DTREE_SPLIT_LOCATION == 2
-  printf("These tests do not work with DTREE_SPLIT_LOCATION 2, set it to 1 in options.h\n");
+  printf("These tests do not work with DTREE_SPLIT_LOCATION 2,"
+         "set it to 1 in options.h\n");
   exit(1);
 #endif
 
@@ -2131,9 +3582,14 @@ int main(void){
   test16();
   printf("Test17\n");
   test17();
+#ifndef LOCAL_TRANSACTION // skip test18 for local library
   printf("Test18\n");
   test18();
+#else
+  printf("Test18: skipped (caching irrelevant for local library)\n");
+#endif
+  printf("Test19\n");
+  test19();
+  printf("All tests done\n");
   return 0;
 }
-
-

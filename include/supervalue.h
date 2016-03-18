@@ -62,7 +62,9 @@ public:
   ListCell(const ListCell& c){ copy(c); }
   ListCell &operator=(const ListCell &c){ copy(c); return *this; }
   static bool equal(const ListCell &l, const ListCell &r){ 
-    return &l==&r || (l.nKey == r.nKey && l.value == r.value && (l.pKey == 0)==(r.pKey == 0) && (l.pKey==0 || memcmp(l.pKey,r.pKey,(int)l.nKey)==0));
+    return &l==&r || (l.nKey == r.nKey && l.value == r.value &&
+                      (l.pKey == 0)==(r.pKey == 0) &&
+                      (l.pKey==0 || memcmp(l.pKey,r.pKey,(int)l.nKey)==0));
   }
   
   int size(){ return myVarintLen(nKey) + sizeof(u64) + (int)(pKey ? nKey : 0); }
@@ -114,21 +116,12 @@ private:
 protected:
   void UnpackRecord(){
     if (!pIdxKey)
-      pIdxKey = myVdbeRecordUnpack(*ppki.ki, (int)nKey, pKey, aspace, sizeof(aspace));
+      pIdxKey = myVdbeRecordUnpack(*ppki.ki, (int)nKey, pKey, aspace,
+                                   sizeof(aspace));
   }
 public:
   UnpackedRecord *pIdxKey;
   GKeyInfoPtr ppki;
-
-  //ListCellPlus(const ListCell &c) : ListCell(c)
-  //{
-  //  pIdxKey = 0;
-  //}
-
-  //ListCellPlus() : ListCell()
-  //{
-  //  pIdxKey = 0;
-  //}
 
   // Copy from another ListCellPlus.
   // Used when we copy a supervalue (TxWriteSVItem).
@@ -164,7 +157,9 @@ public:
   // Used when we deserialize a ListAdd or ListDelRange, to
   // create a standalone ListCellPlus from a ListCell.
   ListCellPlus(const ListCell &r, GKeyInfo *srcpki)
-    : ListCell(r), ppki(srcpki ? new GKeyInfo *(CloneGKeyInfo(srcpki)) : 0, true)   // free the GKeyInfo when we delete the ListCellPlus
+    : ListCell(r),
+      ppki(srcpki ? new GKeyInfo *(CloneGKeyInfo(srcpki)) : 0, true)  // free
+                              // the GKeyInfo when we delete the ListCellPlus
   { 
     pIdxKey = 0;
   }
@@ -194,7 +189,12 @@ public:
   bool isanyprint(char *buf, int len){
     if (!buf) return false;
     bool retval = false;
-    for (int i=0; i < len; ++i){ if (isprint((u8)*buf++)){ retval = true; break; }}
+    for (int i=0; i < len; ++i){
+      if (isprint((u8)*buf++)){
+        retval = true;
+        break;
+      }
+    }
     return retval;
   }
 
@@ -225,7 +225,8 @@ public:
   ListCell *Cells;  // contents of cells, owned by DTreeNode
   GKeyInfo *pki;    // keyinfo if available
 
-  SuperValue(){ Nattrs = 0; CellType = 0; Ncells = 0; CellsSize = 0; Attrs = 0; Cells = 0; pki = 0; }
+  SuperValue(){ Nattrs = 0; CellType = 0; Ncells = 0; CellsSize = 0;
+                Attrs = 0; Cells = 0; pki = 0; }
   void copy(const SuperValue& c);
   SuperValue(const SuperValue& c){ copy(c); }
   SuperValue& operator=(const SuperValue& c){ copy(c); return *this; }
@@ -241,7 +242,8 @@ public:
   // pos must be between 0 and Ncells-1
   void DeleteCell(int pos);
 
-  // Delete cells in positions startpos..endpos-1 (a total of endpos-startpos cells).
+  // Delete cells in positions startpos..endpos-1 (a total of endpos-startpos
+  // cells).
   // startpos must be between 0 and Ncells-1
   // endpos must be between startpos and Ncells
   void DeleteCellRange(int startpos, int endpos);

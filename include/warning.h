@@ -61,8 +61,10 @@
 #define WARNING_FILE stdout
 
 // Warnings specific to Yesql/Gaia
-#define WARNING_RECEIVE_FRAGMENTED_RPC 1  // receiving RPC was too big and therefore was fragmented
-#define WARNING_SEND_FRAGMENTED_RPC    2  // sending RPC was too big and therefore was fragmented
+#define WARNING_RECEIVE_FRAGMENTED_RPC 1  // receiving RPC was too big and
+                                          // therefore was fragmented
+#define WARNING_SEND_FRAGMENTED_RPC    2  // sending RPC was too big and
+                                          // therefore was fragmented
 
 
 struct TaskMsgDataWarning {
@@ -85,7 +87,8 @@ private:
   static PastWarnings WarningList[];
   static int MaxWarning; // max warning number ever used
 
-  static void ImmediateFuncWarning(TaskMsgData &msgdata, TaskScheduler *ts, int srcthread);
+  static void ImmediateFuncWarning(TaskMsgData &msgdata, TaskScheduler *ts,
+                                   int srcthread);
 
   // this method is called periodically to flush outstanding coalesced warnings
   static int flushWarnings(void *parm);

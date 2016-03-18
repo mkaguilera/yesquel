@@ -110,7 +110,8 @@ bool checkTableExists(u64 cid){
 u64 findFreeiTable(u64 dbid, bool transient){
   u64 iTable;
   u64 cid;
-  for (iTable = (transient ? 3 : 2) ; (iTable & ~0x7fffffffLL) == 0; iTable += 2){
+  for (iTable = (transient ? 3 : 2); (iTable & ~0x7fffffffLL) == 0;
+       iTable += 2){
     cid = getCidTable(dbid, iTable);
     if (!checkTableExists(cid)) break;
   }
@@ -154,7 +155,8 @@ void NewIssuerId(bool remote){
 
     res = KVget(tx, coid, buf);
     if (res) goto retry; // error, retry
-    if (buf->len == 0) issuerid = 0; // object does not exist, so last issuerid is 0
+    if (buf->len == 0) issuerid = 0; // object does not exist,
+                                     // so last issuerid is 0
     else {
       // extract previous issuerid from buf
       assert(buf->len == sizeof(u64));

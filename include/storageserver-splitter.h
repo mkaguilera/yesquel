@@ -40,10 +40,12 @@
 #include "task.h"
 #include "grpctcp.h"
 
-#define SPLITTER_STAT_MOVING_AVE_WINDOW 30 // window size for moving average of split time
+#define SPLITTER_STAT_MOVING_AVE_WINDOW 30 // window size for moving average
+                                            // of split time
 
 void initServerSplitter(); // to be called once at program initialization
-void initServerTask(TaskScheduler *ts); // to be called at initialization of each RPC worker thread
+void initServerTask(TaskScheduler *ts); // to be called at initialization of
+                                        // each RPC worker thread
 int ss_getrowidRpcStub(RPCTaskInfo *rti);
 void SplitNode(COid &coid, ListCellPlus *cell);
 void ReportAccess(COid &coid, ListCellPlus *cell);

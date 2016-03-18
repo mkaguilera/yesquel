@@ -57,7 +57,7 @@
 #define DTREE_SPLIT_SIZE_BYTES 8000 // node size (bytes) above which to split
 
 //#define DTREE_LOADSPLITS
-// If set and DTREE_SPLIT_LOCAtion==2, then enable load splits.
+// If set and DTREE_SPLIT_LOCATION==2, then enable load splits.
 // Load splits make Yesquel more efficient but it is less tested and therefore
 // less reliable.
 
@@ -109,7 +109,7 @@
 // KEY-VALUE AND TRANSACTION OPTIONS -----------------------------------------
 
 #define GAIA_WRITE_ON_PREPARE
-// iI defined, enables the optimization to piggyback small writes on
+// If defined, enables the optimization to piggyback small writes on
 // prepare phase of transaction
 
 #define GAIA_WRITE_ON_PREPARE_MAX_BYTES 4096
@@ -274,7 +274,9 @@
 #endif
 
 #if SERVER_WORKERTHREADS==1 && !defined(LOCALSTORAGE)
-#define SKIP_LOOIM_LOCKS    // do not lock looim. Should be used only if SERVER_WORKERTHREADS is 1 and this is not the client-side local storage
+#define SKIP_LOOIM_LOCKS    // do not lock looim. Should be used only if
+                            // SERVER_WORKERTHREADS is 1 and this is not the
+                            // client-side local storage
 #endif
 
 #if defined(SKIP_LOOIM_LOCKS) && SERVER_WORKERTHREADS != 1

@@ -59,11 +59,11 @@
 
 #define DTREENODE_NATTRIBS           5  // number of attribs in each node
 // attribute numbers
-#define DTREENODE_ATTRIB_FLAGS         0 // flags
-#define DTREENODE_ATTRIB_HEIGHT        1 // height
-#define DTREENODE_ATTRIB_LASTPTR       2 // last pointer in node
-#define DTREENODE_ATTRIB_LEFTPTR       3 // pointer to left neighbor (0 if none)
-#define DTREENODE_ATTRIB_RIGHTPTR      4 // pointer to right neighbor (0 if none)
+#define DTREENODE_ATTRIB_FLAGS       0 // flags
+#define DTREENODE_ATTRIB_HEIGHT      1 // height
+#define DTREENODE_ATTRIB_LASTPTR     2 // last pointer in node
+#define DTREENODE_ATTRIB_LEFTPTR     3 // pointer to left neighbor (0 if none)
+#define DTREENODE_ATTRIB_RIGHTPTR    4 // pointer to right neighbor (0 if none)
 
 // used to store a node of the DTree
 class DTreeNode {
@@ -93,12 +93,13 @@ public:
   bool isLeaf(){ return (Flags() & DTREENODE_FLAG_LEAF) != 0; }
   bool isInner(){ return !isLeaf(); }
   bool isIntKey(){ 
-    assert(((Flags() & DTREENODE_FLAG_INTKEY) != 0) == (raw->u.raw->CellType==0));
+    assert(((Flags() & DTREENODE_FLAG_INTKEY) != 0) ==
+           (raw->u.raw->CellType==0));
     return (Flags() & DTREENODE_FLAG_INTKEY) != 0;
   }
 
   //void newEmpty(COid coid, bool intKey);   // create new empty node
-  //                                       // intKey==true iff node stores integers
+  //                                   // intKey==true iff node stores integers
   //int read(KVTransaction *tx, COid coid); // read node from KV store
   //int write(KVTransaction *tx, COid coid); // write node to KV store
 
@@ -106,9 +107,11 @@ public:
 };
 
 // prototype definitions
-int auxReadReal(KVTransaction *tx, COid coid, DTreeNode &outptr, ListCell *cell, GKeyInfo *ki);
+int auxReadReal(KVTransaction *tx, COid coid, DTreeNode &outptr,
+                ListCell *cell, GKeyInfo *ki);
 int auxReadCache(COid coid, DTreeNode &outptr);
 void auxRemoveCache(COid coid);
-int auxReadCacheOrReal(KVTransaction *tx, COid coid, DTreeNode &outptr, int &real, ListCell *cell, GKeyInfo *ki);
+int auxReadCacheOrReal(KVTransaction *tx, COid coid, DTreeNode &outptr,
+                       int &real, ListCell *cell, GKeyInfo *ki);
 
 #endif

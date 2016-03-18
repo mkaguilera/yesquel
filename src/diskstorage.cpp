@@ -71,8 +71,10 @@ DiskStorage::DiskStorage(char *diskstoragepath){
 char *DiskStorage::getFilename(const COid& coid){
   char *retval;
 
-  retval = new char[DiskStoragePathLen+32+3];  // 16 chars for cid, 16 chars for oid, 1 for ., 1 for /, 1 for null
-  sprintf(retval, "%s/%llx.%llx", DiskStoragePath, (long long)coid.cid, (long long)coid.oid);
+  retval = new char[DiskStoragePathLen+32+3];  // 16 chars for cid, 16 chars for
+                                            // oid, 1 for ., 1 for /, 1 for null
+  sprintf(retval, "%s/%llx.%llx", DiskStoragePath, (long long)coid.cid,
+          (long long)coid.oid);
   return retval;
 }
 
@@ -134,9 +136,10 @@ COid DiskStorage::FilenameToCOid(char *filename){
 }
 
 // read coid from current position of file f
-int DiskStorage::readCOidFromFile(FILE *f, const COid &coid, Ptr<TxInfoCoid> &ticoid){
+int DiskStorage::readCOidFromFile(FILE *f, const COid &coid,
+                                  Ptr<TxUpdateCoid> &tucoid){
   int res, type, len, lenkeyinfo;
-  TxInfoCoid *ticoidptr=0;
+  TxUpdateCoid *tucoidptr=0;
   char *keyinfobuf, *ptr;
 
   // read type
@@ -145,30 +148,37 @@ int DiskStorage::readCOidFromFile(FILE *f, const COid &coid, Ptr<TxInfoCoid> &ti
 
   if (type==0){ // regular value
     // read length
-    res = (int)fread((void*) &len, 1, sizeof(int), f); if (res != sizeof(int)) goto error; 
+    res = (int)fread((void*) &len, 1, sizeof(int), f);
+    if (res != sizeof(int)) goto error; 
     // read data
-    TxWriteItem *twi = new TxWriteItem;
-    twi->coid = coid;
+    TxWriteItem *twi = new TxWriteItem(coid, 0);
     twi->len = len;
     twi->buf = (char*) malloc(len);
     twi->rpcrequest = 0;
     twi->alloctype = 1; // allocated via malloc
     res = (int)fread((void*) twi->buf, 1, len, f); if (res != len) goto error;
-    ticoidptr = new TxInfoCoid(twi);
+    tucoidptr = new TxUpdateCoid(twi);
   } else { // super value
-    TxWriteSVItem *twsvi = new TxWriteSVItem;
+    TxWriteSVItem *twsvi = new TxWriteSVItem(coid, 0);
     // read top part of TxWriteSVItem
-    len = offsetof(TxWriteSVItem, attrs);
-    res = (int)fread((void*) twsvi, 1, len, f); if (res < len) goto error;
+    res = (int)fread(&twsvi->coid, 1, sizeof(COid), f);
+    if (res != sizeof(COid)) goto error;
+    int start = offsetof(TxWriteSVItem, nattrs);
+    int end = offsetof(TxWriteSVItem, attrs);
+    len = end-start;
+    res = (int)fread((char*) twsvi+start, 1, len, f); if (res<len) goto error;
+    
     // read attrs
     twsvi->attrs = new u64[twsvi->nattrs];
     len = twsvi->nattrs * sizeof(u64);
     res = (int)fread(twsvi->attrs, 1, len, f); if (res < len) goto error;
     // read Keyinfo len
-    res = (int)fread((void*) &lenkeyinfo, 1, sizeof(int), f); if (res != sizeof(int)) goto error; 
+    res = (int)fread((void*) &lenkeyinfo, 1, sizeof(int), f);
+    if (res != sizeof(int)) goto error; 
     // read KeyInfo
     keyinfobuf = new char[lenkeyinfo]; assert(keyinfobuf);
-    res = (int)fread((void*) keyinfobuf, 1, lenkeyinfo, f); if (res != lenkeyinfo) goto error; 
+    res = (int)fread((void*) keyinfobuf, 1, lenkeyinfo, f);
+    if (res != lenkeyinfo) goto error; 
     ptr = keyinfobuf;
     twsvi->pki = demarshall_keyinfo(&ptr);
     assert(ptr-keyinfobuf == lenkeyinfo);
@@ -176,35 +186,39 @@ int DiskStorage::readCOidFromFile(FILE *f, const COid &coid, Ptr<TxInfoCoid> &ti
 
     // read length of all celloids
     int lencelloids;
-    res = (int)fread(&lencelloids, 1, sizeof(int), f); if (res < (int)sizeof(int)) goto error;
+    res = (int)fread(&lencelloids, 1, sizeof(int), f);
+    if (res < (int)sizeof(int)) goto error;
     // read number of celloids
     int ncelloids;
-    res = (int)fread(&ncelloids, 1, sizeof(int), f); if (res < (int)sizeof(int)) goto error;
+    res = (int)fread(&ncelloids, 1, sizeof(int), f);
+    if (res < (int)sizeof(int)) goto error;
     // read celloids
     char *celloids = new char[lencelloids];
-    res = (int)fread(celloids, 1, lencelloids, f); if (res < ncelloids){ delete [] celloids;  goto error; }
+    res = (int)fread(celloids, 1, lencelloids, f);
+    if (res < ncelloids){ delete [] celloids;  goto error; }
     // deserialize cells
 
-    CelloidsToListCells(celloids, ncelloids, twsvi->celltype, twsvi->cells, &twsvi->pki);
+    CelloidsToListCells(celloids, ncelloids, twsvi->celltype, twsvi->cells,
+                        &twsvi->pki);
     delete [] celloids;
-    ticoidptr = new TxInfoCoid(twsvi);
+    tucoidptr = new TxUpdateCoid(twsvi);
   }
 
-  ticoid = ticoidptr;
+  tucoid = tucoidptr;
   return 0;
  error:
   return -1;
 }
 
 // write coid at current position of file f
-int DiskStorage::writeCOidToFile(FILE *f, Ptr<TxInfoCoid> ticoid){
+int DiskStorage::writeCOidToFile(FILE *f, Ptr<TxUpdateCoid> tucoid){
   int res, len, type;
   char *keyinfo;
-  TxWriteItem *twi = ticoid->Writevalue;
-  TxWriteSVItem *twsvi = ticoid->WriteSV;
+  TxWriteItem *twi = tucoid->Writevalue;
+  TxWriteSVItem *twsvi = tucoid->WriteSV;
 
   assert(twi&&!twsvi || !twi&&twsvi);
-  assert(ticoid->Litems.size()==0);
+  assert(tucoid->Litems.getNitems()==0);
   if (twi) type = 0;
   else type = 1;
 
@@ -214,27 +228,37 @@ int DiskStorage::writeCOidToFile(FILE *f, Ptr<TxInfoCoid> ticoid){
 
   if (type==0){ // regular value
     // write length
-    res = (int)fwrite((void*) &twi->len, 1, sizeof(int), f); if (res != sizeof(int)) goto error;
+    res = (int)fwrite((void*) &twi->len, 1, sizeof(int), f);
+    if (res != sizeof(int)) goto error;
     // write data
-    res = (int)fwrite((void*) twi->buf, 1, twi->len, f); if (res != twi->len) goto error;
+    res = (int)fwrite((void*) twi->buf, 1, twi->len, f);
+    if (res != twi->len) goto error;
   } else { // super value
     // write top part of TxWriteSVItem
-    len = offsetof(TxWriteSVItem, attrs);
-    res = (int)fwrite((void*) twsvi, 1, len, f); if (res != len) goto error;
+    res = (int)fwrite(&twsvi->coid, 1, sizeof(COid), f);
+    if (res != sizeof(COid)) goto error;
+    
+    int start = offsetof(TxWriteSVItem, nattrs);
+    int end = offsetof(TxWriteSVItem, attrs);
+    len = end - start;
+    res = (int)fwrite((char*) twsvi+start,1,len,f); if (res != len) goto error;
     // write attrs
     len = twsvi->nattrs * sizeof(u64);
-    res = (int)fwrite((void*) twsvi->attrs, 1, len, f); if (res != len) goto error;
+    res = (int)fwrite((void*) twsvi->attrs,1,len,f); if (res != len) goto error;
     // write KeyInfo len
     keyinfo = marshall_keyinfo_onebuf(twsvi->pki, len);
-    res = (int)fwrite((void*) &len, 1, sizeof(int), f); if (res != sizeof(int)) goto error;
+    res = (int)fwrite((void*) &len, 1, sizeof(int), f);
+    if (res != sizeof(int)) goto error;
     // write Keyinfo
     res = (int)fwrite((void*) keyinfo, 1, len, f); if (res != len) goto error;
     // write length of celloids
     int ncelloids;
-    char *celloids = twsvi->GetCelloids(ncelloids, len); assert(len >= 0);
-    res = (int)fwrite((void*) &len, 1, sizeof(int), f); if (res != sizeof(int)) goto error;
+    char *celloids = twsvi->getCelloids(ncelloids, len); assert(len >= 0);
+    res = (int)fwrite((void*) &len, 1, sizeof(int), f);
+    if (res != sizeof(int)) goto error;
     // write number of celloids
-    res = (int)fwrite((void*) &ncelloids, 1, sizeof(int), f); if (res != sizeof(int)) goto error;
+    res = (int)fwrite((void*) &ncelloids, 1, sizeof(int), f);
+    if (res != sizeof(int)) goto error;
     // write celloids
     res = (int)fwrite((void*) celloids, 1, len, f); if (res != len) goto error;
   }
@@ -243,7 +267,8 @@ int DiskStorage::writeCOidToFile(FILE *f, Ptr<TxInfoCoid> ticoid){
   return -1;
 }
 
-int DiskStorage::readCOid(const COid& coid, int len, Ptr<TxInfoCoid> &ticoid, Timestamp& version){
+int DiskStorage::readCOid(const COid& coid, int len, Ptr<TxUpdateCoid> &tucoid,
+                          Timestamp& version){
   int res, retval=0;
   FILE *f=0;
 
@@ -255,7 +280,7 @@ int DiskStorage::readCOid(const COid& coid, int len, Ptr<TxInfoCoid> &ticoid, Ti
   res = (int)fread((void*) &version, 1, sizeof(Timestamp), f);
   if (res != sizeof(Timestamp)) goto error;
 
-  res = readCOidFromFile(f, coid, ticoid);
+  res = readCOidFromFile(f, coid, tucoid);
 
  end:
   if (f) fclose(f);
@@ -269,12 +294,13 @@ int DiskStorage::readCOid(const COid& coid, int len, Ptr<TxInfoCoid> &ticoid, Ti
 }
 
 // Write an object id to disk.
-int DiskStorage::writeCOid(const COid& coid, Ptr<TxInfoCoid> ticoid, Timestamp version){
+int DiskStorage::writeCOid(const COid& coid, Ptr<TxUpdateCoid> tucoid,
+                           Timestamp version){
   int retval, res;
   FILE *f=0;
-  TxWriteItem *twi=ticoid->Writevalue;
-  TxWriteSVItem *twsvi=ticoid->WriteSV;
-  assert(ticoid->Litems.size() == 0);
+  TxWriteItem *twi=tucoid->Writevalue;
+  TxWriteSVItem *twsvi=tucoid->WriteSV;
+  assert(tucoid->Litems.getNitems() == 0);
   retval = 0;
 
   assert(twi&&!twsvi || !twi&&twsvi); // exactly one must be non-zero
@@ -289,7 +315,7 @@ int DiskStorage::writeCOid(const COid& coid, Ptr<TxInfoCoid> ticoid, Timestamp v
 
   res = (int)fwrite((void*) &version, 1, sizeof(Timestamp), f); 
   if (res != sizeof(Timestamp)){ retval = -1; goto end; }
-  res = writeCOidToFile(f, ticoid); if (res) retval = -1;
+  res = writeCOidToFile(f, tucoid); if (res) retval = -1;
 
   end:
   if (f) fclose(f);

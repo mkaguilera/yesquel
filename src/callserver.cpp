@@ -115,7 +115,8 @@ int main(int argc, char **argv)
     commandarg = argv[optind+1];
     break;
   default:
-    fprintf(stderr, "usage: %s [-o config] [-d debuglevel] command [parm]\n", argv0);
+    fprintf(stderr, "usage: %s [-o config] [-d debuglevel] command [parm]\n",
+            argv0);
     fprintf(stderr, "existing commands:\n");
     fprintf(stderr, "  load [filename]\n");
     fprintf(stderr, "  save [filename]\n");

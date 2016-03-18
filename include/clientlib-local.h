@@ -43,6 +43,7 @@
 
 #include "debug.h"
 #include "util.h"
+#include "clientlib-common.h"
 #include "gaiarpcaux.h"
 #include "datastruct.h"
 #include "supervalue.h"
@@ -50,12 +51,6 @@
 #include <sys/uio.h>
 #include <set>
 #include <list>
-
-#define TXCACHE_HASHTABLE_SIZE 64
-
-// cache only the first MAX_READS_TO_TXCACHE reads
-#define MAX_READS_TO_TXCACHE 1000
-
 
 // Transaction running locally at a client
 class LocalTransaction
@@ -66,26 +61,14 @@ private:
   Tid Id;
   int readsTxCached;
   bool hasWrites;
+  int currlevel;          // current subtransaction level
 
-  struct TxCacheEntry {
-  public:
-    COid coid;
-    ~TxCacheEntry(){}
-    Ptr<Valbuf> vbuf;
-    COid *GetKeyPtr(){ return &coid; }
-    static unsigned HashKey(COid *i){ return COid::hash(*i); }
-    static int CompareKey(COid *i1, COid *i2){ return COid::cmp(*i1, *i2); }
-    static void delEntry(TxCacheEntry *tce){ delete tce; }
-  };
+  TxCache txCache;
 
-  SkipList<COid,TxCacheEntry*> TxCache;
-
-  void clearTxCache(void);
-  void updateTxCache(COid &coid, Ptr<Valbuf> &buf);
   int tryLocalRead(COid &coid, Ptr<Valbuf> &buf, int typ);
   int auxprepare(Timestamp &chosents);
   int auxcommit(int outcome, Timestamp committs);
-
+  int auxsubtrans(int level, int action);
 
 public:
   LocalTransaction();
@@ -98,7 +81,8 @@ public:
   int writev(COid coid, int nbufs, iovec *bufs);
   int put(COid coid, char *buf, int len){ return write(coid, buf, len); }
   int put2(COid coid, char *data1, int len1, char *data2, int len2);
-  int put3(COid coid, char *data1, int len1, char *data2, int len2, char *data3, int len3);
+  int put3(COid coid, char *data1, int len1, char *data2, int len2,
+           char *data3, int len3);
   int vget(COid coid, Ptr<Valbuf> &buf);
   int vsuperget(COid coid, Ptr<Valbuf> &buf, ListCell *cell, GKeyInfo *ki);
   static void readFreeBuf(char *buf);
@@ -110,10 +94,15 @@ public:
   int listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags);
 #else
   // when split occurs at client, listadd returns ncells and size
-  int listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags, int *ncells=0, int *size=0);
+  int listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags,
+              int *ncells=0, int *size=0);
 #endif
-  int listDelRange(COid coid, u8 intervalType, ListCell *cell1, ListCell *cell2, GKeyInfo *ki);
+  int listDelRange(COid coid, u8 intervalType, ListCell *cell1,
+                   ListCell *cell2, GKeyInfo *ki);
   int attrSet(COid coid, u32 attrid, u64 attrvalue);
+  int startSubtrans(int level);
+  int abortSubtrans(int level);
+  int releaseSubtrans(int level);
   int tryCommit(Timestamp *retcommitts=0);
   int abort(void);
 };

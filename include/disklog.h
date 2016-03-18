@@ -43,7 +43,8 @@ class TaskInfo;
 
 #define ALIGNBUFSIZE 4096    // must be power of 2
 
-#define ALIGNLEN(x)  ((x) & ~(ALIGNBUFSIZE-1)) // clear low bits of x so it is aligned
+#define ALIGNLEN(x)  ((x) & ~(ALIGNBUFSIZE-1)) // clear low bits of x so it
+                                               // is aligned
 #define ALIGNMOD(x)  ((x) & (ALIGNBUFSIZE-1))    // low bits of x
 
 #include <list>
@@ -128,46 +129,52 @@ private:
   char *WritebufPtr;     // current location in buffer
   u64 FileOffset;        // current offset in file being written
 
-  WriteQueueItem *WriteQueueHead, *WriteQueueTail;  // head and tail of write queue
+  WriteQueueItem *WriteQueueHead, *WriteQueueTail;  // head and tail of
+                                                   // write queue
 
-  void BufWrite(char *buf, int len);   // buffers a write to disk; calls AlignWrite
+  void BufWrite(char *buf, int len);   // buffers a write to disk;
+                                       // calls AlignWrite
   void auxwrite(char *buf, int len);   // writes an aligned buffer
   void BufFlush(void);                 // flushes write done
 
-  void writeWqi(WriteQueueItem *wqi);  // writes a WriteQueueItem (calls BufWrite several times)
+  void writeWqi(WriteQueueItem *wqi);  // writes a WriteQueueItem
+                                       // (calls BufWrite several times)
 
   static int PROGShipDiskReqs(TaskInfo *ti);
 
   int diskLogThreadNo;  // if diskLogThread is running, its thread number
-  static OSTHREAD_FUNC diskLogThread(void *parm);  // example of a thread to run disklog
+  static OSTHREAD_FUNC diskLogThread(void *parm);  // example of a thread
+                                                   // to run disklog
 
 public:
   DiskLog(const char *logname);
   ~DiskLog();
-  void launch(void);  // creates disklog thread. If the thread is to do other work, then
-                      // caller should create the thread herself and then invoke init() below
-                      // within the thread.
+  void launch(void);  // creates disklog thread. If the thread is to do
+       // other work, then caller should create the thread herself and then
+       // invoke init() below within the thread.
   
-  void init(void);    // registers immediate function and creates task. Subsequently,
-                      // called should invoke run() on the task scheduler (or periodically
-                      // invoke runOnce() ). This shouldn't be called if calling launch(),
-                      // since the thread created by launch() will already call init().
+  void init(void); // registers immediate function and creates task.
+                   // Subsequently, caller should invoke run() on the task
+                   // scheduler (or periodically invoke runOnce() ). This
+                   // should not be called if calling launch(), since the
+                   // thread created by launch() will already call init().
 
 
-  // --------- client functions, called to log various things -------------------
+  // --------- client functions, called to log various things -------------
 
   // Logs updates and Yes Vote
   // Returns 0 if log has been done, non-zero if log being done in backgruond
   // Notification happens only if it returns non-zero
-  static int logUpdatesAndYesVote(Tid tid, Timestamp ts, Ptr<PendingTxInfo> pti, void *notify); 
+  static int logUpdatesAndYesVote(Tid tid, Timestamp ts,
+                                  Ptr<PendingTxInfo> pti, void *notify); 
 
   // log a commit record
   static void logCommitAsync(Tid tid, Timestamp ts);
   // log an abort record
   static void logAbortAsync(Tid tid, Timestamp ts);
 
-  // runs a test that logs consecutive integers from 0 to niter-1, flushing batches of
-  // increasingly larger sizes
+  // runs a test that logs consecutive integers from 0 to niter-1,
+  // flushing batches of increasingly larger sizes
   void test(int niter);
 };
 

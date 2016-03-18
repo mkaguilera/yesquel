@@ -67,7 +67,8 @@ int ClientCache::report(int serverno, u64 vno, Timestamp &ts, Timestamp &advts){
 // lookup coid in the cache for given server.
 // If found, sets buf to cached value and returns 0.
 // Otherwise, leaves buf untouched and returns non-0.
-int ClientCache::lookup(int serverno, COid &coid, Ptr<Valbuf> &buf, Timestamp &readTs){
+int ClientCache::lookup(int serverno, COid &coid, Ptr<Valbuf> &buf,
+                        Timestamp &readTs){
   assert(0 <= serverno && serverno < Nservers);
   int res;
   Ptr<Valbuf> *pbuf;

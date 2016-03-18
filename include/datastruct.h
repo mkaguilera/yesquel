@@ -75,7 +75,8 @@ struct SimpleLinkListItem {
 template<class T, class Alloc=DefaultAllocator>
 class SimpleLinkList {
 private:
-  SimpleLinkListItem<T> *Head, *Tail; // Head and Tail always points to two empty dummy nodes
+  // Head and Tail always points to two empty dummy nodes  
+  SimpleLinkListItem<T> *Head, *Tail;
   int nitems;
 
 public:
@@ -157,12 +158,12 @@ public:
   // methods for iterating forward
   SimpleLinkListItem<T> *getFirst(void){ return Head->next; }
   SimpleLinkListItem<T> *getLast(void){ return Tail; }
-  SimpleLinkListItem<T> *getNext(SimpleLinkListItem<T> *ptr){ return ptr->next; }
+  SimpleLinkListItem<T> *getNext(SimpleLinkListItem<T> *ptr){return ptr->next;}
 
   // methods for iterating backward
   SimpleLinkListItem<T> *rGetFirst(void){ return Tail->prev; }
   SimpleLinkListItem<T> *rGetLast(void){ return Head; }
-  SimpleLinkListItem<T> *rGetNext(SimpleLinkListItem<T> *ptr){ return ptr->prev; }
+  SimpleLinkListItem<T> *rGetNext(SimpleLinkListItem<T> *ptr){return ptr->prev;}
 
   T peek(SimpleLinkListItem<T> *ptr){ return ptr->item; }
   void remove(SimpleLinkListItem<T> *ptr){
@@ -182,12 +183,14 @@ public:
 // In this class, when an element is added, it will belong
 // to the linked list, so caller should not free element.
 //
-// When an element is returned by popTail or popHead, it will be given to the caller,
-// who can then free the element if appropriate.
+// When an element is returned by popTail or popHead, it will be given to the
+// caller, who can then free the element if appropriate.
 //
 // Destructor may or may not free elements in the list, depending
-// on the constructor's parameter toclean. If toclean==true, the destructor frees the elements.
-// Otherwise, the caller is responsible for freeing it before destroying LinkList.
+// on the constructor's parameter toclean. If toclean==true, the destructor
+// frees the elements.
+// Otherwise, the caller is responsible for freeing it before destroying
+// LinkList.
 //
 
 template<class U, class Alloc=DefaultAllocator>
@@ -233,7 +236,8 @@ public:
     ++nitems;
   }
 
-  void clear(bool del){  // empty the linklist. If del is set to true, delete nodes as we clear them
+  void clear(bool del){  // empty the linklist. If del is set to true, delete
+                         // nodes as we clear them
     if (del){
       U *ptr, *next;
       ptr = Head->next;
@@ -275,7 +279,7 @@ public:
     return ptr;
   }
 
-  U *PeekTail(void){
+  U *peekTail(void){
     assert(Tail->prev != Head);
     return Tail->prev;
   }
@@ -307,8 +311,8 @@ public:
 // In this class, when an element is added, it will belong
 // to the linked list, so caller should not free element.
 //
-// When an element is returned by popTail or popHead, it will be given to the caller,
-// who can then free the element if appropriate.
+// When an element is returned by popTail or popHead, it will be given to the
+// caller, who can then free the element if appropriate.
 //
 // Note: destructor does not free elements in the list.
 // Caller should enumerate list, pop its elements, and free them.
@@ -316,7 +320,7 @@ public:
 template<class U>
 class SLinkList {
 private:
-  U *Head, *Tail; // Head and Tail always points to two empty dummy nodes
+  U *Head, *Tail;
   int nitems;
 
 public:
@@ -350,6 +354,28 @@ public:
     return retval;
   }
 
+  // Remove rest of linked list starting at item after given item,
+  // unless item==0, in which case removes entire linked list
+  // invokes delitem on each item delete (presumably to free the item)
+  void removeRest(U *item, void (*delitem)(U*)){
+    U *ptr, *next;
+    // invoke del function for each item to be deleted
+    if (item) ptr = item->next;
+    else ptr = Head;
+    while (ptr){
+      next = ptr->next;
+      delitem(ptr);
+      --nitems;
+      ptr = next;
+    }
+    if (item){
+      item->next = 0;
+      Tail=item;
+    } else {
+      Head = Tail = 0;
+    }
+  }
+
   U *peekTail(void){
     return Tail;
   }
@@ -378,8 +404,8 @@ public:
 // In this class, when an element is added, it will belong
 // to the linked list, so caller should not free element.
 //
-// When an element is returned, by popHead/popTail it will be given to the caller,
-// who can then free the element if appropriate.
+// When an element is returned, by popHead/popTail it will be given to the
+// caller, who can then free the element if appropriate.
 //
 // Note: destructor does not free elements in the list.
 // Caller should enumerate list, pop its elements, and free them.
@@ -479,12 +505,14 @@ public:
   ~SortedLinkListBK(){}
 
   // If exact=0: finds first entry with key >= given key; if none, return 0
-  // If exact=1: finds entry with first key maching given key; returns getLast() if none
+  // If exact=1: finds entry with first key maching given key; returns
+  // getLast() if none
   U *lookup(T *key, int exact=1){
     U *ptr;
     int cmp=0;
     ptr = SortedLinkList<T,U,Alloc>::getFirst();
-    while (ptr != SortedLinkList<T,U,Alloc>::Tail && (cmp = U::CompareKey(ptr->GetKeyPtr(),key)) < 0)
+    while (ptr != SortedLinkList<T,U,Alloc>::Tail &&
+           (cmp = U::CompareKey(ptr->GetKeyPtr(),key)) < 0)
       ptr=ptr->snext;
     if (ptr == SortedLinkList<T,U,Alloc>::Tail) return 0;
     if (!exact) return ptr;
@@ -508,13 +536,16 @@ template<class T, class U, class Alloc=DefaultAllocator>
 struct SkipListNode {
   T key;
   U value;
-  int nlevels; // this field is used for some of the more sophisticated operations (copy skiplist, delete range)
+  int nlevels; // this field is used for some of the more sophisticated
+               // operations (copy skiplist, delete range)
   SkipListNode *next[1];
   SkipListNode(){}
   ~SkipListNode(){}
   static SkipListNode<T,U,Alloc> *newNode(int n){
     if (n <= 0) n=1;
-    SkipListNode<T,U,Alloc> *ret = (SkipListNode<T,U,Alloc>*) AMALLOC(sizeof(SkipListNode<T,U,Alloc>) + (n-1) * sizeof(SkipListNode<T,U,Alloc>*));
+    SkipListNode<T,U,Alloc> *ret = (SkipListNode<T,U,Alloc>*)
+      AMALLOC(sizeof(SkipListNode<T,U,Alloc>) + (n-1) *
+              sizeof(SkipListNode<T,U,Alloc>*));
     rtchk(ret);
     new(ret) SkipListNode<T,U,Alloc>;
     ret->nlevels = n;
@@ -528,8 +559,8 @@ struct SkipListNode {
 };
 
 // SkipList
-// Requires T to have static function cmp(T &left, T &right) which returns -1, 0, +1 
-// if left < right, left==right, left > right, respectively
+// Requires T to have static function cmp(T &left, T &right) which
+// returns -1, 0, +1  if left < right, left==right, left > right, respectively
 template<class T, class U, class Alloc=DefaultAllocator>
 class SkipList {
 private:
@@ -540,7 +571,7 @@ private:
   void expandLevels(int highern){
     int i;
     if (highern <= maxlevels) return;
-    SkipListNode<T,U,Alloc> *newHead = SkipListNode<T,U,Alloc>::newNode(highern);
+    SkipListNode<T,U,Alloc> *newHead=SkipListNode<T,U,Alloc>::newNode(highern);
     for (i=0; i < maxlevels; ++i) newHead->next[i] = Head->next[i];
     for (i=maxlevels; i < highern; ++i) newHead->next[i] = Tail;
     SkipListNode<T,U,Alloc>::freeNode(Head);
@@ -569,7 +600,8 @@ private:
     SkipListNode<T,U,Alloc> *ptr;
     ptr = Head;
     for (i = maxlevels-1; i >= 0; --i)
-      while (ptr->next[i] != Tail && T::cmp(ptr->next[i]->key, key) < 0) ptr = ptr->next[i];
+      while (ptr->next[i] != Tail && T::cmp(ptr->next[i]->key, key) < 0)
+        ptr = ptr->next[i];
     return ptr;
   }
 
@@ -594,10 +626,12 @@ public:
     int i;
     SkipListNode<T,U,Alloc> **missingprev, *ptr, *newnode;
 
-    // missingprev has previous nodes that are missing a next pointer, for each level
+    // missingprev has previous nodes that are missing a next pointer,
+    // for each level
     nitems = r.nitems;
     maxlevels = r.maxlevels;
-    missingprev = (SkipListNode<T,U,Alloc> **) AMALLOC(sizeof(SkipListNode<T,U,Alloc>*) * maxlevels);
+    missingprev = (SkipListNode<T,U,Alloc> **)
+      AMALLOC(sizeof(SkipListNode<T,U,Alloc>*) * maxlevels);
     Head = SkipListNode<T,U,Alloc>::newNode(maxlevels);
     for (i=0; i < r.maxlevels; ++i) missingprev[i] = Head;
     ptr = r.Head->next[0];
@@ -641,9 +675,9 @@ public:
     for (int i=0; i < maxlevels; ++i) Head->next[i] = Tail;
   }
 
-  // returns 0 if found, non-zero if not found. If found, makes retvalue point to value,
-  // in which case caller can read the value with *retvalue, and it can change the vabue with
-  //  *retvalue = ...
+  // returns 0 if found, non-zero if not found. If found, makes retvalue point
+  // to value, in which case caller can read the value with *retvalue, and it
+  // can change the value with *retvalue = ...
   int lookup(T &key, U *&retvalue){
     SkipListNode<T,U,Alloc> *ptr = seek(key);
     if (ptr == Head) return -1;
@@ -662,8 +696,8 @@ public:
   }
 
   // try to find key; if not found then create it.
-  // Returns 0 if found, non-zero if not found and therefore new item was created.
-  // Sets valueptr to point to location containing value of found or created item.
+  // Returns 0 if found, non-0 if not found and therefore new item was created.
+  // Sets valueptr to point to place containing value of found or created item.
   // For example, if item was created, the caller can set its value with
   //    *valueptr = ...
   // If item was found, the caller can retrieve the value with *valueptr.
@@ -674,12 +708,16 @@ public:
     SkipListNode<T,U,Alloc> **prevptrs;
     SkipListNode<T,U,Alloc> *oldhead;
 
-    prevptrs = (SkipListNode<T,U,Alloc> **) AMALLOC(sizeof(SkipListNode<T,U,Alloc>*) * maxlevels); // store previous ptrs at each level
+    // store previous ptrs at each level
+    prevptrs = (SkipListNode<T,U,Alloc> **)
+      AMALLOC(sizeof(SkipListNode<T,U,Alloc>*) * maxlevels);
 
     oldhead = ptr = Head;
     for (i = maxlevels-1; i >= 0; --i){
-      while (ptr->next[i] != Tail && T::cmp(ptr->next[i]->key, key) < 0) ptr = ptr->next[i];
-      prevptrs[i] = ptr; // remember ptr at this level in case we want to insert later
+      while (ptr->next[i] != Tail && T::cmp(ptr->next[i]->key, key) < 0)
+        ptr = ptr->next[i];
+      prevptrs[i] = ptr; // remember ptr at this level in case we want
+                         // to insert later
     }
 
     if (ptr->next[0] != Tail && T::cmp(ptr->next[0]->key, key)==0){  // found it
@@ -725,9 +763,11 @@ public:
     return 1;
   }
 
-  // Insert a new key if it is not in the list, or replace an existing one if it already exists.
+  // Insert a new key if it is not in the list, or replace an existing one if
+  // it already exists.
   // If there are multiple existing keys, only the first one is replaced.
-  // If replacing, delkey and delvalue are functions that will be called to delete key/value.
+  // If replacing, delkey and delvalue are functions that will be called to
+  // delete key/value.
   // These functions can be 0, in which case they will not be called.
   // Returns 0 if replaced, 1 if inserted.
   int insertOrReplace(T &key, U value, void (*delkey)(T&), void (*delvalue)(U)){
@@ -737,12 +777,15 @@ public:
     SkipListNode<T,U,Alloc> **prevptrs;
     SkipListNode<T,U,Alloc> *oldhead;
 
-    prevptrs = (SkipListNode<T,U,Alloc> **) AMALLOC(sizeof(SkipListNode<T,U,Alloc>*) * maxlevels); // store previous ptrs at each level
+    // store previous ptrs at each level    
+    prevptrs = (SkipListNode<T,U,Alloc> **)
+      AMALLOC(sizeof(SkipListNode<T,U,Alloc>*) * maxlevels); 
 
     oldhead = ptr = Head;
     for (i = maxlevels-1; i >= 0; --i){
-      while (ptr->next[i] != Tail && T::cmp(ptr->next[i]->key, key)<0) ptr = ptr->next[i];
-      prevptrs[i] = ptr; // remember ptr at this level in case we want to insert later
+      while (ptr->next[i] != Tail && T::cmp(ptr->next[i]->key, key)<0)
+        ptr = ptr->next[i];
+      prevptrs[i] = ptr; // remember ptr at this level to maybe insert later
     }
 
     if (ptr->next[0] != Tail && T::cmp(ptr->next[0]->key,key)==0){  // found it
@@ -792,7 +835,8 @@ public:
     return 1;
   }
 
-  // Try to find key. If found then delete it and return 0 and a copy of its value in retvalue. If not found, return non-zero.
+  // Try to find key. If found then delete it and return 0 and a copy of its
+  // value in retvalue. If not found, return non-zero.
   // If there are multiple copies of the key, deletes only the first one.
   // If delkey is non-null, invoke it on key being deleted
   int lookupRemove(T &key, void (*delkey)(T&), U& retvalue){
@@ -800,15 +844,19 @@ public:
     SkipListNode<T,U,Alloc> *ptr;
     SkipListNode<T,U,Alloc> **prevptrs;
 
-    prevptrs = (SkipListNode<T,U,Alloc> **) AMALLOC(sizeof(SkipListNode<T,U,Alloc>*) * maxlevels); // store previous ptrs at each level
+    // store previous ptrs at each level
+    prevptrs = (SkipListNode<T,U,Alloc> **)
+      AMALLOC(sizeof(SkipListNode<T,U,Alloc>*) * maxlevels);
 
     ptr = Head;
     for (i = maxlevels-1; i >= 0; --i){
-      while (ptr->next[i] != Tail && T::cmp(ptr->next[i]->key, key) < 0) ptr = ptr->next[i];
-      prevptrs[i] = ptr; // remember ptr at this level in case we want to insert later
+      while (ptr->next[i] != Tail && T::cmp(ptr->next[i]->key, key) < 0)
+        ptr = ptr->next[i];
+      prevptrs[i] = ptr; // remember ptr at this level to maybe insert later
     }
 
-    if (ptr->next[0] == Tail || T::cmp(ptr->next[0]->key, key) != 0){  // did not find it
+    if (ptr->next[0] == Tail || T::cmp(ptr->next[0]->key, key) != 0){
+      // did not find it
       AFREE(prevptrs); 
       return -1;
     }
@@ -891,7 +939,8 @@ public:
 
     ptr = Head;
     for (i = maxlevels-1; i >= 0; --i){
-      while (ptr->next[i] != Tail && T::cmp(ptr->next[i]->key, key) <= 0) ptr = ptr->next[i];
+      while (ptr->next[i] != Tail && T::cmp(ptr->next[i]->key, key) <= 0)
+        ptr = ptr->next[i];
       if (i < height){
         newptr->next[i] = ptr->next[i];
         ptr->next[i] = newptr;
@@ -904,8 +953,8 @@ public:
   //   1=delete only key
   //   2=delete only value
   //   3=delete both key and value
-  // The values of type1 and type2 indicate whether the interval is opened, closed, or infinite
-  // on the left and right, respectively. That is:
+  // The values of type1 and type2 indicate whether the interval is opened,
+  // closed, or infinite on the left and right, respectively. That is:
   //    type1==0 means (key1..
   //    type1==1 means [key1..
   //    type1==2 means (-inf... (key1 is ignored)
@@ -914,13 +963,16 @@ public:
   //    type2==2 means ..inf)
   // For example, type1==1 and type2==0 means an interval of form [key1,key2)
   // Returns number of deleted keys
-  int delRange(T &key1, int type1, T &key2, int type2, void (*delkey)(T&), void (*delvalue)(U)){
+  int delRange(T &key1, int type1, T &key2, int type2, void (*delkey)(T&),
+               void (*delvalue)(U)){
     int i;
     SkipListNode<T,U,Alloc> *ptr, *nextptr;
     SkipListNode<T,U,Alloc> **prevptrs;
     int ndeleted=0;
 
-    prevptrs = (SkipListNode<T,U,Alloc> **) AMALLOC(sizeof(SkipListNode<T,U,Alloc>*) * maxlevels); // store previous ptrs at each level
+    // store previous ptrs at each level    
+    prevptrs = (SkipListNode<T,U,Alloc> **)
+      AMALLOC(sizeof(SkipListNode<T,U,Alloc>*) * maxlevels); 
 
     // first traverse to key1 and record previous pointers
     // for each previous pointer, record their next pointer at their level
@@ -928,21 +980,24 @@ public:
     for (i = maxlevels-1; i >= 0; --i){
       switch(type1){
       case 0: // find point until the last key matching key1
-        while (ptr->next[i] != Tail && T::cmp(ptr->next[i]->key, key1) <= 0) ptr = ptr->next[i];
+        while (ptr->next[i] != Tail && T::cmp(ptr->next[i]->key, key1) <= 0)
+          ptr = ptr->next[i];
         break;
       case 1: // find point until right before key1
-        while (ptr->next[i] != Tail && T::cmp(ptr->next[i]->key, key1) < 0) ptr = ptr->next[i];
+        while (ptr->next[i] != Tail && T::cmp(ptr->next[i]->key, key1) < 0)
+          ptr = ptr->next[i];
         break;
       case 2: // stay at the head
         break;
       }
-      prevptrs[i] = ptr; // remember ptr at this level in case we want to insert later
+      prevptrs[i] = ptr; // remember ptr at this level to maybe insert later
     }
 
     ptr = ptr->next[0];  // from now on, we must delete...
 
     // now traverse from key1 until key2, while deleting nodes
-    // while traversing, see if node being deleted was blocking one of the previous pointers
+    // while traversing, see if node being deleted was blocking one of
+    // the previous pointers
     while (ptr != Tail){
       switch(type2){
       case 0:
@@ -956,8 +1011,10 @@ public:
       }
 
       ++ndeleted;
-      for (i=0; i < ptr->nlevels; ++i)
-        prevptrs[i]->next[i] = ptr->next[i]; // update next pointer of previous pointers
+      for (i=0; i < ptr->nlevels; ++i){
+        // update next pointer of previous pointers        
+        prevptrs[i]->next[i] = ptr->next[i];
+      }
       nextptr = ptr->next[0];
       if (delkey) delkey(ptr->key);
       if (delvalue) delvalue(ptr->value);
@@ -992,13 +1049,16 @@ template<class T, class U, class Alloc=DefaultAllocator>
 struct SkipListNodeBK {
   T *key;
   U value;
-  int nlevels; // this field is used for some of the more sophisticated operations (copy skiplist, delete range)
+  int nlevels; // this field is used for some of the more sophisticated
+               // operations (copy skiplist, delete range)
   SkipListNodeBK *next[1];
   SkipListNodeBK(){}
   ~SkipListNodeBK(){}
   static SkipListNodeBK<T,U,Alloc> *newNode(int n){
     if (n <= 0) n=1;
-    SkipListNodeBK<T,U,Alloc> *ret = (SkipListNodeBK<T,U,Alloc>*) AMALLOC(sizeof(SkipListNodeBK<T,U,Alloc>) + (n-1) * sizeof(SkipListNodeBK<T,U,Alloc>*));
+    SkipListNodeBK<T,U,Alloc> *ret = (SkipListNodeBK<T,U,Alloc>*)
+      AMALLOC(sizeof(SkipListNodeBK<T,U,Alloc>) +
+              (n-1) * sizeof(SkipListNodeBK<T,U,Alloc>*));
     rtchk(ret);
     new(ret) SkipListNodeBK<T,U,Alloc>;
     ret->nlevels = n;
@@ -1010,11 +1070,13 @@ struct SkipListNodeBK {
   }
 };
 
-// Same as SkipList, but for big keys (functions take a pointer to U instead of U).
+// Same as SkipList, but for big keys (functions take U* instead of U).
 // Functions will not generally copy the key, but rather just copy the pointer.
-// Therefore, once inserted, the key being pointed to will be owned by the SkipListBK.
-// When copying a SkipList with the copy() method, the key pointed to will be copied using its copy
-// constructor and the caller can pass a function to copy the value.
+// Therefore, once inserted, the key being pointed to will be owned by the
+// SkipListBK.
+// When copying a SkipList with the copy() method, the key pointed to will be
+// copied using its copy constructor and the caller can pass a function to
+// copy the value.
 template<class T, class U, class Alloc=DefaultAllocator>
 class SkipListBK {
 private:
@@ -1023,20 +1085,23 @@ private:
   SkipListNodeBK<T,U,Alloc> *Head, *Tail;
   
   SkipListBK &operator=(const SkipListBK &r){ rtchk(0); } // forbid assignment
-  SkipListBK(const SkipListBK &r){ rtchk(0); } // forbid default copy constructor
+  SkipListBK(const SkipListBK &r){ rtchk(0); } //forbid default copy constructor
 
   // Copy skiplist
-  // This is private because if skiplist is not empty, there will be a memory leak.
+  // This is private because if skiplist is not empty, there will be a memory
+  // leak.
   // Use instead the other copy method below
   // This is intended to be called only from the public copy constructor below
   void copy(const SkipListBK &r, void (*copyvalue)(U, U&)){
     int i;
     SkipListNodeBK<T,U,Alloc> **missingprev, *ptr, *newnode;
     
-    // missingprev has previous nodes that are missing a next pointer, for each level
+    // missingprev has previous nodes that are missing a next pointer,
+    // for each level
     nitems = r.nitems;
     maxlevels = r.maxlevels;
-    missingprev = (SkipListNodeBK<T,U,Alloc> **) AMALLOC(sizeof(SkipListNodeBK<T,U,Alloc>*) * maxlevels);
+    missingprev = (SkipListNodeBK<T,U,Alloc> **)
+      AMALLOC(sizeof(SkipListNodeBK<T,U,Alloc>*) * maxlevels);
     Head = SkipListNodeBK<T,U,Alloc>::newNode(maxlevels);
     for (i=0; i < r.maxlevels; ++i) missingprev[i] = Head;
     ptr = r.Head->next[0];
@@ -1063,7 +1128,8 @@ private:
   void expandLevels(int highern){
     int i;
     if (highern <= maxlevels) return;
-    SkipListNodeBK<T,U,Alloc> *newHead = SkipListNodeBK<T,U,Alloc>::newNode(highern);
+    SkipListNodeBK<T,U,Alloc> *newHead =
+      SkipListNodeBK<T,U,Alloc>::newNode(highern);
     for (i=0; i < maxlevels; ++i) newHead->next[i] = Head->next[i];
     for (i=maxlevels; i < highern; ++i) newHead->next[i] = Tail;
     SkipListNodeBK<T,U,Alloc>::freeNode(Head);
@@ -1092,7 +1158,8 @@ private:
     SkipListNodeBK<T,U,Alloc> *ptr;
     ptr = Head;
     for (i = maxlevels-1; i >= 0; --i)
-      while (ptr->next[i] != Tail && T::cmp(*ptr->next[i]->key, *key)<0) ptr = ptr->next[i];
+      while (ptr->next[i] != Tail && T::cmp(*ptr->next[i]->key, *key)<0)
+        ptr = ptr->next[i];
     return ptr;
   }
 
@@ -1112,9 +1179,11 @@ public:
     SkipListNodeBK<T,U,Alloc>::freeNode(Tail);
   }
 
-  // copy constructor. Calls the copy constructor for the key and a user-supplied function
-  // to copy the value of each item in the skiplist
-  SkipListBK(const SkipListBK &r, void (*copyvalue)(U,U&)){ copy(r, copyvalue); }
+  // copy constructor. Calls the copy constructor for the key and a
+  // user-supplied function to copy the value of each item in the skiplist
+  SkipListBK(const SkipListBK &r, void (*copyvalue)(U,U&)){
+    copy(r, copyvalue);
+  }
   
   // Clear all items. If deleteitem == 1 then call delete on each key,
   // if deleteitem == 2, call delete on each value
@@ -1137,14 +1206,15 @@ public:
   // copyvalue is a method to copy the value. If 0, just use assignment
   // delkey is a method to free the key. If 0, key is not freed
   // delvalue is a method to free the value. If 0, value is not freed
-  void copy(const SkipListBK &r, void (*copyvalue)(U, U&), void (*delkey)(T*), void (*delvalue)(U)){
+  void copy(const SkipListBK &r, void (*copyvalue)(U, U&),
+            void (*delkey)(T*), void (*delvalue)(U)){
     clear(delkey, delvalue);
     copy(r, copyvalue);
   }
 
-  // returns 0 if found, non-zero if not found. If found, makes retvalue point to value,
-  // in which case caller can read the value with *retvalue, and it can change the value with
-  //  *retvalue = ...
+  // returns 0 if found, non-zero if not found. If found, makes retvalue point
+  // to value, in which case caller can read the value with *retvalue, and it
+  // can change the value with *retvalue = ...
   int lookup(T *key, U *&retvalue){
     SkipListNodeBK<T,U,Alloc> *ptr = seek(key);
     if (ptr == Head) return -1;
@@ -1163,12 +1233,15 @@ public:
   }
 
   // try to find key; if not found then create it.
-  // Returns 0 if found, non-zero if not found and therefore new item was created.
-  // Sets valueptr to point to location containing pointer to value of found or created item.
+  // Returns 0 if found, non-zero if not found and therefore new item was
+  // created.
+  // Sets valueptr to point to location containing pointer to value of found
+  // or created item.
   // For example, if item was created, the caller can set its value with
   //    *valueptr = ...
   // If item was found, the caller can retrieve the value with *valueptr.
-  // If key was not found, this method will own the key; otherwise, it will not (so caller should free key)
+  // If key was not found, this method will own the key; otherwise, it will
+  // not (so caller should free key)
   int lookupInsert(T *key, U *& valueptr){
     SkipListNodeBK<T,U,Alloc> *newptr;
     int i;
@@ -1176,15 +1249,18 @@ public:
     SkipListNodeBK<T,U,Alloc> **prevptrs;
     SkipListNodeBK<T,U,Alloc> *oldhead;
 
-    prevptrs = (SkipListNodeBK<T,U,Alloc> **) AMALLOC(sizeof(SkipListNodeBK<T,U,Alloc>*) * maxlevels); // store previous ptrs at each level
+    // store previous ptrs at each level
+    prevptrs = (SkipListNodeBK<T,U,Alloc> **)
+      AMALLOC(sizeof(SkipListNodeBK<T,U,Alloc>*) * maxlevels);
 
     oldhead = ptr = Head;
     for (i = maxlevels-1; i >= 0; --i){
-      while (ptr->next[i] != Tail && T::cmp(*ptr->next[i]->key, *key)<0) ptr = ptr->next[i];
-      prevptrs[i] = ptr; // remember ptr at this level in case we want to insert later
+      while (ptr->next[i] != Tail && T::cmp(*ptr->next[i]->key, *key)<0)
+        ptr = ptr->next[i];
+      prevptrs[i] = ptr; // remember ptr at this level to maybe insert later
     }
 
-    if (ptr->next[0] != Tail && T::cmp(*ptr->next[0]->key, *key)==0){  // found it
+    if (ptr->next[0] != Tail && T::cmp(*ptr->next[0]->key, *key)==0){ //found it
       AFREE(prevptrs); 
       valueptr = &ptr->next[0]->value;
       return 0;
@@ -1227,30 +1303,37 @@ public:
     return 1;
   }
 
-  // Insert a new key if it is not in the list, or replace an existing one if it already exists.
+  // Insert a new key if it is not in the list, or replace an existing one if
+  // it already exists.
   // If there are multiple existing keys, only the first one is replaced.
-  // If replacing, deleteitem controls whether the old key and value should be deleted:
+  // If replacing, deleteitem controls whether the old key and value should be
+  // deleted:
   //   deleteitem == 1: delete old key
   //   deleteitem == 2: delete old value
   //   deleteitem == 3: delete both old key and value
-  // This method will own key regardless of whether an existing key was replaced or not.
+  // This method will own key regardless of whether an existing key was
+  // replaced or not.
   // Returns 0 if replaced, 1 if inserted.
-  int insertOrReplace(T *key, U value, void (*delkey)(T*), void (*delvalue)(U)){
+  int insertOrReplace(T *key, U value, void (*delkey)(T*),
+                      void (*delvalue)(U)){
     SkipListNodeBK<T,U,Alloc> *newptr;
     int i;
     SkipListNodeBK<T,U,Alloc> *ptr;
     SkipListNodeBK<T,U,Alloc> **prevptrs;
     SkipListNodeBK<T,U,Alloc> *oldhead;
 
-    prevptrs = (SkipListNodeBK<T,U,Alloc> **) AMALLOC(sizeof(SkipListNodeBK<T,U,Alloc>*) * maxlevels); // store previous ptrs at each level
+    // store previous ptrs at each level
+    prevptrs = (SkipListNodeBK<T,U,Alloc> **)
+      AMALLOC(sizeof(SkipListNodeBK<T,U,Alloc>*) * maxlevels);
 
     oldhead = ptr = Head;
     for (i = maxlevels-1; i >= 0; --i){
-      while (ptr->next[i] != Tail && T::cmp(*ptr->next[i]->key, *key)<0) ptr = ptr->next[i];
-      prevptrs[i] = ptr; // remember ptr at this level in case we want to insert later
+      while (ptr->next[i] != Tail && T::cmp(*ptr->next[i]->key, *key)<0)
+        ptr = ptr->next[i];
+      prevptrs[i] = ptr; // remember ptr at this level to maybe insert later
     }
 
-    if (ptr->next[0] != Tail && T::cmp(*ptr->next[0]->key, *key)==0){  // found it
+    if (ptr->next[0] != Tail && T::cmp(*ptr->next[0]->key, *key)==0){ //found it
       AFREE(prevptrs);
       ptr = ptr->next[0];
       if (delkey) delkey(ptr->key);
@@ -1297,7 +1380,8 @@ public:
     return 1;
   }
 
-  // Try to find key. If found then delete it and return 0 and its value in retvalue. If not found, return non-zero.
+  // Try to find key. If found then delete it and return 0 and its value in
+  // retvalue. If not found, return non-zero.
   // If there are multiple copies of the key, deletes only the first one.
   // If delkey is non-null, invoke it on key being deleted
   int lookupRemove(T *key, void (*delkey)(T*), U& retvalue){
@@ -1305,15 +1389,19 @@ public:
     SkipListNodeBK<T,U,Alloc> *ptr;
     SkipListNodeBK<T,U,Alloc> **prevptrs;
 
-    prevptrs = (SkipListNodeBK<T,U,Alloc> **) AMALLOC(sizeof(SkipListNodeBK<T,U,Alloc>*) * maxlevels); // store previous ptrs at each level
+ // store previous ptrs at each level
+    prevptrs = (SkipListNodeBK<T,U,Alloc> **)
+      AMALLOC(sizeof(SkipListNodeBK<T,U,Alloc>*) * maxlevels);
 
     ptr = Head;
     for (i = maxlevels-1; i >= 0; --i){
-      while (ptr->next[i] != Tail && T::cmp(*ptr->next[i]->key, *key)<0) ptr = ptr->next[i];
-      prevptrs[i] = ptr; // remember ptr at this level in case we want to insert later
+      while (ptr->next[i] != Tail && T::cmp(*ptr->next[i]->key, *key)<0)
+        ptr = ptr->next[i];
+      prevptrs[i] = ptr; // remember ptr at this level to maybe insert later
     }
 
-    if (ptr->next[0] == Tail || T::cmp(*ptr->next[0]->key, *key) != 0){  // did not find it
+    if (ptr->next[0] == Tail || T::cmp(*ptr->next[0]->key, *key) != 0){
+      // did not find it
       AFREE(prevptrs); 
       return -1;
     }
@@ -1349,10 +1437,12 @@ public:
     if (ptr1 == Tail) return 0; // if end, no match
     switch(intervalType % 3){
     case 0: 
-      if (T::cmp(*ptr1->key, *endkey)<0) return ptr1->key; // if we are before endkey, match
+      if (T::cmp(*ptr1->key, *endkey)<0) return ptr1->key; // if we are before
+                                                           // endkey, match
       else return 0; // else no match
     case 1:
-      if (T::cmp(*ptr1->key, *endkey)<=0) return ptr1->key; // if we are before or at endkey, match
+      if (T::cmp(*ptr1->key, *endkey)<=0) return ptr1->key; // if we are before
+                                                         // or at endkey, match
       else return 0; // else no match
     case 2: return ptr1->key;
     }
@@ -1388,7 +1478,8 @@ public:
 
     ptr = Head;
     for (i = maxlevels-1; i >= 0; --i){
-      while (ptr->next[i] != Tail && T::cmp(*ptr->next[i]->key, *key) <= 0) ptr = ptr->next[i];
+      while (ptr->next[i] != Tail && T::cmp(*ptr->next[i]->key, *key) <= 0)
+        ptr = ptr->next[i];
       if (i < height){
         newptr->next[i] = ptr->next[i];
         ptr->next[i] = newptr;
@@ -1402,8 +1493,8 @@ public:
   //   1=delete only key
   //   2=delete only value
   //   3=delete both key and value
-  // The values of type1 and type2 indicate whether the interval is opened, closed, or infinite
-  // on the left and right, respectively. That is:
+  // The values of type1 and type2 indicate whether the interval is opened,
+  // closed, or infinite on the left and right, respectively. That is:
   //    type1==0 means (key1..
   //    type1==1 means [key1..
   //    type1==2 means (-inf... (key1 is ignored)
@@ -1412,13 +1503,16 @@ public:
   //    type2==2 means ..inf)
   // For example, type1==1 and type2==0 means an interval of form [key1,key2)
   // Returns number of deleted keys
-  int delRange(T *key1, int type1, T *key2, int type2, void (*delkey)(T*), void (*delvalue)(U)){
+  int delRange(T *key1, int type1, T *key2, int type2,
+               void (*delkey)(T*), void (*delvalue)(U)){
     int i;
     SkipListNodeBK<T,U,Alloc> *ptr, *nextptr;
     SkipListNodeBK<T,U,Alloc> **prevptrs;
     int ndeleted=0;
 
-    prevptrs = (SkipListNodeBK<T,U,Alloc> **) AMALLOC(sizeof(SkipListNodeBK<T,U,Alloc>*) * maxlevels); // store previous ptrs at each level
+    // store previous ptrs at each level
+    prevptrs = (SkipListNodeBK<T,U,Alloc> **)
+      AMALLOC(sizeof(SkipListNodeBK<T,U,Alloc>*) * maxlevels);
 
     // first traverse to key1 and record previous pointers
     // for each previous pointer, record their next pointer at their level
@@ -1426,21 +1520,24 @@ public:
     for (i = maxlevels-1; i >= 0; --i){
       switch(type1){
       case 0: // find point until the last key matching key1
-        while (ptr->next[i] != Tail && T::cmp(*ptr->next[i]->key, *key1) <= 0) ptr = ptr->next[i];
+        while (ptr->next[i] != Tail && T::cmp(*ptr->next[i]->key, *key1) <= 0)
+          ptr = ptr->next[i];
         break;
       case 1: // find point until right before key1
-        while (ptr->next[i] != Tail && T::cmp(*ptr->next[i]->key, *key1) < 0) ptr = ptr->next[i];
+        while (ptr->next[i] != Tail && T::cmp(*ptr->next[i]->key, *key1) < 0)
+          ptr = ptr->next[i];
         break;
       case 2: // stay at the head
         break;
       }
-      prevptrs[i] = ptr; // remember ptr at this level in case we want to insert later
+      prevptrs[i] = ptr; // remember ptr at this level to maybe insert later
     }
 
     ptr = ptr->next[0];  // from now on, we must delete...
 
     // now traverse from key1 until key2, while deleting nodes
-    // while traversing, see if node being deleted was blocking one of the previous pointers
+    // while traversing, see if node being deleted was blocking one
+    // of the previous pointers
     while (ptr != Tail){
       switch(type2){
       case 0:
@@ -1454,8 +1551,10 @@ public:
       }
 
       ++ndeleted;
-      for (i=0; i < ptr->nlevels; ++i)
-        prevptrs[i]->next[i] = ptr->next[i]; // update next pointer of previous pointers
+      for (i=0; i < ptr->nlevels; ++i){
+        // update next pointer of previous pointers
+        prevptrs[i]->next[i] = ptr->next[i];
+      }
       nextptr = ptr->next[0];
       if (delkey) delkey(ptr->key);
       if (delvalue) delvalue(ptr->value);
@@ -1491,8 +1590,8 @@ public:
 // 1. U has a field of type T
 // 2. U has public fields next, prev, snext, sprev of type U*
 // 3. U has method T GetKey(T) which returns key of T
-// 4. U has static functions HashKey(T) and CompareKey(T,T) which hashes and compares a given key
-//
+// 4. U has static functions HashKey(T) and CompareKey(T,T) which hashes and
+//    compares a given key
 template<class T, class U, class Alloc=DefaultAllocator>
 class HashTable {
 private:
@@ -1505,7 +1604,8 @@ public:
   HashTable(int nbuckets){
     int i;
     Nbuckets = nbuckets;
-    Buckets = (SortedLinkList<T,U,Alloc> *) AMALLOC(sizeof(SortedLinkList<T,U,Alloc>) * nbuckets);
+    Buckets = (SortedLinkList<T,U,Alloc> *)
+      AMALLOC(sizeof(SortedLinkList<T,U,Alloc>) * nbuckets);
     for (i=0; i < nbuckets; ++i){
       new(Buckets+i) SortedLinkList<T,U,Alloc>();
     }
@@ -1534,7 +1634,8 @@ public:
 
   U *operator[](T key){ return lookup(key); }
 
-  void remove(U *ptr){ SortedLinkList<T,U,Alloc>::removeDirect(ptr); AllElements.remove(ptr); --nitems; }
+  void remove(U *ptr){ SortedLinkList<T,U,Alloc>::removeDirect(ptr);
+                       AllElements.remove(ptr); --nitems; }
 
   U *getFirst(){ return AllElements.getFirst(); }
   U *getNext(U *ptr){ return AllElements.getNext(ptr); }
@@ -1546,7 +1647,8 @@ public:
 // 1. U has a field of type T
 // 2. U has public fields next, prev, snext, sprev of type U*
 // 3. U has method T GetKeyPtr which returns pointer to key of itself
-// 4. U has static functions HashKey(T*) and CompareKey(T*,T*) which hashes and compares a given key
+// 4. U has static functions HashKey(T*) and CompareKey(T*,T*) which hashes
+//    and compares a given key
 
 template<class T, class U, class Alloc=DefaultAllocator>
 class HashTableBK {
@@ -1560,7 +1662,8 @@ public:
   HashTableBK(int nbuckets){
     int i;
     Nbuckets = nbuckets;
-    Buckets = (SortedLinkListBK<T,U,Alloc> *) AMALLOC(sizeof(SortedLinkListBK<T,U,Alloc>) * nbuckets);
+    Buckets = (SortedLinkListBK<T,U,Alloc> *)
+      AMALLOC(sizeof(SortedLinkListBK<T,U,Alloc>) * nbuckets);
     for (i=0; i < nbuckets; ++i){
       new(Buckets+i) SortedLinkListBK<T,U,Alloc>;
     }
@@ -1588,7 +1691,11 @@ public:
   }
 
   U *operator[](T *key){ return lookup(key); }
-  void remove(U *ptr){ SortedLinkList<T,U,Alloc>::removeDirect(ptr); AllElements.remove(ptr); --nitems; }
+  void remove(U *ptr){
+    SortedLinkList<T,U,Alloc>::removeDirect(ptr);
+    AllElements.remove(ptr);
+    --nitems;
+  }
 
   U *getFirst(){ return AllElements.getFirst(); }
   U *getNext(U *ptr){ return AllElements.getNext(ptr); }
@@ -1617,8 +1724,9 @@ private:
   }
 
   // allocate new array of given size and copy elements to it
-  // newsize is actually allowed to be smaller than CurrArraySize, as long as it is
-  // not smaller than CurrItem (otherwise, there is no space to copy current items)
+  // newsize is actually allowed to be smaller than CurrArraySize, as long as
+  // it is not smaller than CurrItem (otherwise, there is no space to copy
+  // current items)
   void grow(int newsize){
     assert(newsize >= CurrItem);
     int i;
@@ -1634,9 +1742,10 @@ private:
   }
 
 public:
-  // initarraysize is the initial size of the array. Items will be placed in array until
-  // it reaches the array size, at which point a new larger array is allocated (of size
-  // bigger by a factor of growarrayfactor) and items are copied to the new larger array
+  // initarraysize is the initial size of the array. Items will be placed in
+  // array until it reaches the array size, at which point a new larger array
+  // is allocated (of size bigger by a factor of growarrayfactor) and items
+  // are copied to the new larger array
   StackArray(int initarraysize, double growarrayfactor){
     ElementArray = 0;
     CurrItem = 0;
@@ -1669,8 +1778,9 @@ public:
 };
 
 // smart pointer class
-// Assumes that T contains an 32-bit attribute refcount that is 32-bit aligned and
-// initialized to zero in all constructors and that T declares Ptr<T> as a friend.
+// Assumes that T contains an 32-bit attribute refcount that is 32-bit aligned
+// and initialized to zero in all constructors and that T declares Ptr<T> as a
+// class friend.
 template<class T>
 class Ptr {
 private:
@@ -1690,11 +1800,12 @@ public:
   T &operator* (){ return *ptr; }
   T *operator->(){ return ptr; }
   bool isset(){ return ptr!=0; }
+  int refcount(){ return ptr->refcount; }
 };
 
 // Set, implemented as a skiplist.
-// Requires T to have static function cmp(T &left, T &right) which returns -1, 0, +1 
-// if left < right, left==right, left > right, respectively
+// Requires T to have static function cmp(T &left, T &right) which
+// returns -1, 0, +1 if left < right, left==right, left > right, respectively
 
 template<class T, class Alloc=DefaultAllocator>
 class SetNode : public SkipListNode<T,int,Alloc> { };
@@ -1704,7 +1815,8 @@ class Set {
 private:
   SkipList<T,int,Alloc> Elements; // int value is dummy
 public:
-  // insert an item. Returns 0 if item was inserted, non-zero if item previously existed
+  // insert an item. Returns 0 if item was inserted, non-zero if item
+  // previously existed
   int insert(T key){
     int *dummy;
     int res;
@@ -1713,7 +1825,8 @@ public:
     return res==0;
   }
 
-  // delete an element. Returns 0 if item was deleted, non-zero if item did not belong
+  // delete an element. Returns 0 if item was deleted, non-zero if item
+  // did not belong
   int remove(T key){
     int res;
     int retval;
@@ -1731,12 +1844,14 @@ public:
 
   SetNode<T,Alloc> *getFirst(){ return (SetNode<T,Alloc>*) Elements.getFirst(); }
   SetNode<T,Alloc> *getLast(){ return (SetNode<T,Alloc>*) Elements.getLast(); }
-  SetNode<T,Alloc> *getNext(SetNode<T,Alloc> *ptr){ return (SetNode<T,Alloc>*) Elements.getNext(ptr); }
+  SetNode<T,Alloc> *getNext(SetNode<T,Alloc> *ptr){
+    return (SetNode<T,Alloc>*) Elements.getNext(ptr);
+  }
   int getNitems(){ return Elements.getNitems(); }
   bool empty(){ return getNitems() == 0; }
 };
 
-// -----------------------------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 // class version of some primitive types, to be used with data structures above
 struct U32 {
   u32 data;

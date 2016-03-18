@@ -41,7 +41,8 @@
 #include "gaiatypes.h"
 #include "util.h"
 
-int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSplit)(COid, int, void*, int), 
+int DtSplit(COid toSplit, ListCellPlus *cell, bool remote,
+            int (*enqueueMoreSplit)(COid, int, void*, int), 
             void *enqueueMoreSplitParm);
 
 #endif

@@ -21,7 +21,8 @@ int myGetVarint(const unsigned char *p, u64 *v);
 int myPutVarint(unsigned char *p, u64 v);
 // functions to expose
 int myVdbeRecordCompare(int nKey1, const void *pKey1, UnpackedRecord *pPKey2);
-UnpackedRecord *myVdbeRecordUnpack(GKeyInfo *pKeyInfo, int nKey, const void *pKey, char *pSpace, 
+UnpackedRecord *myVdbeRecordUnpack(GKeyInfo *pKeyInfo, int nKey,
+                                   const void *pKey, char *pSpace, 
                    int szSpace);
 void myVdbeDeleteUnpackedRecord(UnpackedRecord *p);
 
@@ -39,8 +40,10 @@ int testRecordPack(UnpackedRecord *pIdxKey, int file_format);
 
 #ifndef SQLITE_CORE
 
-int binCollFunc(void *padFlag, int nKey1, const void *pKey1, int nKey2, const void *pKey2);
-int nocaseCollatingFunc(void *NotUsed, int nKey1, const void *pKey1, int nKey2, const void *pKey2);
+int binCollFunc(void *padFlag, int nKey1, const void *pKey1,
+                int nKey2, const void *pKey2);
+int nocaseCollatingFunc(void *NotUsed, int nKey1, const void *pKey1,
+                        int nKey2, const void *pKey2);
 
 #ifndef _PARTIAL_RECORD_H
 
@@ -51,7 +54,8 @@ int nocaseCollatingFunc(void *NotUsed, int nKey1, const void *pKey1, int nKey2, 
 /*********************** Visual Studio specific defines ******************/
 
 #if defined __linux__
-#define malloc_size(ptr) malloc_usable_size(ptr) // returns size of an allocated chunk
+#define malloc_size(ptr) malloc_usable_size(ptr) // returns size of an
+                                                 // allocated chunk
 #elif defined _WIN32
 #define malloc_size(ptr) _msize(ptr) // returns the size of an allocated chunk
 #else
@@ -122,7 +126,7 @@ static int sqlite3VarintLen(u64 v);
 #define sqlite3_snprintf(count, buf, format, ...) snprintf(buf, count, format, ##__VA_ARGS__)
 
 
-/******************************** RETURN CODES **********************************/
+/******************************* RETURN CODES *********************************/
 
 #define SQLITE_OK           0   /* Successful result */
 #define SQLITE_NOMEM        7   /* A malloc() failed */

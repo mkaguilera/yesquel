@@ -143,7 +143,8 @@ int sqlite3BtreeUpdateMeta(Btree*, int idx, u32 value);
 #define BTREE_TEXT_ENCODING       5
 #define BTREE_USER_VERSION        6
 #define BTREE_INCR_VACUUM         7
-#define BTREE_LAST_METADATA       8  // YESQUEL CH: this is not an attribute, just list size
+#define BTREE_LAST_METADATA       8  // YESQUEL CH: this is not an attribute,
+                                     // just list size
 
 /*
 ** The type used to represent a page number.  The first page in a file

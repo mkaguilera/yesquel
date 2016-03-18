@@ -55,7 +55,8 @@ void FixedAllocatorPinned::grow(){
 void *FixedAllocatorPinned::allocRegion(){
   int res;
   void *ptr;
-  ptr = VirtualAlloc(0, Size * IncGrow, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+  ptr = VirtualAlloc(0, Size * IncGrow, MEM_COMMIT | MEM_RESERVE,
+                     PAGE_READWRITE);
   assert(ptr);
   res = VirtualLock(ptr, Size * IncGrow);
   if (res==0){
@@ -75,7 +76,8 @@ void FixedAllocatorPinned::freeRegion(void *ptr){
 // size: size of allocation units; should be page size
 // startpool: initial number of allocation units
 // incgrow: incremental number of units to grow when no more units available
-// tag: information added to each allocated block. Can be obtained by calling getTag on the allocated block
+// tag: information added to each allocated block. Can be obtained by calling
+// getTag on the allocated block
 FixedAllocatorPinned::FixedAllocatorPinned(int size, int incgrow, u32 tag) :
   Items(incgrow, 2.0),
   Regions(30, 2.0)

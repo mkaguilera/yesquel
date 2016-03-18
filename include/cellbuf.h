@@ -49,10 +49,13 @@ private:
   int Ncells;        // number of cells
   int MaxCells;      // maximum number of cells
   u8  *BufPtr;       // pointer to the buffer beginning
-  int HowFreeBufPtr; // how to free bufptr when it is no longer needed. 0=don't free, 1=use delete, 2=use free
-  int IntKey;        // whether cell has just one Varint (intCell=true) or Varint followed by data (intCell=false)
+  int HowFreeBufPtr; // how to free bufptr when it is no longer needed.
+                     // 0=don't free, 1=use delete, 2=use free
+  int IntKey;        // whether cell has just one Varint (intCell=true) or
+                     // Varint followed by data (intCell=false)
 
-  u8 **CellPtrs;   // pointer to each cell. Last pointer is to the first byte after last cell
+  u8 **CellPtrs;   // pointer to each cell. Last pointer is to the first
+                   // byte after last cell
   int UsedBuf;     // number of bytes used in buffer
   int TotalBuf;    // number of bytes allocated in buffer
 
@@ -84,7 +87,8 @@ public:
   // truncates all entries >= cellno
   void truncAfter(int cellno);
 
-  u8 *getCell(int cellno){ assert(cellno <= Ncells && cellno >= 0); return CellPtrs[cellno]; }
+  u8 *getCell(int cellno){ assert(cellno <= Ncells && cellno >= 0);
+                           return CellPtrs[cellno]; }
   u8 *operator [](int cellno){ return getCell(cellno); }
   int getBufSize(void){ return UsedBuf; }
   int getNcells(void){ return Ncells; }
@@ -94,7 +98,8 @@ public:
   //   howfree=0: do not free bufptr, belongs to caller
   //   howfree=1: free bufptr by calling delete [] bufptr
   //   howfree=2: free bufptr by calling free(bufptr)
-  CellBuffer(u8 *bufptr, int totalbuf, int ncells, int maxcells, int intkey, int howfree=0);
+  CellBuffer(u8 *bufptr, int totalbuf, int ncells, int maxcells, int intkey,
+             int howfree=0);
 
   ~CellBuffer(){
     delete [] CellPtrs;

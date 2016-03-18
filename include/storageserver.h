@@ -56,6 +56,7 @@ Marshallable *listdelrangeRpc(ListDelRangeRPCData *d);
 Marshallable *attrsetRpc(AttrSetRPCData *d);
 Marshallable *prepareRpc(PrepareRPCData *d, void *&state, void *rpctasknotify);
 Marshallable *commitRpc(CommitRPCData *d);
+Marshallable *subtransRpc(SubtransRPCData *d);
 Marshallable *shutdownRpc(ShutdownRPCData *d);
 Marshallable *startsplitterRpc(StartSplitterRPCData *d);
 Marshallable *flushfileRpc(FlushFileRPCData *d);

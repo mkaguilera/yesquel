@@ -39351,7 +39351,7 @@ static int sqlite3LockAndPrepare(
   sqlite3_mutex_enter(db->mutex);
   sqlite3BtreeEnterAll(db);
   rc = sqlite3Prepare(db, zSql, nBytes, saveSqlFlag, pOld, ppStmt, pzTail);
-  // YESQUEL CH: changed from it to a while loop, since we may need to attempt the prepare multiple times.
+  // YESQUEL CH: changed from if to a while loop, since we may need to attempt the prepare multiple times.
   while( rc==SQLITE_SCHEMA ){
     sqlite3_finalize(*ppStmt);
     rc = sqlite3Prepare(db, zSql, nBytes, saveSqlFlag, pOld, ppStmt, pzTail);

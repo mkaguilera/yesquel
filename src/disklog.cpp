@@ -75,7 +75,8 @@ DiskLog::~DiskLog(){
 void DiskLog::writeWqi(WriteQueueItem *wqi){}
 void DiskLog::logCommitAsync(Tid tid, Timestamp ts){}
 void DiskLog::logAbortAsync(Tid tid, Timestamp ts){}
-int DiskLog::logUpdatesAndYesVote(Tid tid, Timestamp ts, Ptr<PendingTxInfo> pti, void *notify){
+int DiskLog::logUpdatesAndYesVote(Tid tid, Timestamp ts, Ptr<PendingTxInfo> pti,
+                                  void *notify){
   return 0; // indicates no notification will happen
 }
 void DiskLog::launch(void){}
@@ -84,11 +85,14 @@ void DiskLog::test(int niter){}
 #else
 #include "task.h"
 
-static void logAsync(LogEntry *le);  // auxilliary function called by logCommitAsync and logAbortAsync
-static void SendDiskLog(WriteQueueItem *wqi);  // sends a write request to the PROGShipDiskReqs task
-static void ImmediateFuncEnqueueDiskReq(TaskMsgData &msgdata, TaskScheduler *ts, int srcthread);  // immediate function to enqueue a disk request for the PROGShipDiskReqs task
+// auxilliary function called by logCommitAsync and logAbortAsync
+static void logAsync(LogEntry *le);
+// sends a write request to the PROGShipDiskReqs task
+static void SendDiskLog(WriteQueueItem *wqi);
+// immediate function to enqueue a disk request for the PROGShipDiskReqs task
+static void ImmediateFuncEnqueueDiskReq(TaskMsgData &msgdata,
+                                        TaskScheduler *ts, int srcthread);
 static int PROGShipDiskReqs(TaskInfo *ti);
-
 
 DiskLog::DiskLog(const char *logname){
   char *str, *ptr, *lastptr;
@@ -111,11 +115,13 @@ DiskLog::DiskLog(const char *logname){
   // allocate writebuf
   RawWritebuf = new char[WRITEBUFSIZE+ALIGNBUFSIZE-1];
   if ((unsigned)(long long)RawWritebuf & (ALIGNBUFSIZE-1)){ // does not align
-    Writebuf = RawWritebuf + (ALIGNBUFSIZE - ((unsigned)(long long) RawWritebuf & (ALIGNBUFSIZE-1)));
+    Writebuf = RawWritebuf + (ALIGNBUFSIZE - ((unsigned)(long long)
+                                              RawWritebuf & (ALIGNBUFSIZE-1)));
   } else Writebuf = RawWritebuf;
-  assert(((unsigned)(long long)Writebuf & (ALIGNBUFSIZE-1))==0 && Writebuf >= RawWritebuf);
-  WritebufSize = ALIGNLEN((int)(RawWritebuf + WRITEBUFSIZE + ALIGNBUFSIZE-1 - Writebuf));
-  //printf("WRITEBUFSIZE %d ALIGNBUFSIZE %d WritebufSize %d\n", WRITEBUFSIZE, ALIGNBUFSIZE, WritebufSize);
+  assert(((unsigned)(long long)Writebuf & (ALIGNBUFSIZE-1))==0 &&
+         Writebuf >= RawWritebuf);
+  WritebufSize = ALIGNLEN((int)(RawWritebuf + WRITEBUFSIZE + ALIGNBUFSIZE-1 -
+                                Writebuf));
   assert(WritebufSize >=ALIGNBUFSIZE);
   WritebufLeft = WritebufSize;
 #endif
@@ -181,23 +187,25 @@ void DiskLog::writeWqi(WriteQueueItem *wqi){
     BufWrite((char*) &mwle, sizeof(MultiWriteLogEntry));
 
     // iterator over all objects
-    SkipListNode<COid, Ptr<TxInfoCoid> > *it;
-    for (it = pti->coidinfo.getFirst(); it != pti->coidinfo.getLast(); it = pti->coidinfo.getNext(it)){
-      Ptr<TxInfoCoid> ticoid = it->value;
-      if (ticoid->Writevalue) type = 1;
-      else if (ticoid->WriteSV) type = 2;
+    SkipListNode<COid, Ptr<TxUpdateCoid> > *it;
+    for (it = pti->coidinfo.getFirst(); it != pti->coidinfo.getLast();
+         it = pti->coidinfo.getNext(it)){
+      Ptr<TxUpdateCoid> tucoid = it->value;
+      if (tucoid->Writevalue) type = 1;
+      else if (tucoid->WriteSV) type = 2;
       else type = 0;
       BufWrite((char*) &type, sizeof(int));
 
       if (type == 0){ // write a delta record
         int len;
-        BufWrite((char*)ticoid->SetAttrs, GAIA_MAX_ATTRS);
-        BufWrite((char*)ticoid->Attrs, sizeof(u64)*GAIA_MAX_ATTRS);
-        len = (int) ticoid->Litems.size(); // number of items
+        BufWrite((char*)tucoid->SetAttrs, GAIA_MAX_ATTRS);
+        BufWrite((char*)tucoid->Attrs, sizeof(u64)*GAIA_MAX_ATTRS);
+        len = (int) tucoid->Litems.getNitems(); // number of items
         BufWrite((char*)&len, sizeof(int));
         // for each item
-        for (list<TxListItem*>::iterator it=ticoid->Litems.begin(); it != ticoid->Litems.end(); ++it){
-          TxListItem *tli = *it;
+        for (TxListItem *tli = tucoid->Litems.getFirst();
+             tli != tucoid->Litems.getLast();
+             tli = tucoid->Litems.getNext(tli)){
           BufWrite((char*)&tli->type, sizeof(int));
           if (tli->type == 0){
             TxListAddItem *tlai = dynamic_cast<TxListAddItem*>(tli);
@@ -206,7 +214,8 @@ void DiskLog::writeWqi(WriteQueueItem *wqi){
             if (!tlai->item.pKey) celltype=0; // int key
             else celltype=1;
             BufWrite((char*)&celltype, sizeof(int));
-            if (celltype) BufWrite((char*)tlai->item.pKey, (int) tlai->item.nKey);
+            if (celltype) BufWrite((char*)tlai->item.pKey,
+                                   (int) tlai->item.nKey);
             BufWrite((char*) &tlai->item.value, sizeof(u64));
           } else { // tli->type == 1
             TxListDelRangeItem *tldri = dynamic_cast<TxListDelRangeItem*>(tli);
@@ -216,32 +225,35 @@ void DiskLog::writeWqi(WriteQueueItem *wqi){
             if (!tldri->itemstart.pKey) celltype=0; // int key
             else celltype = 1;
             BufWrite((char*) &celltype, sizeof(int));
-            if (celltype) BufWrite((char*)tldri->itemstart.pKey, (int)tldri->itemstart.nKey);
+            if (celltype) BufWrite((char*)tldri->itemstart.pKey,
+                                   (int)tldri->itemstart.nKey);
             BufWrite((char*) &tldri->itemstart.value, sizeof(u64));
             // itemend
             BufWrite((char*) &tldri->itemend.nKey, sizeof(int));
             if (!tldri->itemend.pKey) celltype=0; // int key
             else celltype = 1;
             BufWrite((char*) &celltype, sizeof(int));
-            if (celltype) BufWrite((char*)tldri->itemend.pKey, (int)tldri->itemend.nKey);
+            if (celltype) BufWrite((char*)tldri->itemend.pKey,
+                                   (int)tldri->itemend.nKey);
             BufWrite((char*) &tldri->itemend.value, sizeof(u64));
           }
         }
       } else if (type == 1){ // write a value record
-        TxWriteItem *twi = ticoid->Writevalue;
+        TxWriteItem *twi = tucoid->Writevalue;
         BufWrite((char*) &twi->len, sizeof(int));
         BufWrite((char*)twi->buf, twi->len);
       } else { // type == 2
 	int nitems;
         // write a supervalue record
-        TxWriteSVItem *twsvi = ticoid->WriteSV;
+        TxWriteSVItem *twsvi = tucoid->WriteSV;
         BufWrite((char*)twsvi, offsetof(TxWriteSVItem, attrs)); // header
         BufWrite((char*)twsvi->attrs, sizeof(u64) * twsvi->nattrs);
 	nitems = twsvi->cells.getNitems();
         BufWrite((char*) &nitems, sizeof(int)); // number of cells
         // for each cell
         SkipListNodeBK<ListCellPlus,int> *ptr;
-        for (ptr = twsvi->cells.getFirst(); ptr != twsvi->cells.getLast(); ptr = twsvi->cells.getNext(ptr)){
+        for (ptr = twsvi->cells.getFirst(); ptr != twsvi->cells.getLast();
+             ptr = twsvi->cells.getNext(ptr)){
           ListCellPlus *lc = ptr->key;
           BufWrite((char*) &lc->nKey, sizeof(int));
           if (!lc->pKey) celltype=0; // int key
@@ -293,7 +305,8 @@ void DiskLog::logAbortAsync(Tid tid, Timestamp ts){
   logAsync(&le);
 }
 
-int DiskLog::logUpdatesAndYesVote(Tid tid, Timestamp ts, Ptr<PendingTxInfo> pti, void *notify){
+int DiskLog::logUpdatesAndYesVote(Tid tid, Timestamp ts, Ptr<PendingTxInfo> pti,
+                                  void *notify){
   WriteQueueItem *wqi = new WriteQueueItem();
   wqi->utype = 1;
   wqi->u.updates.tid = tid;
@@ -301,12 +314,15 @@ int DiskLog::logUpdatesAndYesVote(Tid tid, Timestamp ts, Ptr<PendingTxInfo> pti,
   wqi->u.updates.pti = pti;
   wqi->notify = notify;
   SendDiskLog(wqi);
-  if (notify) return 1; // indicate that log will be done in the background, with notification happening subsequently
+  if (notify) return 1; // indicate that log will be done in the background,
+                        //with notification happening subsequently
   else return 0; // indicate that no notification will happen
 }
 
-void ImmediateFuncEnqueueDiskReq(TaskMsgData &msgdata, TaskScheduler *ts, int srcthread){
-  DiskLogThreadContext *dltc = (DiskLogThreadContext*) tgetSharedSpace(THREADCONTEXT_SPACE_DISKLOG);
+void ImmediateFuncEnqueueDiskReq(TaskMsgData &msgdata, TaskScheduler *ts,
+                                 int srcthread){
+  DiskLogThreadContext *dltc = (DiskLogThreadContext*)
+    tgetSharedSpace(THREADCONTEXT_SPACE_DISKLOG);
   WriteQueueItem *wqi = *(WriteQueueItem**) &msgdata;
   wqi->next = 0;
 
@@ -318,7 +334,8 @@ void ImmediateFuncEnqueueDiskReq(TaskMsgData &msgdata, TaskScheduler *ts, int sr
 }
 
 int DiskLog::PROGShipDiskReqs(TaskInfo *ti){
-  DiskLogThreadContext *dltc = (DiskLogThreadContext*) tgetSharedSpace(THREADCONTEXT_SPACE_DISKLOG);
+  DiskLogThreadContext *dltc = (DiskLogThreadContext*)
+    tgetSharedSpace(THREADCONTEXT_SPACE_DISKLOG);
   DiskLog *dl = (DiskLog*) ti->getTaskData();
   WriteQueueItem *wqi, *next;
 
@@ -337,7 +354,8 @@ int DiskLog::PROGShipDiskReqs(TaskInfo *ti){
         msg.dest = (TaskInfo*) wqi->notify;
         msg.flags = 0;
         memset(&msg.data, 0, sizeof(TaskMsgData));
-        msg.data.data[0] = 0xb0; // check byte only (message carries no relevant data; it is just a signal)
+        msg.data.data[0] = 0xb0; // check byte only (message carries no
+                                 // relevant data; it is just a signal)
         tsendMessage(msg);
       }
       next = wqi->next;
@@ -353,7 +371,8 @@ int DiskLog::PROGShipDiskReqs(TaskInfo *ti){
 
 void DiskLog::launch(void){
   if (diskLogThreadNo == -1){ // not launched yet
-    diskLogThreadNo = SLauncher->createThread("DISKLOG", diskLogThread, (void*) this, 0);
+    diskLogThreadNo = SLauncher->createThread("DISKLOG", diskLogThread,
+                                              (void*) this, 0);
   }
 }
 
@@ -377,7 +396,8 @@ void DiskLog::init(void){
   gContext.setThread(TCLASS_DISKLOG, 0, threadno);
 
   // assign immediate functions and tasks
-  ts->assignImmediateFunc(IMMEDIATEFUNC_ENQUEUEDISKREQ, ImmediateFuncEnqueueDiskReq);
+  ts->assignImmediateFunc(IMMEDIATEFUNC_ENQUEUEDISKREQ,
+                          ImmediateFuncEnqueueDiskReq);
   dltc = new DiskLogThreadContext;
   tsetSharedSpace(THREADCONTEXT_SPACE_DISKLOG, dltc);
   ti = ts->createTask(PROGShipDiskReqs, this);
@@ -386,12 +406,15 @@ void DiskLog::init(void){
 }
 
 void SendDiskLog(WriteQueueItem *wqi){
-  sendIFMsg(gContext.hashThread(TCLASS_DISKLOG, 0), IMMEDIATEFUNC_ENQUEUEDISKREQ, (void*) &wqi, sizeof(WriteQueueItem*));
+  sendIFMsg(gContext.hashThread(TCLASS_DISKLOG, 0),
+            IMMEDIATEFUNC_ENQUEUEDISKREQ, (void*) &wqi,
+            sizeof(WriteQueueItem*));
 }
 
 void DiskLog::test(int niter){
   u64 counter;
-  int nwrites = 1; // number of BufWrites before BufFlush, which gradually increases
+  int nwrites = 1; // number of BufWrites before BufFlush, which gradually
+                   // increases
   int nwriteCount = 0;
   
   for (counter = 0; counter < (u64)niter; ++counter){
@@ -468,7 +491,7 @@ void DiskLog::auxwrite(char *buf, int buflen){
   int res = fdatasync(f); assert(res==0);
 #endif  
 
-  char *lastblock = Writebuf + ALIGNLEN(buflen); // beginning of last block written
+  char *lastblock = Writebuf+ALIGNLEN(buflen); //beginning of last block written
   if (lastblock != Writebuf){
     // move last block to beginning to Writebuf
     memmove(Writebuf, lastblock, ALIGNMOD(buflen));
@@ -479,7 +502,7 @@ void DiskLog::auxwrite(char *buf, int buflen){
   WritebufLeft = WritebufSize - ALIGNMOD(buflen);
 
   // adjust file offset
-  FileOffset = FileOffset + ALIGNLEN(buflen); // offset at the beginning of buffer
+  FileOffset = FileOffset+ALIGNLEN(buflen); // offset at the beginning of buffer
   assert(FileOffset == ALIGNLEN(FileOffset));
   lseek(f, FileOffset, 0);
 }

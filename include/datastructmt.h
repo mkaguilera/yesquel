@@ -67,8 +67,8 @@ public:
     return Buckets+i;
   }
 
-  // clear HashTable. If delkey!=0 then invoke it for each key deleted. If delvalue!= then invoke
-  // it for each value deleted.
+  // clear HashTable. If delkey!=0 then invoke it for each key deleted.
+  // If delvalue!= then invoke it for each value deleted.
   void clear(void (*delkey)(T&), void (*delvalue)(U)){
     int bucket;
     SkipList<T,U> *b;
@@ -82,8 +82,8 @@ public:
     //nitems = 0;
   }
 
-  // adds an element. Does not check if there is already another element with the same key
-  // so element may be in table multiple times
+  // adds an element. Does not check if there is already another element with
+  // the same key so element may be in table multiple times
   void insert(T &key,U value){
     int bucket = key.hash(key) % Nbuckets;
     Bucket_l[bucket].lock();
@@ -92,13 +92,16 @@ public:
     Bucket_l[bucket].unlock();
   }
 
-  // returns 0 if found, non-zero if not found. If found, sets retvalue to value.
-  // This version of lookup() returns the value itself, not a pointer to the value (hence it 
-  // cannot be used to modify the value). This is done on purpose: when the value is a smart
-  // pointer, the value gets copied (and hence the refcount is incremented) before releasing
-  // the lock to the bucket. If we were to return a pointer to the value (ie, to the smart pointer),
-  // then its refcount would not be incremented, and the object could be GC'ed after we release
-  // the bucket lock and before we dereference the pointer to obtain the smart pointer.
+  // returns 0 if found, non-zero if not found. If found, sets retvalue to
+  // value.
+  // This version of lookup() returns the value itself, not a pointer to the
+  // value (hence it cannot be used to modify the value). This is done on
+  // purpose: when the value is a smart pointer, the value gets copied
+  // (and hence the refcount is incremented) before releasing the lock to the
+  // bucket. If we were to return a pointer to the value (ie, to the smart
+  // pointer), then its refcount would not be incremented, and the object
+  // could be GC'ed after we release the bucket lock and before we
+  // dereference the pointer to obtain the smart pointer.
   int lookup(T &key, U &retval){
     int res;
     U *retvalue;
@@ -111,9 +114,10 @@ public:
     return res;
   }
 
-  // finds key; executes f(key, &value, status, bucket-linked-list, parm) where status==0 iff found,
-  // returning the result
-  int lookupApply(T &key, int (*f)(T&, U*, int, SkipList<T,U> *, u64), u64 parm){
+  // finds key; executes f(key, &value, status, bucket-linked-list, parm)
+  // where status==0 iff found, returning the result
+  int lookupApply(T &key, int (*f)(T&, U*, int, SkipList<T,U> *, u64),
+                  u64 parm){
     U *value=0;
     int status;
     int retval;
@@ -127,9 +131,10 @@ public:
   }
 
   // lookup a key. If found, return 0 and pointer to value in retval.
-  // If not found, create it and return non-zero and pointer to newly created value in retval.
-  // If f!=0 then invoke f with found status (0=found, non-zero=not found) and retval
-  //    where retval is set to existing value or newly created value
+  // If not found, create it and return non-zero and pointer to newly created
+  // value in retval.
+  // If f!=0 then invoke f with found status (0=found, non-zero=not found)
+  // and retval, where retval is set to existing value or newly created value
   int lookupInsert(T &key, U *&retval, void (*f)(int, U*)){
     int res;
     U *retvalue;
@@ -143,9 +148,9 @@ public:
     return res;
   }
 
-  // remove element with the given key. If there are multiple elements with that key,
-  // remove only one of them. Returns 0 if element was removed, non-zero if there were no elements
-  // to remove.
+  // remove element with the given key. If there are multiple elements with
+  // that key, remove only one of them. Returns 0 if element was removed,
+  // non-zero if there were no elements to remove.
   // If delkey is non-null, invoke it on key being deleted
 
   int remove(T &key, void (*delkey)(T&)){ 
@@ -161,8 +166,10 @@ public:
     return retval;
   }
 
-  // lookup element with the given key, remove it, and return a copy of its value. If there are multiple elements with that key,
-  // do this only for one of them. Returns 0 if element was removed, non-zero if there were no elements to remove.
+  // lookup element with the given key, remove it, and return a copy of its
+  // value. If there are multiple elements with that key,
+  // do this only for one of them. Returns 0 if element was removed, non-zero
+  // if there were no elements to remove.
   // If delkey is non-null, invoke it on key being deleted
   int lookupRemove(T &key, void (*delkey)(T&), U &value){ 
     int retval;
@@ -300,7 +307,8 @@ public:
 template <class T, int SIZE=DEFAULT_CHANNEL_SIZE>
 class OldChannel {
 private:
-  Align64 volatile u32 SendPos;     // position where next element sent will be placed
+  Align64 volatile u32 SendPos;     // position where next element sent
+                                    // will be placed
   Align4 volatile u32 ReceivePos;  // position of next element to be received
   Align4 T Elements[SIZE];
 public:

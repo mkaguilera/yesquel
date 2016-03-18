@@ -55,9 +55,11 @@
 #include <list>
 #include <set>
 
-//#define VALG_LEAK   // if set, include console command to perform valgrind leak check
+//#define VALG_LEAK   // if set, include console command to perform
+                       // valgrind leak check
 #define DEBUG_LEVEL_DEFAULT 0
-#define DEBUG_LEVEL_WHEN_LOGFILE 2 // debug level when -g option (use logfile) is chosen
+#define DEBUG_LEVEL_WHEN_LOGFILE 2 // debug level when -g option (use logfile)
+                                   // is chosen
 
 //#define PIDFILE "/tmp/yesquel-storageserver.pid"
 
@@ -107,14 +109,15 @@ RPCProc RPCProcs[] = {  nullRpcStub,         // RPC 0
                         attrsetRpcStub,      // RPC 8
                         prepareRpcStub,      // RPC 9
                         commitRpcStub,       // RPC 10
-                        shutdownRpcStub,     // RPC 11
-                        startsplitterRpcStub,// RPC 12
-                        flushfileRpcStub,    // RPC 13
-                        loadfileRpcStub      // RPC 14
+                        subtransRpcStub,     // RPC 11
+                        shutdownRpcStub,     // RPC 12
+                        startsplitterRpcStub,// RPC 13
+                        flushfileRpcStub,    // RPC 14
+                        loadfileRpcStub      // RPC 15
 
 #ifdef STORAGESERVER_SPLITTER
                         ,
-                        ss_getrowidRpcStub   // RPC 15
+                        ss_getrowidRpcStub   // RPC 16
 #endif
                      };
   
@@ -143,7 +146,7 @@ ConsoleCmdMap ConsoleCmds[] = {
   {"load_individual", ": load contents from disk", cmd_load},
   {"load", " filename:   load contents from file", cmd_loadfile},
   {"print", ":           print contents of storage", cmd_print},
-  {"printdetail", ":     print contents of storage in detail", cmd_print_detail},
+  {"printdetail", ":     print contents of storage in detail",cmd_print_detail},
   {"save_individual", ": flush contents to disk", cmd_flush},
   {"save", " filename:   flush contents to file", cmd_flushfile}, 
   {"splitter", ":        start splitter", cmd_splitter},
@@ -177,7 +180,8 @@ int cmd_flush(char *parm, StorageServerState *S){
   ts.setNew();
   mssleep(1000); // wait for a second
 
-  printf("Warning: using \"flush\" will make the contents visible automatically to future runs of storageserver\n");
+  printf("Warning: using \"flush\" will make the contents visible "
+         "automatically to future runs of storageserver\n");
   printf("This is not true for \"flush2\"\n");
 
   printf("Flushing to disk...");
@@ -276,7 +280,6 @@ void console(void){
   int i;
   int done=0;
   while (!done && !feof(stdin)){
-    //extern int nticoids; printf("nticoids %d\n", nticoids);
     fgets(line, sizeof(line), stdin);
     line[sizeof(line)-1]=0;
     cmd = strtok(line, " \t\n");
@@ -290,7 +293,8 @@ void console(void){
         break;
       }
     }
-    if (i == NConsoleCmds) printf("Unrecognized command %s. Try \"help\".\n", cmd); 
+    if (i == NConsoleCmds)
+      printf("Unrecognized command %s. Try \"help\".\n", cmd); 
   }
 }
 
@@ -408,7 +412,8 @@ int main(int argc, char **argv)
     myport = atoi(argv[optind]);
     break;
   default:
-    fprintf(stderr, "usage: %s [-cgs] [-d debuglevel] [-l filename] [-o configfile] [-g logfile] [portno]\n", argv[0]);
+    fprintf(stderr, "usage: %s [-cgs] [-d debuglevel] [-l filename] "
+                        "[-o configfile] [-g logfile] [portno]\n", argv[0]);
     fprintf(stderr, "   -c  enable console\n");
     fprintf(stderr, "   -d  set debuglevel to given value\n");
     fprintf(stderr, "   -g  use log file\n");
@@ -454,8 +459,10 @@ int main(int argc, char **argv)
   UniqueId::init(myip);
 
   
-  printf("Compilation time %s %s configuration %s\n", __DATE__, __TIME__, COMPILECONFIG);
-  printf("Configuration file %s debuglog %s\n", Configfile, uselogfile ? "yes" : "no");
+  printf("Compilation time %s %s configuration %s\n",
+         __DATE__, __TIME__, COMPILECONFIG);
+  printf("Configuration file %s debuglog %s\n", Configfile,
+         uselogfile ? "yes" : "no");
   printf("Host %s IP %s port %d log %s store %s\n", hc->hostname,
          IPMisc::ipToStr(myip), hc->port, hc->logfile, hc->storedir);
   printf("Server_workers %d\n", SERVER_WORKERTHREADS);
@@ -475,7 +482,8 @@ int main(int argc, char **argv)
   initStorageServer(hc);
   int myrealport = hc->port; assert(myrealport != 0);
 
-  RPCServer = new RPCServerGaia(RPCProcs, sizeof(RPCProcs)/sizeof(RPCProc), myrealport);
+  RPCServer = new RPCServerGaia(RPCProcs, sizeof(RPCProcs)/sizeof(RPCProc),
+                                myrealport);
 
   if (loadfile){
     printf("Load state from file %s...", loadfilename); fflush(stdout);

@@ -70,13 +70,18 @@ public:
   char *hostname;  // name of host
   int port;        // port number
   char *logfile;   // name of log file
-  char *storedir;  // name of directory where objects are stored. Should end with '/'
+  char *storedir;  // name of directory where objects are stored.
+                   // Should end with '/'
 
   // HashTable stuff
   HostConfig *next, *prev, *snext, *sprev;
   IPPort *GetKeyPtr(){ return &ipport; }
-  static unsigned HashKey(IPPort *i){ return (unsigned)(*(u32*)i ^ *((u32*)i+1)); }
-  static int CompareKey(IPPort *i1, IPPort *i2){ return memcmp((void*)i1, (void*)i2, sizeof(IPPort)); }
+  static unsigned HashKey(IPPort *i){
+    return (unsigned)(*(u32*)i ^ *((u32*)i+1));
+  }
+  static int CompareKey(IPPort *i1, IPPort *i2){
+    return memcmp((void*)i1, (void*)i2, sizeof(IPPort));
+  }
 };
 
 class ConfigState {
@@ -98,18 +103,20 @@ public:
   int StripeParm;   // parameter for method used for striping
   
   void addHost(HostConfig *toadd);
-  void addServer(int server, char *hostname, int port, u32 preferip, u32 prefermask);
+  void addServer(int server, char *hostname, int port, u32 preferip,
+                 u32 prefermask);
   
   void setNgroups(int ngroups){ Ngroups = ngroups; }
   void setStripeMethod(int value){ StripeMethod = value; }
   void setStripeParm(int value){ StripeParm = value; }
   void setPreferredIP(char *ip);
   void setPreferredIPMask(char *ip);
-  int check(void);  // checks for configuration problems. Print errors on stderr. 
-                    // Return 0 for ok, 1 for error
+  int check(void); // checks for configuration problems. Print errors on stderr
+                   // Return 0 for ok, 1 for error
   int connectHosts(Ptr<RPCTcp> rpcc); // call clientconnect() on all hosts
   int disconnectHosts(Ptr<RPCTcp> rpcc); // call clientdisconnect() on all hosts
-  ConfigState() : Hosts(HOSTSCONFIG_HASHTABLE_SIZE), Servers(SERVERCONFIG_HASHTABLE_SIZE)
+  ConfigState() : Hosts(HOSTSCONFIG_HASHTABLE_SIZE),
+                  Servers(SERVERCONFIG_HASHTABLE_SIZE)
   {
     StripeMethod = StripeParm = Nservers = -1;
     PreferredIP = 0;

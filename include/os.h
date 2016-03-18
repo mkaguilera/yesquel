@@ -50,7 +50,8 @@
 // rtchk is supposed to exit if condition is not satisfied
 #define rtchk(cond)  assert(cond)
 
-// these definitions for fetch-and-add, atomic-increment, and atomic-decrement are compiler specific
+// these definitions for fetch-and-add, atomic-increment, and atomic-decrement
+// are compiler specific
 #define FetchAndAdd32(ptr32, val32) __sync_fetch_and_add((u32*)ptr32, val32)
 #define FetchAndAdd64(ptr64, val64) __sync_fetch_and_add((u64*)ptr64, val64)
 #define AtomicInc32(ptr32) __sync_add_and_fetch((u32*)ptr32, 1)
@@ -63,7 +64,8 @@
 #define MemBarrier __sync_synchronize
 
 
-// definitions to align a variable in 4-byte or 64-byte boundaries, also compiler specific
+// definitions to align a variable in 4-byte or 64-byte boundaries,
+// also compiler specific
 #define Align4 __attribute__((aligned(4)))
 #define Align8 __attribute__((aligned(8)))
 #define Align16 __attribute__((aligned(16)))
@@ -86,7 +88,8 @@ public:
   void unlockRead(void){  unlock(); }
   int trylock(void){ return m.try_lock(); }
   int trylockRead(void){ return trylock(); }
-  // the try functions return true if lock was gotten, false if someone else holds the lock
+  // the try functions return true if lock was gotten, false if someone
+  // else holds the lock
 };
 
 //#define Semaphore Semaphore_CV
@@ -167,7 +170,7 @@ public:
   }
 };
 
-#define EventSync EventSyncCV  // use condition-variable implementation of events
+#define EventSync EventSyncCV // use condition-variable implementation of events
 
 class EventSyncCV {
 private:
@@ -218,7 +221,8 @@ typedef OSTHREAD_FUNC (*OSTHREAD_FUNC_PTR)(void *);
 // create a new thread starting func(arg)
 // Sets *thread to thread id
 // Returns 0 if ok, non-zero if error
-int OSCreateThread(OSThread_t *thread, OSThread_return_t (*func)(void*), void *arg);
+int OSCreateThread(OSThread_t *thread, OSThread_return_t (*func)(void*),
+                   void *arg);
 
 // wait for thread to end, storing its return value in *res
 // Returns 0 if ok, non-zero if error
@@ -228,7 +232,8 @@ int OSWaitThread(OSThread_t thread, void **res);
 int getNProcessors();
 
 // pins a thread to a processor
-// returns 0 if ok, -1 if could not set affinity to processor, -2 if affinity set to processor and others
+// returns 0 if ok, -1 if could not set affinity to processor,
+// -2 if affinity set to processor and others
 int pinThread(int processor);
 
 // sleep for the given milliseconds

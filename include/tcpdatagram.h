@@ -62,7 +62,7 @@ struct DatagramMsg {
     data(d), ipport(ip), req(r), xid(x), flags(f), freedata(fd){}
 };
 
-#define FLAG_HID(hid) ((hid)<<16)       // given hid, returns corresponding bits in flag
+#define FLAG_HID(hid) ((hid)<<16)//given hid, returns corresponding bits in flag
 #define FLAG_GET_HID(flag) ((flag)>>16) // extract hid bits from flag
 
 // wire format for RPC header
@@ -80,7 +80,7 @@ struct DatagramMsgHeader {
 
 
 #define REQ_HEADER_COOKIE 0xbebe    // cookie added to beginning of datagram
-#define MAXIOVECSERIALIZE 32        // maximum number of iovec that an RPC may produce
+#define MAXIOVECSERIALIZE 32        // max # of iovec that an RPC may produce
 #define SEND_IOVEC_QUEUESIZE 1024   // length of iovec send queue
 
 #define DISABLE_NAGLE
@@ -125,7 +125,8 @@ private:
     void marshallRPC();
   public:
     DatagramMsg dmsg;
-    DatagramMsgHeader header; // space for wire RPC header, to be included in iovec to send
+    DatagramMsgHeader header; // space for wire RPC header,
+                              // to be included in iovec to send
     iovec bufs[MAXIOVECSERIALIZE];
     int nbufs;
     int nbytes; // number of bytes in all iovecs
@@ -138,11 +139,12 @@ private:
     int handlerid;
     ReceiveState rstate; // current receive state
     SLinkList<SendQueueEntry> sendQueue; // send queue
-    int sendQueueBytesSkip; // how many bytes to skip from send queue (because they were
-                            // sent in a previous partial writev). This should remain
-                            // inside first item in sendQueue; if it would include all
-                            // of this item, it would have been removed from sendQueue
-    int sendeagain; // whether got EAGAIN the last time we tried to write to socket
+    int sendQueueBytesSkip; // how many bytes to skip from send queue (because
+       // they were sent in a previous partial writev). This should remain
+       // inside first item in sendQueue; if it would include all
+       // of this item, it would have been removed from sendQueue
+    int sendeagain; // whether got EAGAIN the last time we
+                    // tried to write to socket
     TCPStreamState(){ fd = -1; sendQueueBytesSkip = 0; sendeagain = 0; }
     ~TCPStreamState(){
       if (fd >= 0) close(fd);
@@ -167,14 +169,16 @@ private:
     }
   };
   
-  SkipList<IPPort,TCPStreamState*> IPPortMap; // maps ip-port pairs to a TCPStreamState
-  Set<TCPStreamStatePtr> *PendingSendsBeforeEpoll; // connections with pending data to be sent before epoll
-  bool ForceEndThreads; // when set to true, threads will exit as soon as possible
+  SkipList<IPPort,TCPStreamState*> IPPortMap; // maps ip-port to TCPStreamState
+  Set<TCPStreamStatePtr> *PendingSendsBeforeEpoll; // connections with pending
+                             // data to be sent before epoll
+  bool ForceEndThreads; // when set to true, threads will exit asap
   
   // entry in linked list
   struct RPCSendEntry {
     DatagramMsg dmsg;
-    DatagramMsgHeader header; // space for RPC header, which will be included in actual iovec when sending
+    DatagramMsgHeader header; // space for RPC header, which will be included
+                              // in actual iovec when sending
     RPCSendEntry *next;
   };
   class IPPortInfoTCP {
@@ -201,14 +205,16 @@ private:
 
   // worker thread
   Semaphore workerInitSync; // used to wait for all workers to start
-  virtual void startupWorkerThread();  // workerThread calls this method upon startup
-  virtual void finishWorkerThread();   // workerThread calls this method when endind
+  virtual void startupWorkerThread(); // workerThread calls this upon startup
+  virtual void finishWorkerThread();   // workerThread calls this when ending
   static OSTHREAD_FUNC workerThread(void *parm);
-  static void immediateFuncAddIPPortFd(TaskMsgData &msgdata, TaskScheduler *ts, int srcthread);
+  static void immediateFuncAddIPPortFd(TaskMsgData &msgdata, TaskScheduler *ts,
+                                       int srcthread);
 
   // stuff for sending
   static int marshallRPC(iovec *iovecbuf, int bufsleft, RPCSendEntry *rse);
-  static void immediateFuncSend(TaskMsgData &msgdata, TaskScheduler *ts, int srcthread);
+  static void immediateFuncSend(TaskMsgData &msgdata, TaskScheduler *ts,
+                                int srcthread);
   void sendTss(TCPStreamState *tss);
   
   
@@ -216,12 +222,14 @@ private:
   void startReceiving(IPPort ipport, int fd, int handlerid, int workerno);
 
   // Client-specific stuff
-  int chooseWorkerForClient(IPPort client); // given client, returns which worker thread should handle it
+  int chooseWorkerForClient(IPPort client); // given client, returns which
+                                            // worker thread should handle it
 
   // Server-specific stuff
   struct NewServer {
     int fd;         // fd where we are supposed to listen and accept
-    int handlerid;  // id of handler for incoming server messages, passed to handleMsg()
+    int handlerid;  // id of handler for incoming server messages,
+                    // passed to handleMsg()
   };
   OSThread_t ServerThr; // thread for listening for new connections
   static OSTHREAD_FUNC serverThread(void *parm);
@@ -231,25 +239,30 @@ private:
 
 protected:
   // Specialize this function to provide handler of incoming messages.
-  // handleMsg is given the handlerid (which identifies the port/server that got the message),
-  // the address of the sender (src), req and xid of the RPC,
+  // handleMsg is given the handlerid (which identifies the port/server that
+  // got the message), the address of the sender (src), req and xid of the RPC,
   // a TaskMultiBuffer (used to free the message buffer),
   // and a pointer to a buffer containing the rest of the UDP message.
-  // handleMsg should free the buffer by calling freeMB with the TaskMultiBuffer parameter.
-  // It is not recommended the handleMsg holds on to the buffer for a long time, since the
-  // buffer is shared with other requests received together, so holding on to the buffer will
-  // keep more memory allocated than needed. Thus, if handleMsg needs to keep the data, it
-  // should make a private copy and then free the buffer.
-  virtual void handleMsg(int handlerid, IPPort *src, u32 req, u32 xid, u32 flags, TaskMultiBuffer *tmb, char *data, int len)=0;
+  // handleMsg should free the buffer by calling freeMB with the
+  // TaskMultiBuffer parameter.
+  // It is not recommended the handleMsg holds on to the buffer for a
+  // long time, since the buffer is shared with other requests received
+  // together, so holding on to the buffer will
+  // keep more memory allocated than needed. Thus, if handleMsg needs to keep
+  // the data, it should make a private copy and then free the buffer.
+  virtual void handleMsg(int handlerid, IPPort *src, u32 req, u32 xid,
+                     u32 flags, TaskMultiBuffer *tmb, char *data, int len)=0;
 
-  static void freeMB(TaskMultiBuffer *bufbase); // add an entry to the batch of multibufs to free
+  static void freeMB(TaskMultiBuffer *bufbase); // add an entry to the
+                                               // batch of multibufs to free
 
 public:
   TCPDatagramCommunication();
   virtual ~TCPDatagramCommunication();
 
   // Adds a server listening on given port.
-  // handlerid is a value that gets passed to handleMsg for any messages arriving for that server.
+  // handlerid is a value that gets passed to handleMsg for any messages
+  // arriving for that server.
   int addServer(int handlerid, int port);
 
   // Client-specific stuff
@@ -268,10 +281,14 @@ public:
   int launch(int workerthreads, int wait=1);
   void exitThreads(); // causes scheduler of threads to exit
 
-  void sendMsgFromWorker(DatagramMsg *dmsg); // send a message from the worker thread who received the message.
-  // This is the thread associated with the fd. Intended to be used when server replies to incoming message.
+  void sendMsgFromWorker(DatagramMsg *dmsg); // send a message from the worker
+                                           // thread who received the message.
+  // This is the thread associated with the fd. Intended to be used when server
+  // replies to incoming message.
   
-  void sendMsg(DatagramMsg *dmsg); // send an RPC message from any thread with a thread context (e.g., obtained by calling initThreadContext()). Intended to be used by a client
+  void sendMsg(DatagramMsg *dmsg); // send an RPC message from any thread with
+      // a thread context (e.g., obtained by calling initThreadContext()).
+      // Intended to be used by a client
 
   // wait for server to end
   void waitServerEnd(void){ pthread_join(ServerThr, 0); }

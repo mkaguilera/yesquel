@@ -55,5 +55,6 @@ StorageServerState::StorageServerState(HostConfig *hc) :
       cDiskStorage(0),
       cLogInMemory(&cDiskStorage)
       {
-        cLogInMemory.setSingleVersion(true); // keep only one version of each object
+        cLogInMemory.setSingleVersion(true); // keep only one version of
+                                             // each object
       }

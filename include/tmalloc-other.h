@@ -54,7 +54,8 @@ class FixedAllocatorPinned {
 public:
 private:
   int Size;       // user requested size
-  int IncGrow;    // incremental number of units to grow when no more units available
+  int IncGrow;    // incremental number of units to grow when no more units
+                  // available
   int NAllocated; // number of units allocated
   int NAvailable;
   u32 Tag;        // tag to be added at each allocated block
@@ -67,8 +68,10 @@ private:
 
 public:
   // size: size of allocation units; should be page size
-  // incgrow: initial and incremental number of units to grow when no more units available
-  // tag: information added to each allocated block. Can be obtained by calling getTag on the allocated block
+  // incgrow: initial and incremental number of units to grow when no more
+  //          units available
+  // tag: information added to each allocated block. Can be obtained by calling
+  //      getTag on the allocated block
   FixedAllocatorPinned(int size, int incgrow, u32 tag=0);
   ~FixedAllocatorPinned(); // destructor does not free pool of allocated chunks
   PinnedPtr alloc(); // allocate new buffer. buffer will have fixed size. 

@@ -134,8 +134,8 @@ public:
 // state kept by each worker thread about pending split requests,
 // load statistics for load splits,
 // stats of the splitter (got from the splitter thread),
-// rowid counters (this is not exactly for the splitter, but it is kept here too),
-// and current throttling
+// rowid counters (this is not exactly for the splitter, but it is kept here
+// too), and current throttling
 class ServerSplitterState {
 public:
   SkipList<COid,PendingSplitItem*> PendingSplits;
@@ -153,9 +153,10 @@ int ExtractQueueFromServerSplitterState(void *sss){
 }
 
 // extracts the throttle object from a ServerSplitterState
-// intended to be used by other module, which do not know about ServerSplitterState.
-// We don't want to expose ServerSplitterState to other modules since it has a lot
-// of irrelevant internal stuff.
+// intended to be used by other module, which do not know about
+// ServerSplitterState.
+// We don't want to expose ServerSplitterState to other modules since it has
+// a lot of irrelevant internal stuff.
 SplitterThrottle *ExtractThrottleFromServerSplitterState(void *sss){
   return & ((ServerSplitterState*)sss)->throttle;
 }
@@ -163,60 +164,71 @@ SplitterThrottle *ExtractThrottleFromServerSplitterState(void *sss){
 
 struct TaskMsgDataSplitterNewWork {
   COid coid; // coid to split
-  ListCellPlus *cell; // cell where to split (more precisely, cell indicates first cell in
-                      // second node). If 0 then split in half.
-  int where; // if 0, put new work item at head (unusual), otherwise put it at tail (more common)
+  ListCellPlus *cell; // cell where to split (more precisely, cell indicates
+                        // first cell in second node). If 0 then split in half.
+  int where; // if 0, put new work item at head (unusual), otherwise put it at
+            // tail (more common)
   //TaskMsgDataSplitterNewWork(COid &c, int w) : coid(c), where(w) {}
 };
 
 struct TaskMsgDataSplitterReply {
   SplitterStats stats; //
-  COid coid; // coid that was just split, if stat.splitTimeRetryingMs == 0, otherwise invalid
+  COid coid; // coid that was just split, if stat.splitTimeRetryingMs == 0,
+             // otherwise invalid
 };
 
-void SendIFSplitterThreadNewWork(TaskScheduler *myts, COid &coid, ListCellPlus *cell, int where);
+void SendIFSplitterThreadNewWork(TaskScheduler *myts, COid &coid,
+                                 ListCellPlus *cell, int where);
 Marshallable *ss_getrowidRpc(GetRowidRPCData *d);
 int PROGSplitter(TaskInfo *ti);
-void ImmediateFuncSplitterHandleReportWork(TaskMsgData &msgdata, TaskScheduler *ts, int srcthread);
+void ImmediateFuncSplitterHandleReportWork(TaskMsgData &msgdata,
+                                           TaskScheduler *ts, int srcthread);
 
-/************************************************************************************************
- *                                                                                              *
- *                       Functions called by the RPC worker threads                             *
- *                                                                                              *
- ************************************************************************************************/
+/******************************************************************************
+ *                                                                            *
+ *               Functions called by the RPC worker threads                   *
+ *                                                                            *
+ ******************************************************************************/
 
-// Worker thread calls this function to request a node to be split. The split is done by the
-// splitter thread, so this function sends an IF for it to do the split.
+// Worker thread calls this function to request a node to be split. The split
+// is done by the splitter thread, so this function sends an IF for it to do
+// the split.
 // If cell==0, the split is done in the middle of the node.
-// If cell!=0, the split is done at the indicated cell, which becomes the first cell of the
-// split node. This cell should not be the first cell in the node. The function will
-// own cell.
+// If cell!=0, the split is done at the indicated cell, which becomes the
+// first cell of the split node. This cell should not be the first cell in
+// the node. The function will own cell.
 void SplitNode(COid &coid, ListCellPlus *cell){
   PendingSplitItem **psipp, *psip;
   TaskScheduler *ts;
-  ServerSplitterState *SS = (ServerSplitterState*) tgetSharedSpace(THREADCONTEXT_SPACE_SPLITTER);
+  ServerSplitterState *SS = (ServerSplitterState*)
+    tgetSharedSpace(THREADCONTEXT_SPACE_SPLITTER);
 
   ts = tgetTaskScheduler();
 
   // check PendingSplits to see if a split is pending for d->data->coid
   if (!SS->PendingSplits.lookupInsert(coid, psipp)) {
-    // found item already, so set retry=1, so that we attempt to split coid again when the current split is done
+    // found item already, so set retry=1, so that we attempt to split coid
+    // again when the current split is done
     (**psipp).retry = 1;
   }
   else {
-    // otherwise ask the worker to perform the split (send an immediatefunc message to it)
+    // otherwise ask the worker to perform the split (send an immediatefunc
+    // message to it)
     psip = *psipp = new PendingSplitItem();
     psip->retry = 0;
-    SendIFSplitterThreadNewWork(ts, coid, cell, 1); // request retry to Splitter thread
+    SendIFSplitterThreadNewWork(ts, coid, cell, 1); // request retry to
+                                                   // Splitter thread
   }
 }
 
-// Reports access to a cell within a coid for load splitting. Periodically check
-// if a load split is needed and, if so, call SplitNode to get it.
+// Reports access to a cell within a coid for load splitting. Periodically
+// check if a load split is needed and, if so, call SplitNode to get it.
 //
-// The cell object and its associated GKeyInfo will be owned by the reporting data structure
+// The cell object and its associated GKeyInfo will be owned by the reporting
+// data structure
 void ReportAccess(COid &coid, ListCellPlus *cell){
-  ServerSplitterState *SS = (ServerSplitterState*) tgetSharedSpace(THREADCONTEXT_SPACE_SPLITTER);
+  ServerSplitterState *SS = (ServerSplitterState*)
+    tgetSharedSpace(THREADCONTEXT_SPACE_SPLITTER);
   assert(SS);
   SS->Load.report(coid, cell);
   SS->Load.check();
@@ -234,18 +246,21 @@ int ss_getrowidRpcStub(RPCTaskInfo *rti){
 Marshallable *ss_getrowidRpc(GetRowidRPCData *d){
   GetRowidRPCRespData *resp;
   i64 rowid;
-  ServerSplitterState *SS = (ServerSplitterState*) tgetSharedSpace(THREADCONTEXT_SPACE_SPLITTER);
+  ServerSplitterState *SS = (ServerSplitterState*)
+    tgetSharedSpace(THREADCONTEXT_SPACE_SPLITTER);
 
   if (d->data->hint) rowid = SS->RC.lookup(d->data->cid, d->data->hint);
   else rowid = SS->RC.lookupNohint(d->data->cid);
 
-  //printf("GetRowidRPC cid %llx hint %lld rowid %lld\n", (long long)d->data->cid, (long long)d->data->hint, (long long)rowid);
+  //printf("GetRowidRPC cid %llx hint %lld rowid %lld\n",
+  //       (long long)d->data->cid, (long long)d->data->hint, (long long)rowid);
 
   resp = new GetRowidRPCRespData;
   resp->data = new GetRowidRPCResp;
   resp->freedata = true;
   resp->data->rowid = rowid;
-  dprintf(1, "GETROWID cid %llx hint %lld resp %lld", (long long)d->data->cid, (long long)d->data->hint, (long long)rowid);
+  dprintf(1, "GETROWID cid %llx hint %lld resp %lld", (long long)d->data->cid,
+          (long long)d->data->hint, (long long)rowid);
   return resp;
 }
 
@@ -257,96 +272,107 @@ struct ThreadSplitItem {
   u64 starttime;
   ThreadSplitItem *prev, *next; // linklist stuff
   ~ThreadSplitItem(){ if (cell) delete cell; }
-  ThreadSplitItem() : cell(0), starttime(0) { coid.cid=(Cid)-1; coid.oid=(Oid)-1; }
-  ThreadSplitItem(COid &c, ListCellPlus *cel, int st) : coid(c), cell(cel), srcthread(st), starttime(0) { }
+  ThreadSplitItem() : cell(0), starttime(0) {
+    coid.cid=(Cid)-1;
+    coid.oid=(Oid)-1;
+  }
+  ThreadSplitItem(COid &c, ListCellPlus *cel, int st) : coid(c), cell(cel),
+                                                        srcthread(st), starttime(0) { }
 };
 
 
 // this gets called at initialization of each of the RPC worker threads
-void initServerTask(TaskScheduler *ts){ // **!** call it from each of the worker threads
+void initServerTask(TaskScheduler *ts){ // call it from each of the
+                                        // worker threads
   TaskInfo *ti;
   ServerSplitterState *SS = new ServerSplitterState;
   tsetSharedSpace(THREADCONTEXT_SPACE_SPLITTER, SS);
 
-  ti = ts->createTask(PROGSplitter, 0); // creates task and assign it as a fixed task
+  ti = ts->createTask(PROGSplitter, 0); // creates task and assign it as a
+                                        // fixed task
   SS->tiProgSplitter = ti;
-  ts->assignImmediateFunc(IMMEDIATEFUNC_SPLITTERTHREADREPORTWORK, ImmediateFuncSplitterHandleReportWork);
+  ts->assignImmediateFunc(IMMEDIATEFUNC_SPLITTERTHREADREPORTWORK,
+                          ImmediateFuncSplitterHandleReportWork);
 }
 
 // sends an IF to splitter thread with request for new work
-void SendIFSplitterThreadNewWork(TaskScheduler *myts, COid &coid, ListCellPlus *cell, int where){
-  TaskMsgDataSplitterNewWork tmdsnw;   assert(sizeof(TaskMsgDataSplitterNewWork) <= sizeof(TaskMsgData));
+void SendIFSplitterThreadNewWork(TaskScheduler *myts, COid &coid,
+                                 ListCellPlus *cell, int where){
+  TaskMsgDataSplitterNewWork tmdsnw;
+  assert(sizeof(TaskMsgDataSplitterNewWork) <= sizeof(TaskMsgData));
   tmdsnw.coid = coid;
   tmdsnw.cell = cell;
   tmdsnw.where = where;
-  sendIFMsg(gContext.getThread(TCLASS_SPLITTER, 0), IMMEDIATEFUNC_SPLITTERTHREADNEWWORK, &tmdsnw, sizeof(TaskMsgDataSplitterNewWork));
+  sendIFMsg(gContext.getThread(TCLASS_SPLITTER, 0),
+            IMMEDIATEFUNC_SPLITTERTHREADNEWWORK, &tmdsnw,
+            sizeof(TaskMsgDataSplitterNewWork));
 }
 
 // Handle reports of work from ServerSplitterThread.
 // Registered as IMMEDIATEFUNC_SPLITTERTHREADREPORTWORK.
 // This will enqueue the response for processing in the PROGSplitter below.
-void ImmediateFuncSplitterHandleReportWork(TaskMsgData &msgdata, TaskScheduler *ts, int srcthread){
+void ImmediateFuncSplitterHandleReportWork(TaskMsgData &msgdata,
+                                           TaskScheduler *ts, int srcthread){
   TaskMsgDataSplitterReply *tmdsr = (TaskMsgDataSplitterReply*) &msgdata;
-  ServerSplitterState *SS = (ServerSplitterState*) tgetSharedSpace(THREADCONTEXT_SPACE_SPLITTER);
+  ServerSplitterState *SS = (ServerSplitterState*)
+    tgetSharedSpace(THREADCONTEXT_SPACE_SPLITTER);
 
   SS->Stats = tmdsr->stats; // record stats
   SS->throttle.ReportLoad(tmdsr->stats); // update splitter load information
-  //printf("Learning stats: dest %d retrying %d qsize %d timeavg %f timestd %f\n",
-  //       (int)SS->Stats.dest, (int)SS->Stats.splitTimeRetryingMs, (int)SS->Stats.splitQueueSize,
-  //       (double)SS->Stats.splitTimeAvg, (double)SS->Stats.splitTimeStddev);
     
-  //dprintf(1, "SPLIT got split response for oid %llx with retrying ms %d", (long long)tmdsr->coid.oid, tmdsr->stats.splitTimeRetryingMs);
-  if (tmdsr->stats.dest && tmdsr->stats.splitTimeRetryingMs == 0){ // our object and split just finished
+  if (tmdsr->stats.dest && tmdsr->stats.splitTimeRetryingMs == 0){
+    // our object and split just finished
     SS->PendingResponses.pushTail(new COidListItem(tmdsr->coid, srcthread));
     ts->wakeUpTask(SS->tiProgSplitter); // wake up PROGSplitter
   }
 }
 
-// This PROG is run at each worker thread to taking pending responses from the splitter,
-// match them with the pending splits, and either remove it from the pending splits
-// or reissue the split if retry is true
+// This PROG is run at each worker thread to taking pending responses from
+// the splitter, match them with the pending splits, and either remove it
+// from the pending splits or reissue the split if retry is true
 int PROGSplitter(TaskInfo *ti){
   int res;
   COidListItem *coidli;
   PendingSplitItem **psipp, *psip;
   TaskScheduler *ts = tgetTaskScheduler();
-  ServerSplitterState *SS = (ServerSplitterState*) tgetSharedSpace(THREADCONTEXT_SPACE_SPLITTER);
+  ServerSplitterState *SS = (ServerSplitterState*)
+    tgetSharedSpace(THREADCONTEXT_SPACE_SPLITTER);
 
   while (!SS->PendingResponses.empty()){
     coidli = SS->PendingResponses.popHead();
     res = SS->PendingSplits.lookup(coidli->coid, psipp);
-    //dprintf(1, "PROGSplitter oid %llx processing response, lookup res %d", (long long)coidli->coid.oid, res);
     if (!res){ // found
       psip = *psipp;
       if (psip->retry){
         psip->retry = 0;
-        SendIFSplitterThreadNewWork(ts, coidli->coid, 0, 1); // request retry to Splitter thread
-        //dprintf(1, "PROGSplitter oid %llx retry requested so requesting split, clearing retry", (long long)coidli->coid.oid);
+        SendIFSplitterThreadNewWork(ts, coidli->coid, 0, 1); // request retry
+                                                        // to Splitter thread
       }
       else { // done with item
-        //dprintf(1, "PROGSplitter oid %llx no retry requested, done", (long long)coidli->coid.oid);
         SS->PendingSplits.lookupRemove(coidli->coid, 0, psip);
         delete psip;
       }
     }
 
-    //else dprintf(1, "PROGSplitter oid %llx not found in PendingSplits, weird", (long long)coidli->coid.oid);
     delete coidli;
   }
   return SchedulerTaskStateWaiting; // sleep until waken up again
 }
 
-/************************************************************************************************
- *                                                                                              *
- *                                 Splitter Thread functions                                    *
- *                                                                                              *
- ************************************************************************************************/
+/******************************************************************************
+ *                                                                            *
+ *                        Splitter Thread functions                           *
+ *                                                                            *
+ ******************************************************************************/
 
 class SplitStats {
 public:
-  SplitStats() : average(SPLITTER_STAT_MOVING_AVE_WINDOW) { timeRetryingMs = 0; }
+  SplitStats() : average(SPLITTER_STAT_MOVING_AVE_WINDOW) {
+    timeRetryingMs = 0;
+  }
   MovingAverage average; // moving average time of successful splits
-  u64 timeRetryingMs;     // time spent retrying split thus far (0 if no ongoing retries)
+  u64 timeRetryingMs;     // time spent retrying split thus far
+                          // (0 if no ongoing retries)
 };
 
 struct ServerSplitterThreadState {
@@ -364,22 +390,18 @@ void initServerSplitter(){
   int threadno;
   TSS = new ServerSplitterThreadState; assert(TSS);
 
-  threadno = SLauncher->createThread("ServerSplitter", ServerSplitterThread, 0, false);
+  threadno = SLauncher->createThread("ServerSplitter", ServerSplitterThread,
+                                     0, false);
   gContext.setNThreads(TCLASS_SPLITTER, 1); 
   gContext.setThread(TCLASS_SPLITTER, 0, threadno);
 }
 
-//int ServerSplitterAnotherSplit(COid coid, int where, void *parm, int isleaf){
-//  ThreadSplitItem *tsi = new ThreadSplitItem(coid, -1); assert(tsi);
-//  if (where==0) TSS->ThreadSplitQueue.pushHead(tsi);
-//  else TSS->ThreadSplitQueue.pushTail(tsi);
-//  return 0;
-//}
-
-void ImmediateFuncSplitterThreadNewWork(TaskMsgData &msgdata, TaskScheduler *ts, int srcthread){
+void ImmediateFuncSplitterThreadNewWork(TaskMsgData &msgdata,
+                                        TaskScheduler *ts, int srcthread){
   TEvent e;
   TaskMsgDataSplitterNewWork *nw = (TaskMsgDataSplitterNewWork*) &msgdata;
-  ThreadSplitItem *tsi = new ThreadSplitItem(nw->coid, nw->cell, srcthread); assert(tsi);
+  ThreadSplitItem *tsi = new ThreadSplitItem(nw->coid, nw->cell, srcthread);
+  assert(tsi);
   if (nw->where==0) TSS->ThreadSplitQueue.pushHead(tsi);
   else TSS->ThreadSplitQueue.pushTail(tsi);
 }
@@ -388,7 +410,9 @@ void ImmediateFuncSplitterThreadNewWork(TaskMsgData &msgdata, TaskScheduler *ts,
 void cleanupThreadSplitQueue(void){
   ThreadSplitItem *ptr, *next;
   Set<COid> existing;
-  for (ptr = TSS->ThreadSplitQueue.getFirst(); ptr != TSS->ThreadSplitQueue.getLast(); ptr = next){
+  for (ptr = TSS->ThreadSplitQueue.getFirst();
+       ptr != TSS->ThreadSplitQueue.getLast();
+       ptr = next){
     next = TSS->ThreadSplitQueue.getNext(ptr);
     if (existing.insert(ptr->coid)){ // item already exists
       TSS->ThreadSplitQueue.remove(ptr);
@@ -398,7 +422,8 @@ void cleanupThreadSplitQueue(void){
 
 void SendIFThreadReportWork(TaskScheduler *myts, COid &coid, int dstthread){
   int i,n,target;
-  TaskMsgDataSplitterReply tmdsr;   assert(sizeof(TaskMsgDataSplitterReply) <= sizeof(TaskMsgData));
+  TaskMsgDataSplitterReply tmdsr;
+  assert(sizeof(TaskMsgDataSplitterReply) <= sizeof(TaskMsgData));
   cleanupThreadSplitQueue();
   tmdsr.stats.splitQueueSize = TSS->ThreadSplitQueue.getNitems();
   tmdsr.stats.splitTimeRetryingMs = (i32)TSS->Stats.timeRetryingMs;
@@ -406,16 +431,18 @@ void SendIFThreadReportWork(TaskScheduler *myts, COid &coid, int dstthread){
   tmdsr.stats.splitTimeStddev = (float) TSS->Stats.average.getStdDev();
   tmdsr.coid = coid;
 
-  // send the message to all worker threads. Only dstthread will consider the information
-  // in tmdsr.coid and tmdsr.stats.splitTimeRetryingMs. We set stats.dest to 0
-  // for the other threads so that they know to ignore these two fields.
+  // send the message to all worker threads. Only dstthread will consider
+  // the information in tmdsr.coid and tmdsr.stats.splitTimeRetryingMs.
+  // We set stats.dest to 0 for the other threads so that they know to
+  // ignore these two fields.
 
   n = gContext.getNThreads(TCLASS_WORKER);
   for (i=0; i<n; ++i){
     target = gContext.getThread(TCLASS_WORKER, i);
     if (target == dstthread) tmdsr.stats.dest = 1;
     else tmdsr.stats.dest = 0;
-    sendIFMsg(dstthread, IMMEDIATEFUNC_SPLITTERTHREADREPORTWORK, (void*)&tmdsr, sizeof(TaskMsgDataSplitterReply));
+    sendIFMsg(dstthread, IMMEDIATEFUNC_SPLITTERTHREADREPORTWORK,
+              (void*)&tmdsr, sizeof(TaskMsgDataSplitterReply));
   }
 }
 
@@ -430,7 +457,8 @@ OSTHREAD_FUNC ServerSplitterThread(void *parm){
   // SLauncher->initThreadContext("ServerSplitter",0);
   ts = tgetTaskScheduler();
 
-  ts->assignImmediateFunc(IMMEDIATEFUNC_SPLITTERTHREADNEWWORK, ImmediateFuncSplitterThreadNewWork);
+  ts->assignImmediateFunc(IMMEDIATEFUNC_SPLITTERTHREADNEWWORK,
+                          ImmediateFuncSplitterThreadNewWork);
 
   int sleepeventfd = ts->getSleepEventFd();
   struct pollfd ev;
@@ -466,12 +494,16 @@ OSTHREAD_FUNC ServerSplitterThread(void *parm){
       }
     }
     if (tsi){
-      res = DtSplit(tsi->coid, tsi->cell, true, 0, 0);  // do not trigger splitting of parents, since this will be detected at each server
+      res = DtSplit(tsi->coid, tsi->cell, true, 0, 0);  // do not trigger
+      // splitting of parents, since this will be detected at each server
       endtime = Time::now();
 
-      if (res && res != GAIAERR_WRONG_TYPE){ // could not complete split and node exists
+      if (res && res != GAIAERR_WRONG_TYPE){ // could not complete split
+                                          // and node exists
         TSS->Stats.timeRetryingMs = endtime - tsi->starttime;
-        if (TSS->Stats.timeRetryingMs == 0) TSS->Stats.timeRetryingMs = 1; // avoid 0 since 0 indicates completion of split
+        if (TSS->Stats.timeRetryingMs == 0)
+          TSS->Stats.timeRetryingMs = 1; // avoid 0 since 0 indicates
+                                         // completion of split
         mssleep(1);
         if (++xcount % 100 == 0) dputchar(1,'X');
 
@@ -486,7 +518,8 @@ OSTHREAD_FUNC ServerSplitterThread(void *parm){
         }
         TSS->Stats.timeRetryingMs = 0;
 
-        // report completion and stats to originator, if not us. Completion indicated by fact that timeRetryingMs==0
+        // report completion and stats to originator, if not us.
+        // Completion indicated by fact that timeRetryingMs==0
         if (tsi->srcthread != -1){
           SendIFThreadReportWork(ts, tsi->coid, tsi->srcthread);
         }

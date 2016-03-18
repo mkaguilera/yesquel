@@ -65,25 +65,21 @@
 #include "storageserverstate.h"
 #include "supervalue.h"
 #include "clientlib-local.h"
+#include "clientlib-common.h"
 #include "record.h"
 #include "clientlib.h"
 #include "task.h"
 
 #include "dtreeaux.h"
 
-LocalTransaction::LocalTransaction() :
-  TxCache()
+LocalTransaction::LocalTransaction()
 {
   readsTxCached = 0;
   start();
 }
 
 LocalTransaction::~LocalTransaction(){
-  clearTxCache();
-}
-
-void LocalTransaction::clearTxCache(void){
-  TxCache.clear(0, TxCacheEntry::delEntry);
+  txCache.clear();
 }
 
 // start a new transaction
@@ -91,9 +87,10 @@ int LocalTransaction::start(){
   // obtain a new timestamp from local clock (assumes synchronized clocks)
   StartTs.setNew();
   Id.setNew();
-  clearTxCache();
+  txCache.clear();
   State = 0;  // valid
   hasWrites = false;
+  currlevel = 0;
   return 0;
 }
 
@@ -127,14 +124,15 @@ int LocalTransaction::writev(COid coid, int nbufs, iovec *bufs){
   rpcdata->data->tid = Id;
   rpcdata->data->cid = coid.cid;
   rpcdata->data->oid = coid.oid;
+  rpcdata->data->level = currlevel;
   rpcdata->niovs = 0;
   rpcdata->iov = 0;
   totlen=0;
   for (int i=0; i < nbufs; ++i) totlen += bufs[i].iov_len;
   rpcdata->data->len = totlen;  // total length
-  buf = LocalTransaction::allocReadBuf(totlen); // we use allocReadBuf because we will place
-                       // this buffer in the txcache below, inside a Valbuf (which is
-                       // destroyed by calling LocalTransaction::freeReadBuf())
+  buf = LocalTransaction::allocReadBuf(totlen); // we use allocReadBuf because
+    // we will place this buffer in the txcache below, inside a Valbuf (which is
+    // destroyed by calling LocalTransaction::freeReadBuf())
   rpcdata->data->buf = buf;
   rpcdata->freedatabuf = 0; 
   iovecmemcpy(buf, bufs, nbufs);
@@ -160,7 +158,8 @@ int LocalTransaction::writev(COid coid, int nbufs, iovec *bufs){
   delete rpcdata; // will not delete buf
 
   Ptr<Valbuf> vbuf = vb;
-  updateTxCache(coid, vbuf);
+  txCache.setCache(coid, currlevel, vbuf);
+  
 
   respstatus = rpcresp->data->status;
 
@@ -178,7 +177,8 @@ int LocalTransaction::write(COid coid, char *buf, int len){
   return writev(coid, 1, &iov);
 }
 
-int LocalTransaction::put2(COid coid, char *data1, int len1, char *data2, int len2){
+int LocalTransaction::put2(COid coid, char *data1, int len1, char *data2,
+                           int len2){
   iovec iovs[2];
   iovs[0].iov_len = len1;
   iovs[0].iov_base = data1;
@@ -187,7 +187,8 @@ int LocalTransaction::put2(COid coid, char *data1, int len1, char *data2, int le
   return writev(coid, 2, iovs);
 }
 
-int LocalTransaction::put3(COid coid, char *data1, int len1, char *data2, int len2, char *data3, int len3){
+int LocalTransaction::put3(COid coid, char *data1, int len1, char *data2,
+                           int len2, char *data3, int len3){
   iovec iovs[3];
   iovs[0].iov_len = len1;
   iovs[0].iov_base = data1;
@@ -205,32 +206,18 @@ int LocalTransaction::put3(COid coid, char *data1, int len1, char *data2, int le
 //                GAIAERR_TX_ENDED = cannot read because transaction is aborted
 //                GAIAERR_WRONG_TYPE = wrong type
 int LocalTransaction::tryLocalRead(COid &coid, Ptr<Valbuf> &buf, int typ){
-  TxCacheEntry **cepp;
+  TxCacheEntryList *tcel;
   int res;
 
   if (State) return GAIAERR_TX_ENDED;
 
-  res = TxCache.lookup(coid, cepp);
+  res = txCache.lookupCache(coid, tcel);
   if (!res){ // found
-    if (typ != (*cepp)->vbuf->type) return GAIAERR_WRONG_TYPE;
-    buf = (*cepp)->vbuf;
+    if (typ != tcel->vbuf->type) return GAIAERR_WRONG_TYPE;
+    buf = tcel->vbuf;
     return 1;
   }
   else return 0;
-}
-
-void LocalTransaction::updateTxCache(COid &coid, Ptr<Valbuf> &buf){
-  TxCacheEntry **cepp, *cep;
-  int res;
-  // remove any previous entry for coid
-  res = TxCache.lookupInsert(coid, cepp);
-  if (!res){ // element already exists; remove old entry
-    assert(*cepp);
-    delete *cepp;
-  }
-  cep = *cepp = new TxCacheEntry;
-  cep->coid = coid;
-  cep->vbuf = buf;
 }
 
 int LocalTransaction::vget(COid coid, Ptr<Valbuf> &buf){
@@ -301,7 +288,8 @@ int LocalTransaction::vget(COid coid, Ptr<Valbuf> &buf){
   return respstatus;
 }
 
-int LocalTransaction::vsuperget(COid coid, Ptr<Valbuf> &buf, ListCell *cell, GKeyInfo *ki){
+int LocalTransaction::vsuperget(COid coid, Ptr<Valbuf> &buf, ListCell *cell,
+                                GKeyInfo *ki){
   int reslocalread;
   FullReadRPCData *rpcdata;
   FullReadRPCRespData *rpcresp;
@@ -340,7 +328,8 @@ int LocalTransaction::vsuperget(COid coid, Ptr<Valbuf> &buf, ListCell *cell, GKe
   else memset(&rpcdata->data->cell, 0, sizeof(ListCell));
 
   do {
-    rpcresp = (FullReadRPCRespData *) fullreadRpc(rpcdata, (void*) &readwait, defer);
+    rpcresp = (FullReadRPCRespData *) fullreadRpc(rpcdata, (void*) &readwait,
+                                                  defer);
     if (defer){
       readwait.wait();
       readwait.reset();
@@ -397,7 +386,7 @@ int LocalTransaction::vsuperget(COid coid, Ptr<Valbuf> &buf, ListCell *cell, GKe
   buf = vbuf;
   if (readsTxCached < MAX_READS_TO_TXCACHE){
     ++readsTxCached;
-    updateTxCache(coid, buf);
+    txCache.setCache(coid, currlevel, buf);
   }
  end:
   delete rpcresp;
@@ -434,7 +423,8 @@ int LocalTransaction::remset(COid coid, COid toremove){
 
 // Prepare part of two-phase commit
 // sets *chosents to the timestamp chosen for transaction
-// Return 0 if all voted to commit, 1 if some voted to abort, 3 if error getting vote
+// Return 0 if all voted to commit, 1 if some voted to abort, 3 if error
+// getting vote
 int LocalTransaction::auxprepare(Timestamp &chosents){
   PrepareRPCData *rpcdata;
   PrepareRPCRespData *rpcresp;
@@ -453,7 +443,8 @@ int LocalTransaction::auxprepare(Timestamp &chosents){
   rpcdata->data->tid = Id;
   rpcdata->data->startts = StartTs;
   //rpcdata->data->committs = committs;
-  rpcdata->data->onephasecommit = 0; // no need to use 1pc with local transactions
+  rpcdata->data->onephasecommit = 0; // no need to use 1pc with local
+                                     // transactions
   rpcdata->data->piggy_cid = 0;  // no piggyback write optimization
   rpcdata->data->piggy_oid = 0;  
   rpcdata->data->piggy_len = -1;  
@@ -488,7 +479,8 @@ int LocalTransaction::auxprepare(Timestamp &chosents){
 // ------------------------------ Commit RPC -----------------------------------
 
 // Commit part of two-phase commit
-// outcome is 0 to commit, 1 to abort due to no vote, 3 to abort due to error preparing
+// outcome is 0 to commit, 1 to abort due to no vote, 3 to abort due to error
+// preparing
 int LocalTransaction::auxcommit(int outcome, Timestamp committs){
   CommitRPCData *rpcdata;
   CommitRPCRespData *rpcresp;
@@ -516,6 +508,67 @@ int LocalTransaction::auxcommit(int outcome, Timestamp committs){
 }
 
 
+// ----------------------------- Subtrans RPC ----------------------------------
+
+int LocalTransaction::auxsubtrans(int level, int action){
+  SubtransRPCData *rpcdata;
+  SubtransRPCRespData *rpcresp;
+  int res;
+
+  rpcdata = new SubtransRPCData;
+  rpcdata->data = new SubtransRPCParm;
+  rpcdata->freedata = true;
+
+  // fill out parameters
+  rpcdata->data->tid = Id;
+  rpcdata->data->level = level;
+  rpcdata->data->action = action;
+
+  rpcresp = (SubtransRPCRespData *) subtransRpc(rpcdata);
+  delete rpcdata;
+  res = 0;
+  if (!rpcresp)
+    res = GAIAERR_SERVER_TIMEOUT; // I/O error
+  else {
+    res = rpcresp->data->status;
+    delete rpcresp;
+  }
+  return res;
+}
+
+
+//--------------------------- subtransactions ------------------------
+int LocalTransaction::startSubtrans(int level){
+  if (level <= currlevel) return -1;
+  currlevel = level;
+  return 0;
+}
+
+int LocalTransaction::abortSubtrans(int level){
+  int res;
+  assert(level <= currlevel);
+  if (level < currlevel){
+    res = auxsubtrans(level, 0); // tell servers to abort higher levels
+    if (res) return res;
+    txCache.abortLevel(level); // make changes to tx cache
+    if (level < 0) level = 0;
+    currlevel = level;
+  }
+  return 0;
+}
+
+int LocalTransaction::releaseSubtrans(int level){
+  int res;
+  assert(level <= currlevel);
+  if (level < currlevel){
+    res = auxsubtrans(level, 1); // tell servers to release higher levels
+    if (res) return res;
+    txCache.releaseLevel(level); // make changes to tx cache
+    currlevel = level;
+  }
+  return 0;
+}
+
 //---------------------------- TryCommit -----------------------------
 
 // try to commit
@@ -541,13 +594,14 @@ int LocalTransaction::tryCommit(Timestamp *retcommitts){
   res = auxcommit(outcome, committs);
 
   if (outcome == 0){
-    if (retcommitts) *retcommitts = committs; // if requested, return commit timestamp
+    if (retcommitts) *retcommitts = committs; // if requested, return commit
+                                              // timestamp
   }
 
   State=-1;  // transaction now invalid
 
-  // clear TxCache
-  clearTxCache();
+  // clear txCache
+  txCache.clear();
   if (res < 0) return res;
   else return outcome;
 }
@@ -564,8 +618,8 @@ int LocalTransaction::abort(void){
   dummyts.setIllegal();
   res = auxcommit(2, dummyts); // timestamp not really used for aborting txs
 
-  // clear TxCache
-  clearTxCache();
+  // clear txCache
+  txCache.clear();
 
   State=-1;  // transaction now invalid
   if (res) return res;
@@ -659,7 +713,7 @@ int LocalTransaction::writeSuperValue(COid coid, SuperValue *sv){
   vb->u.raw = new SuperValue(*sv);
 
   Ptr<Valbuf> buf = vb;
-  updateTxCache(coid, buf);
+  txCache.setCache(coid, currlevel, buf);
 
   rpcdata = new FullWriteRPCData;
   rpcdata->data = new FullWriteRPCParm;
@@ -671,6 +725,7 @@ int LocalTransaction::writeSuperValue(COid coid, SuperValue *sv){
   fp->tid = Id;
   fp->cid = coid.cid;
   fp->oid = coid.oid;
+  fp->level = currlevel;
   fp->nattrs = sv->Nattrs;
   fp->celltype = sv->CellType;
   fp->ncelloids = sv->Ncells;
@@ -683,7 +738,8 @@ int LocalTransaction::writeSuperValue(COid coid, SuperValue *sv){
       len += myVarintLen(sv->Cells[i].nKey);
       assert(sv->Cells[i].pKey==0);
     }
-    else len += myVarintLen(sv->Cells[i].nKey) + (int) sv->Cells[i].nKey; // non-int key
+    else len += myVarintLen(sv->Cells[i].nKey) +
+           (int) sv->Cells[i].nKey; // non-int key
     len += sizeof(u64); // space for 64-bit value in cell
   }
   // fill celloids
@@ -716,91 +772,41 @@ int LocalTransaction::writeSuperValue(COid coid, SuperValue *sv){
   return respstatus;
 }
 
-/* compares a cell key against intKey2/pIdxKey2. Use intKey2 if pIdxKey2==0 otherwise use pIdxKey2 */
-/* inline */
-static int compareNpKeyWithKey(i64 nKey1, char *pKey1, i64 nKey2, UnpackedRecord *pIdxKey2) {
-  if (pIdxKey2) return myVdbeRecordCompare((int) nKey1, pKey1, pIdxKey2);
-  else if (nKey1==nKey2) return 0;
-  else return (nKey1 < nKey2) ? -1 : +1;
-}
-
-// Searches the cells of a node for a given key, using binary search.
-// Returns the child pointer that needs to be followed for that key.
-// If biasRight!=0 then optimize for the case the key is larger than any entries in node.
-// Assumes that the path at the given level has some node (real or approx).
-// Guaranteed to return an index between 0 and N where N is the number of cells
-// in that node (N+1 is the number of pointers).
-// Returns *matches!=0 if found key, *matches==0 if did not find key.
-static int CellSearchUnpacked(Ptr<Valbuf> &vbuf, UnpackedRecord *pIdxKey,
-                              i64 nkey, int biasRight, int *matches=0){
-  int cmp;
-  int bottom, top, mid;
-  ListCell *cell;
-  assert(vbuf->type==1); // must be supernode
-
-  bottom=0;
-  top=vbuf->u.raw->Ncells-1; /* number of keys on node minus 1 */
-  if (top<0){ matches=0; return 0; } // there are no keys in node, so return index of only pointer there (index 0)
-  do {
-    if (biasRight){ mid = top; biasRight=0; } /* bias first search only */
-    else mid=(bottom+top)/2;
-    cell = &vbuf->u.raw->Cells[mid];
-    cmp = compareNpKeyWithKey(cell->nKey, cell->pKey, nkey, pIdxKey);
-
-    if (cmp==0) break; /* found key */
-    if (cmp < 0) bottom=mid+1; /* mid < target */
-    else top=mid-1; /* mid > target */
-  } while (bottom <= top);
-  // if key was found, then mid points to its index and cmp==0
-  // if key was not found, then mid points to entry immediately before key (cmp<0) or after key (cmp>0)
-
-  if (cmp<0) ++mid; // now mid points to entry immediately after key or to one past the last entry
-                    // if key is greater than all entries
-  // note: if key matches a cell (cmp==0), we follow the pointer to the left of the cell, which
-  //       has the same index as the cell
-
-  if (matches) *matches = cmp == 0 ? 1 : 0;
-  assert(0 <= mid && mid <= vbuf->u.raw->Ncells);
-  return mid;
-}
-static int CellSearchNode(Ptr<Valbuf> &vbuf, i64 nkey, void *pkey, int biasRight, 
-                          GKeyInfo *ki, int *matches=0){
-  UnpackedRecord *pIdxKey;   /* Unpacked index key */
-  char aSpace[150];          /* Temp space for pIdxKey - to avoid a malloc */
-  int res;
-
-  if (pkey){
-    pIdxKey = myVdbeRecordUnpack(ki, (int) nkey, pkey, aSpace, sizeof(aSpace));
-    if (pIdxKey == 0) return SQLITE_NOMEM;
-  } else pIdxKey = 0;
-  res = CellSearchUnpacked(vbuf, pIdxKey, nkey, biasRight, matches);
-  if (pkey) myVdbeDeleteUnpackedRecord(pIdxKey);
-  return res;
-}
-
 #if DTREE_SPLIT_LOCATION != 1
-int LocalTransaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags){
+int LocalTransaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki,
+                              int flags){
 #else
-int LocalTransaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags, int *ncells, int *size){
+int LocalTransaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki,
+                              int flags, int *ncells, int *size){
 #endif
   ListAddRPCData *rpcdata;
   ListAddRPCRespData *rpcresp;
   int respstatus;
-  Ptr<Valbuf> origvalue;
+  Ptr<Valbuf> vbuf;
+  int vbufincache;
+  TxCacheEntryList *tcel;
   int res;
-  
 
   if (State) return GAIAERR_TX_ENDED;
 
-  res = vsuperget(coid, origvalue, 0, 0); if (res) return res;
-  assert(origvalue->type==1); // must be supervalue
+  res = vsuperget(coid, vbuf, 0, 0); if (res) return res;
+  assert(vbuf->type==1); // must be supervalue
 
-  if ((flags&1) && !(origvalue->u.raw->Attrs[DTREENODE_ATTRIB_FLAGS] & DTREENODE_FLAG_LEAF)) return GAIAERR_CELL_OUTRANGE;
+  res = txCache.lookupCache(coid, tcel);
+  vbufincache = res == 0;
+  if (vbufincache){
+    assert(tcel);
+    vbuf = tcel->vbuf; // use vbuf in cache
+  }
+
+  if ((flags&1) && !(vbuf->u.raw->Attrs[DTREENODE_ATTRIB_FLAGS] &
+                     DTREENODE_FLAG_LEAF))
+    return GAIAERR_CELL_OUTRANGE;
   
   if (flags & 1){
-    if (origvalue->u.raw->Ncells >= 1){
+    if (vbuf->u.raw->Ncells >= 1){
       int matches;
-      CellSearchNode(origvalue, cell->nKey, cell->pKey, 0, ki, &matches);
+      myCellSearchNode(vbuf, cell->nKey, cell->pKey, 0, ki, &matches);
       if (matches) return 0; // found
     }
     flags &= ~1; // don't check again in listaddRpc, we already read the value
@@ -816,6 +822,7 @@ int LocalTransaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags
   rpcdata->data->tid = Id;
   rpcdata->data->cid = coid.cid;
   rpcdata->data->oid = coid.oid;
+  rpcdata->data->level = currlevel;
   rpcdata->data->flags = flags;
   rpcdata->data->ts = StartTs;
   rpcdata->data->pKeyInfo = ki;
@@ -841,18 +848,24 @@ int LocalTransaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags
   else {
     // insert into a cell and store it in txcache
     int index, matches=0;
-    if (origvalue->u.raw->Ncells >= 1)
-      index = CellSearchNode(origvalue, cell->nKey, cell->pKey, 1, ki, &matches);
-    else index = 0; // no cells, so insert at position 0
-    assert(0 <= index && index <= origvalue->u.raw->Ncells);
-    if (!matches) origvalue->u.raw->InsertCell(index); // item not yet in list
-    else {
-      origvalue->u.raw->CellsSize -= origvalue->u.raw->Cells[index].size();
-      origvalue->u.raw->Cells[index].Free(); // free old item to be replaced
+    if (vbufincache && tcel->level != currlevel){
+      vbuf = new Valbuf(*vbuf); // copy vbuf
+      vbufincache = 0; // this new vbuf is not in cache, store it below
     }
-    new(&origvalue->u.raw->Cells[index]) ListCell(*cell); // placement constructor
-    origvalue->u.raw->CellsSize += cell->size();
-    updateTxCache(coid, origvalue);
+    if (vbuf->u.raw->Ncells >= 1)
+      index = myCellSearchNode(vbuf, cell->nKey, cell->pKey, 1, ki,
+                               &matches);
+    else index = 0; // no cells, so insert at position 0
+    assert(0 <= index && index <= vbuf->u.raw->Ncells);
+    if (!matches) vbuf->u.raw->InsertCell(index); // item not yet in list
+    else {
+      vbuf->u.raw->CellsSize -= vbuf->u.raw->Cells[index].size();
+      vbuf->u.raw->Cells[index].Free(); // free old item to be replaced
+    }
+    new(&vbuf->u.raw->Cells[index]) ListCell(*cell);//placement constructor
+    vbuf->u.raw->CellsSize += cell->size();
+    if (!vbufincache)
+      txCache.setCache(coid, currlevel, vbuf);
 
 #if DTREE_SPLIT_LOCATION == 1
     if (ncells) *ncells = rpcresp->data->ncells;
@@ -864,18 +877,28 @@ int LocalTransaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags
 }
 
 // deletes a range of cells from a supervalue
-int LocalTransaction::listDelRange(COid coid, u8 intervalType, ListCell *cell1, ListCell *cell2, GKeyInfo *ki){
+int LocalTransaction::listDelRange(COid coid, u8 intervalType, ListCell *cell1,
+                                   ListCell *cell2, GKeyInfo *ki){
   ListDelRangeRPCData *rpcdata;
   ListDelRangeRPCRespData *rpcresp;
   int respstatus;
-  Ptr<Valbuf> origvalue;
+  Ptr<Valbuf> vbuf;
+  int vbufincache;
+  TxCacheEntryList *tcel;
   int res;
 
   if (State != 0) return GAIAERR_TX_ENDED;
 
-  res = vsuperget(coid, origvalue, 0, 0); if (res) return res;
-  assert(origvalue->type==1); // must be supervalue
+  res = vsuperget(coid, vbuf, 0, 0); if (res) return res;
+  assert(vbuf->type==1); // must be supervalue
 
+  res = txCache.lookupCache(coid, tcel);
+  vbufincache = res == 0;
+  if (vbufincache){
+    assert(tcel);
+    vbuf = tcel->vbuf; // use vbuf in cache
+  }
+  
   hasWrites = true;
 
   rpcdata = new ListDelRangeRPCData;
@@ -886,6 +909,7 @@ int LocalTransaction::listDelRange(COid coid, u8 intervalType, ListCell *cell1, 
   rpcdata->data->tid = Id;
   rpcdata->data->cid = coid.cid;
   rpcdata->data->oid = coid.oid;
+  rpcdata->data->level = currlevel;
   rpcdata->data->pKeyInfo = ki;
   rpcdata->data->intervalType = intervalType;
   rpcdata->data->cell1 = *cell1;
@@ -909,28 +933,39 @@ int LocalTransaction::listDelRange(COid coid, u8 intervalType, ListCell *cell1, 
     int index1, index2;
     int matches1, matches2;
 
+    if (vbufincache && tcel->level != currlevel){
+      vbuf = new Valbuf(*vbuf); // copy vbuf
+      vbufincache = 0; // this new vbuf is not in cache, store it below
+    }
+
     if (intervalType < 6){
-      index1 = CellSearchNode(origvalue, cell1->nKey, cell1->pKey, 0, ki, &matches1);
+      index1 = myCellSearchNode(vbuf, cell1->nKey, cell1->pKey, 0, ki,
+                                &matches1);
       if (index1 < 0){ respstatus = -1; goto end; }
-      assert(0 <= index1 && index1 <= origvalue->u.raw->Ncells);
-      if (matches1 && intervalType < 3) ++index1; // open interval, do not del cell1
+      assert(0 <= index1 && index1 <= vbuf->u.raw->Ncells);
+      if (matches1 && intervalType < 3) ++index1; // open interval,
+                                                  // do not del cell1
     }
     else index1 = 0; // delete from -infinity
 
-    if (index1 < origvalue->u.raw->Ncells){
+    if (index1 < vbuf->u.raw->Ncells){
       if (intervalType % 3 < 2){
-        index2 = CellSearchNode(origvalue, cell2->nKey, cell2->pKey, 0, ki, &matches2);
+        index2 = myCellSearchNode(vbuf, cell2->nKey, cell2->pKey, 0, ki,
+                                  &matches2);
         if (index2 < 0){ respstatus = -1; goto end; }
         // must find value in cell
-        assert(0 <= index2 && index2 <= origvalue->u.raw->Ncells);
-        if (matches2 && intervalType % 3 == 0) --index2; // open interval, do not del cell2
-      } else index2 = origvalue->u.raw->Ncells; // delete til +infinity
+        assert(0 <= index2 && index2 <= vbuf->u.raw->Ncells);
+        if (matches2 && intervalType % 3 == 0) --index2; // open interval,
+                                                         // do not del cell2
+        if (!matches2) --index2; // if does not match, back 1
+      } else index2 = vbuf->u.raw->Ncells; // delete til +infinity
 
-      if (index2 == origvalue->u.raw->Ncells) --index2;
+      if (index2 == vbuf->u.raw->Ncells) --index2;
 
       if (index1 <= index2){
-        origvalue->u.raw->DeleteCellRange(index1, index2+1);
-        updateTxCache(coid, origvalue);
+        vbuf->u.raw->DeleteCellRange(index1, index2+1);
+        if (!vbufincache)
+          txCache.setCache(coid, currlevel, vbuf);
       }
     }
   }
@@ -945,16 +980,25 @@ int LocalTransaction::attrSet(COid coid, u32 attrid, u64 attrvalue){
   AttrSetRPCData *rpcdata;
   AttrSetRPCRespData *rpcresp;
   int respstatus;
-  Ptr<Valbuf> origvalue;
+  Ptr<Valbuf> vbuf;
+  int vbufincache;
+  TxCacheEntryList *tcel;
   int res;
 
   if (State != 0) return GAIAERR_TX_ENDED;
 
   hasWrites = true;
 
-  res = vsuperget(coid, origvalue, 0, 0); if (res) return res;
-  assert(origvalue->type==1); // must be supervalue
-  assert(origvalue->u.raw->Nattrs > (int)attrid);
+  res = vsuperget(coid, vbuf, 0, 0); if (res) return res;
+  assert(vbuf->type==1); // must be supervalue
+  assert(vbuf->u.raw->Nattrs > (int)attrid);
+
+  res = txCache.lookupCache(coid, tcel);
+  vbufincache = res == 0;
+  if (vbufincache){
+    assert(tcel);
+    vbuf = tcel->vbuf; // use vbuf in cache
+  }
 
   rpcdata = new AttrSetRPCData;
   rpcdata->data = new AttrSetRPCParm;
@@ -964,6 +1008,7 @@ int LocalTransaction::attrSet(COid coid, u32 attrid, u64 attrvalue){
   rpcdata->data->tid = Id;
   rpcdata->data->cid = coid.cid;
   rpcdata->data->oid = coid.oid;
+  rpcdata->data->level = currlevel;
   rpcdata->data->attrid = attrid;  
   rpcdata->data->attrvalue = attrvalue; 
 
@@ -980,242 +1025,17 @@ int LocalTransaction::attrSet(COid coid, u32 attrid, u64 attrvalue){
   if (respstatus) State=-2; // mark transaction as aborted due to I/O error
   else {
     // modify chosen attribute and store node Valbuf in txcache
-    origvalue->u.raw->Attrs[attrid] = attrvalue;
-    updateTxCache(coid, origvalue);
+    if (vbufincache && tcel->level != currlevel){
+      vbuf = new Valbuf(*vbuf); // copy vbuf
+      vbufincache = 0; // this new vbuf is not in cache, store it below
+    }
+    
+    vbuf->u.raw->Attrs[attrid] = attrvalue;
+    if (!vbufincache)
+      txCache.setCache(coid, currlevel, vbuf);
   }
 
   delete rpcresp;
   return respstatus;
 }
 
-#ifdef TESTMAIN
-
-int main(int argc, char **argv)
-{
-  int res;
-  COid coid;
-  char *buf;
-  int len;
-
-  UniqueId::init();
-
-  LocalTransaction t;
-
-  coid.cid=0;
-  coid.oid=0;
-
-  t.put(coid, "hi", 3);
-  t.tryCommit();
-
-  t.start();
-  t.put(coid, "me", 3);
-  t.get(coid, &buf, &len);
-  printf("Got len %d buf %s\n", len, buf);
-  t.abort();
-  t.tryCommit();
-
-  t.start();
-  t.get(coid, &buf, &len);
-  printf("Got len %d buf %s\n", len, buf);
-}
-#endif
-
-
-
-#ifdef TESTMAIN2
-
-int main(int argc, char **argv)
-{
-  char buf[1024];
-  int outcome;
-  int res, c;
-  u64 t1, t2, t3, t4;
-  PreciseClock pc;
-  bool truncate;
-  char data[256];
-  char *getbuf;
-  int badargs;
-
-  int operation, off, len;
-  int readlen;
-  COid coid;
-
-  // remove path from argv[0]
-  char *argv0 = strrchr(argv[0], '\\');
-  if (argv0) ++argv0; else argv0 = argv[0];
-
-
-  badargs=0;
-  while ((c = getopt(argc,argv, "")) != -1){
-    switch(c){
-    default:
-      ++badargs;
-    }
-  }
-  if (badargs) exit(1); // bad arguments
-
-  argc -= optind;
-
-  if (argc != 3 && argc != 4 && argc != 5 && argc != 7){
-    fprintf(stderr, "usage: %s r cid oid off len\n", argv0);
-    fprintf(stderr, "usage: %s w cid oid off len truncate data\n", argv0);
-    fprintf(stderr, "       %s g   cid oid\n", argv0);
-    fprintf(stderr, "       %s p   cid oid data\n", argv0);
-    exit(1);
-  }
-
-  // parse argument 1
-  operation=tolower(*argv[optind]);
-  if (!strchr("rwgp", operation)){
-    fprintf(stderr, "valid operations are r,w,g,p\n", argv0);
-    exit(1);
-  }
-
-  switch(operation){
-  case 'r':
-    if (argc != 5){ fprintf(stderr, "%s: r operation requires 4 arguments\n", argv0); exit(1); }
-    coid.cid = (u64) atoi((char*) argv[optind+1]);
-    coid.oid = (u64) atoi((char*) argv[optind+2]);
-    off = atoi((char*) argv[optind+3]);
-    len = atoi((char*) argv[optind+4]);
-    *data = 0;
-    break;
-  case 'w':
-    if (argc != 7){ fprintf(stderr, "%s: w operation requires 6 arguments\n", argv0); exit(1); }
-    coid.cid = (u64) atoi((char*) argv[optind+1]);
-    coid.oid = (u64) atoi((char*) argv[optind+2]);
-    off = atoi((char*) argv[optind+3]);
-    len = atoi((char*) argv[optind+4]);
-    truncate = (bool) atoi((char*) argv[optind+5]);
-    strncpy(data, argv[optind+6], sizeof(data));
-    data[sizeof(data)-1]=0;
-    break;
-  case 'g':
-    if (argc != 3){ fprintf(stderr, "%s: g operation requires 2 arguments\n", argv0); exit(1); }
-    coid.cid = (u64) atoi((char*) argv[optind+1]);
-    coid.oid = (u64) atoi((char*) argv[optind+2]);
-    break;
-  case 'p':
-    if (argc != 4){ fprintf(stderr, "%s: p operation requires 3 arguments\n", argv0); exit(1); }
-    coid.cid = (u64) atoi((char*) argv[optind+1]);
-    coid.oid = (u64) atoi((char*) argv[optind+2]);
-    strncpy(data, argv[optind+3], sizeof(data));
-    data[sizeof(data)-1]=0;
-    break;
-  }
-
-  UniqueId::init();
-
-  LocalTransaction t;
-
-  t.start();
-  switch(operation){
-  case 'r':
-    t1 = pc.readus();
-    res = t.read(coid, buf, off, len, &readlen);
-    t2 = pc.readus();
-
-    t3 = pc.readus();
-    outcome = t.tryCommit();
-    t4 = pc.readus();
-
-    printf("read  res %d\n", res);
-    printf("read data %s\n", buf);
-    printf("read time %d\n", (int)(t2-t1));
-    printf("comm time %d\n", (int)(t4-t3));
-    printf("comm res  %d\n", outcome);
-    break;
-  case 'w':
-    t1 = pc.readus();
-    printf("Writing cid %llx oid %llx off %d len %d trunc %d data %s\n", (long long)coid.cid, (long long)coid.oid, off, len, truncate, data);
-    res = t.write(coid, data, off, len, truncate);
-    t2 = pc.readus();
-
-    t3 = pc.readus();
-    outcome = t.tryCommit();
-    t4 = pc.readus();
-
-    printf("write  res %d\n", res);
-    printf("write time %d\n", (int)(t2-t1));
-    printf("comm  time %d\n", (int)(t4-t3));
-    printf("comm res  %d\n", outcome);
-    break;
-  case 'p':
-    res = t.put(coid, data, strlen(data)+1);
-    printf("put    res %d\n", res);
-    outcome = t.tryCommit();
-    break;
-  case 'g':
-    res = t.get(coid, &getbuf, &len);
-    printf("get    res %d\n", res);
-    printf("get    len %d\n", len);
-    printf("get    buf %s\n", getbuf);
-    t.readFreeBuf(buf);
-    break;
-  }
-}
-#endif
-
-
-#ifdef TESTMAIN3
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <time.h>
-
-int main(int argc, char **argv)
-{
-  int i, res, count, v1, v2, len1, len2;
-  int cid;
-
-  COid coid1, coid2;
-
-
-  if (argc == 2) cid=atoi(argv[1]);
-  else cid=0;
-
-  srand((unsigned)time(0)); // seed PRNG
-
-  UniqueId::init();
-
-  LocalTransaction t;
-  S = new StorageServerState(0);
-
-  coid1.cid = cid;
-  coid1.oid = 0;
-  coid2.cid = cid;
-  coid2.oid = 256;
-  res = 0;
-  count = 0;
-
-  for (i=0; i<1000; ++i){
-    if (rand()%2==0){
-      t.read(coid1, (char*) &v1, 0, sizeof(int), &len1);
-      if (len1==0) v1=0;
-      ++v1;
-      t.write(coid1, (char*) &v1, 0, sizeof(int), true);
-
-      t.read(coid2, (char*) &v2, 0, sizeof(int), &len2);
-      if (len2==0) v2=0;
-      ++v2;
-      t.write(coid2, (char*) &v2, 0, sizeof(int), true);
-    } else {
-      t.read(coid2, (char*) &v2, 0, sizeof(int), &len2);
-      if (len2==0) v2=0;
-      ++v2;
-      t.write(coid2, (char*) &v2, 0, sizeof(int), true);
-
-      t.read(coid1, (char*) &v1, 0, sizeof(int), &len1);
-      if (len1==0) v1=0;
-      ++v1;
-      t.write(coid1, (char*) &v1, 0, sizeof(int), true);
-    }
-    res = t.tryCommit();
-    count += res ? 1 : 0;
-    printf("res %d v1 %d v2 %d\n", res, v1, v2);
-    t.start();
-  }
-  printf("sum errors %d\n", count);
-  delete S;
-}
-#endif

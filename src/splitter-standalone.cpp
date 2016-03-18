@@ -58,11 +58,13 @@
 // these functions are already defined in dtree.c
 // Here, they are intended for the standalone splitter. This version
 // uses the myVdbeRecordCompare() and myVdbeDeleteUnpackedRecord() instead of
-// sqlite3VdbeRecordCompare() and sqlite3VdbeDeleteUnpackedRecord() (which are part of sqlite).
+// sqlite3VdbeRecordCompare() and sqlite3VdbeDeleteUnpackedRecord() (which are
+// part of sqlite).
 
-/* compares a cell key against intKey2/pIdxKey2. Use intKey2 if pIdxKey2==0 otherwise use pIdxKey2 */
-/* inline */
-int compareNpKeyWithKey(i64 nKey1, char *pKey1, i64 nKey2, UnpackedRecord *pIdxKey2) {
+// compares a cell key against intKey2/pIdxKey2. Use intKey2 if pIdxKey2==0
+// otherwise use pIdxKey2
+int compareNpKeyWithKey(i64 nKey1, char *pKey1, i64 nKey2,
+                        UnpackedRecord *pIdxKey2) {
   if (pIdxKey2) return myVdbeRecordCompare((int)nKey1, pKey1, pIdxKey2);
   else if (nKey1==nKey2) return 0;
   else return (nKey1 < nKey2) ? -1 : +1;
@@ -70,19 +72,26 @@ int compareNpKeyWithKey(i64 nKey1, char *pKey1, i64 nKey2, UnpackedRecord *pIdxK
 
 // Searches the cells of a node for a given key, using binary search.
 // Returns the child pointer that needs to be followed for that key.
-// If biasRight!=0 then optimize for the case the key is larger than any entries in node.
+// If biasRight!=0 then optimize for the case the key is larger than any
+// entries in node.
 // Assumes that the path at the given level has some node (real or approx).
 // Guaranteed to return an index between 0 and N where N is the number of cells
 // in that node (N+1 is the number of pointers).
 // Returns *matches!=0 if found key, *matches==0 if did not find key.
-int CellSearchNodeUnpacked(DTreeNode &node, UnpackedRecord *pIdxKey, i64 nkey, int biasRight, int *matches){
+int CellSearchNodeUnpacked(DTreeNode &node, UnpackedRecord *pIdxKey, i64 nkey,
+                           int biasRight, int *matches){
   int cmp;
   int bottom, top, mid;
   ListCell *cell;
 
   bottom=0;
   top=node.Ncells()-1; /* number of keys on node minus 1 */
-  if (top<0){ if (matches) *matches=0; return 0; } // there are no keys in node, so return index of only pointer there (index 0)
+  if (top<0){
+    // there are no keys in node, so return index of only pointer there
+    // (index 0)    
+    if (matches) *matches=0;
+    return 0;
+  }
   do {
     if (biasRight){ mid = top; biasRight=0; } /* bias first search only */
     else mid=(bottom+top)/2;
@@ -94,18 +103,20 @@ int CellSearchNodeUnpacked(DTreeNode &node, UnpackedRecord *pIdxKey, i64 nkey, i
     else top=mid-1; /* mid > target */
   } while (bottom <= top);
   // if key was found, then mid points to its index and cmp==0
-  // if key was not found, then mid points to entry immediately before key (cmp<0) or after key (cmp>0)
+  // if key was not found, then mid points to entry immediately before key
+  //    (cmp<0) or after key (cmp>0)
 
-  if (cmp<0) ++mid; // now mid points to entry immediately after key or to one past the last entry
-                    // if key is greater than all entries
-  // note: if key matches a cell (cmp==0), we follow the pointer to the left of the cell, which
-  //       has the same index as the cell
+  if (cmp<0) ++mid; // now mid points to entry immediately after key or to one
+                    // past the last entry if key is greater than all entries
+  // note: if key matches a cell (cmp==0), we follow the pointer to the left
+  // of the cell, which has the same index as the cell
 
   if (matches) *matches = cmp == 0 ? 1 : 0;
   assert(0 <= mid && mid <= node.Ncells());
   return mid;
 }
-int GCellSearchNode(DTreeNode &node, i64 nkey, void *pkey, GKeyInfo *ki, int biasRight){
+int GCellSearchNode(DTreeNode &node, i64 nkey, void *pkey, GKeyInfo *ki,
+                    int biasRight){
   UnpackedRecord *pIdxKey;   /* Unpacked index key */
   char aSpace[150];          /* Temp space for pIdxKey - to avoid a malloc */
   int res;

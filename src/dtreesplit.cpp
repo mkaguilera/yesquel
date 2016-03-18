@@ -64,9 +64,12 @@
 
 #ifdef _DTREE_C
 struct KeyInfo;
-static int CellSearchNode(DTreeNode &node, i64 nkey, void *pkey, KeyInfo *ki, int biasRight);
-inline int GCellSearchNode(DTreeNode &node, i64 nkey, void *pkey, GKeyInfo *ki, int biasRight){
-  // call the function defined in dtree.cpp that uses KeyInfo instead of GKeyInfo
+static int CellSearchNode(DTreeNode &node, i64 nkey, void *pkey, KeyInfo *ki,
+                          int biasRight);
+inline int GCellSearchNode(DTreeNode &node, i64 nkey, void *pkey, GKeyInfo *ki,
+                           int biasRight){
+  // call the function defined in dtree.cpp that uses KeyInfo
+  // instead of GKeyInfo
   return CellSearchNode(node, nkey, pkey, (KeyInfo*) ki, biasRight);
 }
 #else
@@ -74,8 +77,10 @@ inline int GCellSearchNode(DTreeNode &node, i64 nkey, void *pkey, GKeyInfo *ki, 
 #endif
 
 // finds the parent of a node given a targetcoid and a cell within targetcoid.
-// Returns 0 if found, non-zero if error. If found, the oid of the parent is placed in result.
-int FindParentReal(KVTransaction *tx, COid targetcoid, ListCell &cell, GKeyInfo *ki, Oid &result){
+// Returns 0 if found, non-zero if error. If found, the oid of the parent
+// is placed in result.
+int FindParentReal(KVTransaction *tx, COid targetcoid, ListCell &cell,
+                   GKeyInfo *ki, Oid &result){
   DTreeNode node;
   int res;
   COid coid, nextcoid;
@@ -94,12 +99,17 @@ int FindParentReal(KVTransaction *tx, COid targetcoid, ListCell &cell, GKeyInfo 
   do {
     ++nsearches;
     coid.oid = nextcoid.oid;
-    res = auxReadReal(tx, coid, node, 0, 0); if (res){ dprintf(1,"Aa%d,%d,%llx ", res, nsearches, (long long)coid.oid); return res; }
+    res = auxReadReal(tx, coid, node, 0, 0);
+    if (res){
+      dprintf(1,"Aa%d,%d,%llx ", res, nsearches, (long long)coid.oid);
+      return res;
+    }
 
     index = GCellSearchNode(node, cell.nKey, cell.pKey, ki, 0);
     assert(0 <= index && index <= node.Ncells()+1);
     nextcoid.oid = node.GetPtr(index);
-  } while (nextcoid.oid != targetcoid.oid && nsearches < DTREE_MAX_LEVELS && node.isInner());
+  } while (nextcoid.oid != targetcoid.oid &&
+           nsearches < DTREE_MAX_LEVELS && node.isInner());
 
   if (node.isLeaf() || nextcoid.oid != targetcoid.oid){
     dprintf(1,"Ab%d,%d,%llx ", -1, nsearches, (long long)coid.oid);
@@ -109,12 +119,17 @@ int FindParentReal(KVTransaction *tx, COid targetcoid, ListCell &cell, GKeyInfo 
   return 0;
 }
 
-// Using cached information, finds the parent of a node given a targetcoid and a cell within targetcoid.
-// Returns 0 if found, non-zero if error. If found, the oid of the parent is placed in result.
-// If parent is found, the function confirms its accuracy by reading the real node if necessary.
-// In other words, this function never returns an incorrect parent. However, it may return non-zero (not found)
-// even if parent exists because cached information may be wrong.
-int FindParentCache(KVTransaction *tx, COid targetcoid, ListCell &cell, GKeyInfo *ki, Oid &result){
+// Using cached information, finds the parent of a node given a targetcoid
+// and a cell within targetcoid.
+// Returns 0 if found, non-zero if error. If found, the oid of the parent is
+// placed in result.
+// If parent is found, the function confirms its accuracy by reading the real
+// node if necessary.
+// In other words, this function never returns an incorrect parent. However,
+// it may return non-zero (not found) even if parent exists because cached
+// information may be wrong.
+int FindParentCache(KVTransaction *tx, COid targetcoid, ListCell &cell,
+                    GKeyInfo *ki, Oid &result){
   DTreeNode node;
   int res;
   COid coid, nextcoid;
@@ -135,14 +150,19 @@ int FindParentCache(KVTransaction *tx, COid targetcoid, ListCell &cell, GKeyInfo
     ++nsearches;
     coid.oid = nextcoid.oid;
     res = auxReadCacheOrReal(tx, coid, node, real, 0, 0);
-    if (res){ dprintf(1,"Ba%d,%d,%llx ", res, nsearches, (long long)coid.oid); return res; }
+    if (res){
+      dprintf(1,"Ba%d,%d,%llx ", res, nsearches, (long long)coid.oid);
+      return res;
+    }
 
     index = GCellSearchNode(node, cell.nKey, cell.pKey, ki, 0);
     assert(0 <= index && index <= node.Ncells()+1);
     nextcoid.oid = node.GetPtr(index);
-  } while (nextcoid.oid != targetcoid.oid && nsearches < DTREE_MAX_LEVELS && node.isInner());
+  } while (nextcoid.oid != targetcoid.oid &&
+           nsearches < DTREE_MAX_LEVELS && node.isInner());
 
-  if (node.isLeaf() || nsearches >= DTREE_MAX_LEVELS){ // reached leaf without finding
+  if (node.isLeaf() || nsearches >= DTREE_MAX_LEVELS){
+    // reached leaf without finding
     dprintf(1, "Bb%d,%d,%llx ", -1, nsearches, (long long)coid.oid);
     return -1;
   }
@@ -195,29 +215,37 @@ int chknode(COid coid, DTreeNode node, bool remote){
 // Splits a node.
 // toSplit: node to split
 // cell: where to split.
-//   If cell==0, the split is done in the middle of the node if the node is too large.
-//   If cell!=0, the split is done at the indicated cell, which becomes the first
-//     cell of the split node. This cell should not be the first cell in the node.
+//   If cell==0, the split is done in the middle of the node if the node is
+//               too large.
+//   If cell!=0, the split is done at the indicated cell, which becomes the
+//               first cell of the split node. This cell should not be the
+//               first cell in the node.
 // remote: type of transaction to use (normally set to true)
 // enqueueMoreSplit: optional function to enqueue more nodes to be split.
-//     The function will invoke this function (if non-null) for any node that requires further splits
+//     The function will invoke this function (if non-null) for any node that
+//     requires further splits
 // enqueueMoreSplitParm: parameter to pass enqueueMoreSplit
-int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSplit)(COid, int, void*, int), 
+int DtSplit(COid toSplit, ListCellPlus *cell, bool remote,
+            int (*enqueueMoreSplit)(COid, int, void*, int), 
             void *enqueueMoreSplitParm){
   // start a new transaction
   // read real toSplit node
   // read real parent
   // check if parent does not point to toSplit
-  // if not, call function to find real parent by doing a traversal using toSplit's leftmost cell
-  // splitindex = find midpoint of toSplit node (if cell==0) or location of cell (if cell != 0)
+  // if not, call function to find real parent by doing a traversal using
+  //      toSplit's leftmost cell
+  // splitindex = find midpoint of toSplit node (if cell==0) or location of
+  //      cell (if cell != 0)
   // obtain new oid for left node
   // copy splitindex cell, and set its pointer to the left node
   // listAdd this new cell to parent
-  // create left node with cells first..splitindex-1, with rightmost pointer = pointer of old splitindex cell
+  // create left node with cells first..splitindex-1, with rightmost
+  //      pointer = pointer of old splitindex cell
   // set left pointer to be toSplit's left pointer, right pointer to be toSplit
   // writeSV left node
   // attrSet left pointer of toSplit to be the left cell
-  // attrSet the right pointer of the node to the left of toSplit (if not 0) to be the left cell
+  // attrSet the right pointer of the node to the left of toSplit (if not 0)
+  //      to be the left cell
   // DelRange of first..splitindex from toSplit node (the right node)
   // commit transaction
   
@@ -245,14 +273,17 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSpli
 #endif
 
   // read real toSplit node
-  res = auxReadReal(tx, toSplit, nodesplit, 0, 0); if (res){ dprintf(1,"a%d ", res); return res; }
+  res = auxReadReal(tx, toSplit, nodesplit, 0, 0);
+  if (res){ dprintf(1,"a%d ", res); return res; }
   assert(nodesplit.raw->type==1); // must be supervalue
 
   ki = nodesplit.Pki();
 
   // check if cell==0 and node is too large (node has been split already)
-  //       or cell!=0 and node smaller than minimum splittable size (no split possible)
-  if (!cell && nodesplit.Ncells() <= DTREE_SPLIT_SIZE && nodesplit.CellsSize() <= DTREE_SPLIT_SIZE_BYTES ||
+  //       or cell!=0 and node smaller than minimum splittable size (no
+  //       split possible)
+  if (!cell && nodesplit.Ncells() <= DTREE_SPLIT_SIZE &&
+      nodesplit.CellsSize() <= DTREE_SPLIT_SIZE_BYTES ||
       cell && nodesplit.Ncells() < DTREE_SPLIT_MINSIZE){ // do not split
     dputchar(1,'_');
     freeTx(tx);
@@ -262,12 +293,16 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSpli
   // splitindex = find midpoint of toSplit node
   if (!cell) splitindex = nodesplit.Ncells()/2;
   else {
-    splitindex = GCellSearchNode(nodesplit, cell->nKey, cell->pKey, cell->ppki.ki ? *cell->ppki.ki : 0, 0);
+    splitindex = GCellSearchNode(nodesplit, cell->nKey, cell->pKey,
+                                 cell->ppki.ki ? *cell->ppki.ki : 0, 0);
     if (splitindex==0) ++splitindex;
   }
-  cellsInNodesplit = nodesplit.Ncells()-splitindex-1; // # cells that will be left in node being split after split
-  cellSizeInNodesplit = 0; // compute size of cells that will be left in node being split after split
-  for (i = splitindex+1; i < nodesplit.Ncells(); ++i) cellSizeInNodesplit += nodesplit.Cells()[i].size();
+  cellsInNodesplit = nodesplit.Ncells()-splitindex-1; // # cells that will be
+                                       // left in node being split after split
+  cellSizeInNodesplit = 0; // compute size of cells that will be left in node
+                           // being split after split
+  for (i = splitindex+1; i < nodesplit.Ncells(); ++i)
+    cellSizeInNodesplit += nodesplit.Cells()[i].size();
 
   // obtain new coid for left node
   leftcoid.oid = NewOid(remote);
@@ -277,7 +312,8 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSpli
   ListCell lc(nodesplit.Cells()[splitindex]);
   lc.value = leftcoid.oid;
 
-  // create left node with cells first..splitindex-1, with last pointer = pointer of old splitindex cell,
+  // create left node with cells first..splitindex-1, with last
+  //     pointer = pointer of old splitindex cell,
   // and with flags and height matching the node to be split
   SuperValue leftnode;
   memset(&leftnode, 0, sizeof(SuperValue));
@@ -292,16 +328,20 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSpli
   //DTreeNode::InitSuperValue(&leftnode, 1);
   leftnode.Ncells = splitindex;
   if (nodesplit.Flags() & DTREENODE_FLAG_LEAF)
-    ++leftnode.Ncells; // if splitting a leaf, left node should contain splitindex
+    ++leftnode.Ncells; // if splitting a leaf, left node should contain
+                        // splitindex
   leftnode.Cells = new ListCell[leftnode.Ncells];
   for (i=0; i < leftnode.Ncells; ++i){
-    leftnode.Cells[i].copy(nodesplit.Cells()[i]); // copy cell from node to split
+    leftnode.Cells[i].copy(nodesplit.Cells()[i]); // copy cell from node
+                                       // to split
     leftnode.CellsSize += leftnode.Cells[i].size();
   }
-  leftnode.Attrs[DTREENODE_ATTRIB_LASTPTR] = nodesplit.Cells()[splitindex].value; // set last pointer
+  leftnode.Attrs[DTREENODE_ATTRIB_LASTPTR] =
+    nodesplit.Cells()[splitindex].value; // set last pointer
 
-  oldleftcoid.oid = nodesplit.LeftPtr(); // save leftptr (if any) before changing the node to split
-                                          // Note that oldleftcoid.oid will be 0 if there is not left pointer in node to be split
+  oldleftcoid.oid = nodesplit.LeftPtr(); // save leftptr (if any) before
+      // changing the node to split. Note that oldleftcoid.oid will be 0
+      // if there is not left pointer in node to be split
 
   splitroot = toSplit.oid == 0;
 
@@ -318,13 +358,16 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSpli
     newroot.pki = CloneGKeyInfo(nodesplit.Pki());
     newroot.Attrs = new u64[DTREENODE_NATTRIBS];
     // copy flags from right node (toSplit node), and set height to be 1 greater
-    newroot.Attrs[DTREENODE_ATTRIB_FLAGS] = nodesplit.Flags() & ~DTREENODE_FLAG_LEAF; // not leaf
+    newroot.Attrs[DTREENODE_ATTRIB_FLAGS] = nodesplit.Flags() &
+      ~DTREENODE_FLAG_LEAF; // not leaf
     newroot.Attrs[DTREENODE_ATTRIB_HEIGHT] = nodesplit.Height()+1;
-    newroot.Attrs[DTREENODE_ATTRIB_LASTPTR] = nodesplit.raw->coid.oid;  // right pointer of root is node being split
+    newroot.Attrs[DTREENODE_ATTRIB_LASTPTR] = nodesplit.raw->coid.oid; // right
+                                         // pointer of root is node being split
     newroot.Attrs[DTREENODE_ATTRIB_LEFTPTR] = 0;
     newroot.Attrs[DTREENODE_ATTRIB_RIGHTPTR] = 0;
 
-    // set left node's left pointer to be toSplit's left pointer, right pointer to be toSplit
+    // set left node's left pointer to be toSplit's left pointer, right
+    // pointer to be toSplit
     leftnode.Attrs[DTREENODE_ATTRIB_LEFTPTR] = nodesplit.LeftPtr();
     leftnode.Attrs[DTREENODE_ATTRIB_RIGHTPTR] = nodesplit.raw->coid.oid;
 
@@ -341,13 +384,18 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSpli
     nodesplit.raw->u.raw->DeleteCellRange(0, splitindex+1);
 
     // writeSV left node, right node, root
-    res = KVwriteSuperValue(tx, leftcoid, &leftnode); if (res){ dprintf(1,"b%d ", res); goto end; }
-    res = KVwriteSuperValue(tx, nodesplit.raw->coid, nodesplit.raw->u.raw); if (res){ dprintf(1, "c%d ", res); goto end; }
-    res = KVwriteSuperValue(tx, parentcoid, &newroot); if (res){ dprintf(1, "d%d ", res); goto end; }
+    res = KVwriteSuperValue(tx, leftcoid, &leftnode);
+    if (res){ dprintf(1,"b%d ", res); goto end; }
+    res = KVwriteSuperValue(tx, nodesplit.raw->coid, nodesplit.raw->u.raw);
+    if (res){ dprintf(1, "c%d ", res); goto end; }
+    res = KVwriteSuperValue(tx, parentcoid, &newroot);
+    if (res){ dprintf(1, "d%d ", res); goto end; }
 
-    // attrSet the right pointer of the node to the left of toSplit (if not 0) to be the left cell
+    // attrSet the right pointer of the node to the left of toSplit (if not 0)
+    // to be the left cell
     if (oldleftcoid.oid){
-      res = KVattrset(tx, oldleftcoid, DTREENODE_ATTRIB_RIGHTPTR, leftcoid.oid); if (res){ dprintf(1, "e%d ", res);  goto end; }
+      res = KVattrset(tx, oldleftcoid, DTREENODE_ATTRIB_RIGHTPTR, leftcoid.oid);
+      if (res){ dprintf(1, "e%d ", res);  goto end; }
     }
     res = commitTx(tx, &committs);
     // commit transaction
@@ -357,7 +405,8 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSpli
       // fix cached entries
       DTreeNode tofix;
       // fix newroot (parentcoid)
-      if (!(newroot.Attrs[DTREENODE_ATTRIB_FLAGS] & DTREENODE_FLAG_LEAF)){ // only need to fix if inner node (leafs not cached)
+      if (!(newroot.Attrs[DTREENODE_ATTRIB_FLAGS] & DTREENODE_FLAG_LEAF)){
+        // only need to fix if inner node (leafs not cached)
         tofix.raw = new Valbuf(newroot, parentcoid, true, &committs);
         GCache.remove(parentcoid);
         GCache.refresh(tofix.raw);
@@ -365,7 +414,8 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSpli
       }
 
       // fix nodesplit
-      if (nodesplit.isInner()){ // only need to fix if inner node (leafs not cached)
+      if (nodesplit.isInner()){
+        // only need to fix if inner node (leafs not cached)
         tofix.raw = new Valbuf(*nodesplit.raw);
         tofix.raw->commitTs = committs; // update timestamps
         tofix.raw->readTs = committs;
@@ -375,7 +425,8 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSpli
       }
 
       // fix leftnode (leftcoid)
-      if (!(leftnode.Attrs[DTREENODE_ATTRIB_FLAGS] & DTREENODE_FLAG_LEAF)){ // only need to fix if inner node (leafs not cached)
+      if (!(leftnode.Attrs[DTREENODE_ATTRIB_FLAGS] & DTREENODE_FLAG_LEAF)){
+        // only need to fix if inner node (leafs not cached)
         tofix.raw = new Valbuf(leftnode, leftcoid, true, &committs);
         GCache.remove(leftcoid);
         GCache.refresh(tofix.raw);
@@ -386,7 +437,8 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSpli
       if (oldleftcoid.oid){
         res = auxReadCache(oldleftcoid, tofix);
         if (res==0){
-#if (DTREE_SPLIT_LOCATION==1)  // splitting at client; cache is shared so we should not alter entries directly
+#if (DTREE_SPLIT_LOCATION==1)  // splitting at client; cache is shared
+                              // so we should not alter entries directly
           tofix.raw = new Valbuf(*tofix.raw); // make a copy
 #endif
           tofix.raw->commitTs = committs; // update timestamps
@@ -403,39 +455,51 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSpli
   }
   else { // splitting non-root
     // find real parent by doing a traversal using toSplit's leftmost cell
-    res = FindParentCache(tx, toSplit, nodesplit.Cells()[0], ki, parentcoid.oid);
-    //if (!res) dprintf(1, "Found parent of %llx %llx using cache", (long long)toSplit.cid, (long long)toSplit.oid);
+    res = FindParentCache(tx, toSplit, nodesplit.Cells()[0], ki,
+                          parentcoid.oid);
+    //if (!res) dprintf(1, "Found parent of %llx %llx using cache",
+    //                  (long long)toSplit.cid, (long long)toSplit.oid);
     if (res){
-      dprintf(1, "Cannot find parent of %llx %llx using cache: %d", (long long)toSplit.cid, (long long)toSplit.oid, res);
-      res = FindParentReal(tx, toSplit, nodesplit.Cells()[0], ki, parentcoid.oid);
+      dprintf(1, "Cannot find parent of %llx %llx using cache: %d",
+              (long long)toSplit.cid, (long long)toSplit.oid, res);
+      res = FindParentReal(tx, toSplit, nodesplit.Cells()[0], ki,
+                           parentcoid.oid);
       if (res){ dprintf(1, "g%d ", res); goto end; }
     }
 
-    // set left node's left pointer to be toSplit's left pointer, right pointer to be toSplit
+    // set left node's left pointer to be toSplit's left pointer,
+    // right pointer to be toSplit
     leftnode.Attrs[DTREENODE_ATTRIB_LEFTPTR] = nodesplit.LeftPtr();
     leftnode.Attrs[DTREENODE_ATTRIB_RIGHTPTR] = nodesplit.NodeOid();
 
     // listAdd the new cell to parent
 #if DTREE_SPLIT_LOCATION != 1
-    res = KVlistadd(tx, parentcoid, &lc, (GKeyInfo*) ki, 2);  // flags&2 means bypass throttling
+    res = KVlistadd(tx, parentcoid, &lc, (GKeyInfo*) ki, 2);  // flags&2 means
+                                                           // bypass throttling
 #else
-    res = KVlistadd(tx, parentcoid, &lc, (GKeyInfo*) ki, 2, 0, 0);   // flags&2 means bypass throttling
+    res = KVlistadd(tx, parentcoid, &lc, (GKeyInfo*) ki, 2, 0, 0); // flags&2
+                                                   // means bypass throttling
 #endif
     if (res){ dprintf(1, "h%d ", res); goto end; }
 
     // writeSV left node
-    res = KVwriteSuperValue(tx, leftcoid, &leftnode); if (res){ dprintf(1, "i%d ", res);  goto end; }
+    res = KVwriteSuperValue(tx, leftcoid, &leftnode);
+    if (res){ dprintf(1, "i%d ", res);  goto end; }
 
     // attrSet left pointer of toSplit to be the left cell
-    res = KVattrset(tx, toSplit, DTREENODE_ATTRIB_LEFTPTR, leftcoid.oid); if (res){ dprintf(1, "j%d ", res); goto end; }
+    res = KVattrset(tx, toSplit, DTREENODE_ATTRIB_LEFTPTR, leftcoid.oid);
+    if (res){ dprintf(1, "j%d ", res); goto end; }
 
-    // attrSet the right pointer of the node to the left of toSplit (if not 0) to be the left cell
+    // attrSet the right pointer of the node to the left of toSplit (if not 0)
+    // to be the left cell
     if (oldleftcoid.oid){
-      res = KVattrset(tx, oldleftcoid, DTREENODE_ATTRIB_RIGHTPTR, leftcoid.oid); if (res){ dprintf(1, "k%d ", res);  goto end; }
+      res = KVattrset(tx, oldleftcoid, DTREENODE_ATTRIB_RIGHTPTR, leftcoid.oid);
+      if (res){ dprintf(1, "k%d ", res);  goto end; }
     }
     
     // DelRange of cells (-inf..splitindex+1) from toSplit node (the right node)
-    res = KVlistdelrange(tx, toSplit, 6, &nodesplit.Cells()[0], &nodesplit.Cells()[splitindex+1], (GKeyInfo*) ki);
+    res = KVlistdelrange(tx, toSplit, 6, &nodesplit.Cells()[0],
+                         &nodesplit.Cells()[splitindex+1], (GKeyInfo*) ki);
     if (res){ dprintf(1, "l%d ", res);  goto end; }
 
     res = commitTx(tx, &committs);
@@ -448,7 +512,8 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSpli
       int index;
       res = auxReadCache(parentcoid, tofix);
       if (!res){ // found
-#if (DTREE_SPLIT_LOCATION==1)  // splitting at client; cache is shared so we should not alter entries directly
+#if (DTREE_SPLIT_LOCATION==1)  // splitting at client; cache is shared so
+                               // we should not alter entries directly
         tofix.raw = new Valbuf(*tofix.raw); // make a copy
 #endif
         tofix.raw->commitTs = committs; // update timestamps
@@ -457,7 +522,8 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSpli
         assert(0 <= index && index <= tofix.Ncells());
         tofix.raw->u.raw->InsertCell(index);
         tofix.raw->u.raw->CellsSize += lc.size();
-        new(&tofix.raw->u.raw->Cells[index]) ListCell(lc); // placement constructor
+        new(&tofix.raw->u.raw->Cells[index]) ListCell(lc); // placement
+                                                           // constructor
 #if (DTREE_SPLIT_LOCATION==1)
         GCache.remove(parentcoid);
         GCache.refresh(tofix.raw);
@@ -466,7 +532,8 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSpli
       }
 
       // fix leftcoid: write new node
-      if (!(leftnode.Attrs[DTREENODE_ATTRIB_FLAGS] & DTREENODE_FLAG_LEAF)){ // only need to fix if inner node (leafs not cached)
+      if (!(leftnode.Attrs[DTREENODE_ATTRIB_FLAGS] & DTREENODE_FLAG_LEAF)){
+        // only need to fix if inner node (leafs not cached)
         tofix.raw = new Valbuf(leftnode, leftcoid, true, &committs);
         GCache.remove(leftcoid);
         GCache.refresh(tofix.raw);
@@ -476,7 +543,8 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSpli
       // fix toSplit: set leftptr, delete range
       res = auxReadCache(toSplit, tofix);
       if (!res && splitindex+1 <= tofix.raw->u.raw->Ncells){
-#if (DTREE_SPLIT_LOCATION==1)  // splitting at client; cache is shared so we should not alter entries directly
+#if (DTREE_SPLIT_LOCATION==1)  // splitting at client; cache is shared so we
+                               // should not alter entries directly
         tofix.raw = new Valbuf(*tofix.raw); // make a copy
 #endif
         tofix.raw->commitTs = committs; // update timestamps
@@ -494,7 +562,8 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSpli
       if (oldleftcoid.oid){
         res = auxReadCache(oldleftcoid, tofix);
         if (!res){
-#if (DTREE_SPLIT_LOCATION==1)  // splitting at client; cache is shared so we should not alter entries directly
+#if (DTREE_SPLIT_LOCATION==1)  // splitting at client; cache is shared so we
+                               // should not alter entries directly
           tofix.raw = new Valbuf(*tofix.raw); // make a copy
 #endif
           tofix.raw->commitTs = committs; // update timestamps
@@ -512,34 +581,42 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote, int (*enqueueMoreSpli
 
   if (enqueueMoreSplit){
     // see if we need to split parent
-    if (!splitroot){ // if we just split root, then we do not need to split parent since it was just created with 1 cell
+    if (!splitroot){ // if we just split root, then we do not need to split
+                     // parent since it was just created with 1 cell
 #ifndef DTREE_SPLIT_DEFER_TS
       beginTx(&tx, remote);
 #else
       beginTx(&tx, remote, true);
 #endif
 
-      res = KVreadSuperValue(tx, parentcoid, nodeparent.raw, 0, 0); if (res){ dprintf(1, "n%d ", res); goto end; }
+      res = KVreadSuperValue(tx, parentcoid, nodeparent.raw, 0, 0);
+      if (res){ dprintf(1, "n%d ", res); goto end; }
       freeTx(tx);
       if (nodeparent.Ncells() > DTREE_SPLIT_SIZE ||
           nodeparent.CellsSize() > DTREE_SPLIT_SIZE_BYTES){
-        //dprintf(1, "Need to further split parent %llx %llx\n", (long long)parentcoid.cid, p(long long)arentcoid.oid);
-        enqueueMoreSplit(parentcoid, 0, enqueueMoreSplitParm, 0); // enqueue request to split parent
+        //dprintf(1, "Need to further split parent %llx %llx\n",
+        //          (long long)parentcoid.cid, p(long long)arentcoid.oid);
+        enqueueMoreSplit(parentcoid, 0, enqueueMoreSplitParm, 0); // enqueue
+                                                   // request to split parent
       }
     }
 
     // see if we need to further split left node
     if (leftnode.Ncells > DTREE_SPLIT_SIZE ||
         leftnode.CellsSize > DTREE_SPLIT_SIZE_BYTES){
-      //dprintf(1, "Need to further split left node %llx %llx\n", (long long)leftcoid.cid, (long long)leftcoid.oid);
-      enqueueMoreSplit(leftcoid, 1, enqueueMoreSplitParm, leftnode.Attrs[DTREENODE_ATTRIB_FLAGS] & DTREENODE_FLAG_LEAF ? 1 : 0);
+      //dprintf(1, "Need to further split left node %llx %llx\n",
+      //            (long long)leftcoid.cid, (long long)leftcoid.oid);
+      enqueueMoreSplit(leftcoid, 1, enqueueMoreSplitParm,
+         leftnode.Attrs[DTREENODE_ATTRIB_FLAGS] & DTREENODE_FLAG_LEAF ? 1 : 0);
     }
 
     // see if we need to further split right node
     if (cellsInNodesplit > DTREE_SPLIT_SIZE ||
         cellSizeInNodesplit > DTREE_SPLIT_SIZE_BYTES){
-      //dprintf(1, "Need to further split right node %llx %llx\n", (long long)nodesplit.raw->coid.cid, (long long)nodesplit.raw->coid.oid);
-      enqueueMoreSplit(nodesplit.raw->coid, 1, enqueueMoreSplitParm, nodesplit.isLeaf() ? 1 : 0);
+      //dprintf(1, "Need to further split right node %llx %llx\n",
+      //(long long)nodesplit.raw->coid.cid, (long long)nodesplit.raw->coid.oid);
+      enqueueMoreSplit(nodesplit.raw->coid, 1, enqueueMoreSplitParm,
+                       nodesplit.isLeaf() ? 1 : 0);
     }
   }
   res = 0;

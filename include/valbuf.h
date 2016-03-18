@@ -53,14 +53,17 @@ public:
   int type;           // 0=value, 1=supervalue
   COid coid;
   bool immutable;
-  Timestamp commitTs; // when value/supervalue was written; can be invalid for nodes in writeset of a transaction
-  Timestamp readTs;   // when value/supervalue was read (readTs >= commitTs); can be invalid for nodes in writeset of a transaction
+  Timestamp commitTs; // when value/supervalue was written; can be invalid for
+                      // nodes in writeset of a transaction
+  Timestamp readTs;   // when value/supervalue was read (readTs >= commitTs);
+                      // can be invalid for nodes in writeset of a transaction
                       // There is a guarantee that the node was not written
                       // after commitTs and before readTs.
   int len;
   union {
-    char *buf;        // if type=0. Must be allocated with Transaction::allocReadBuf()
-                      //  since it will be freed with Transaction::readFreeBuf()
+    char *buf;        // if type=0. Must be allocated with
+                      // Transaction::allocReadBuf() since it will be freed with
+                      // Transaction::readFreeBuf()
     SuperValue *raw;  // if type=1
   } u;
   Valbuf();

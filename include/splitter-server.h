@@ -41,9 +41,11 @@
 #include "splitterrpcaux.h"
 
 #ifndef STORAGESERVER_SPLITTER
-#define SPLITTER_PORT_OFFSET 10  // port of splitter is port of storageserver plus SPLITTER_PORT_OFFSET
+#define SPLITTER_PORT_OFFSET 10  // port of splitter is port of storageserver
+                                 // plus SPLITTER_PORT_OFFSET
 #else
-#define SPLITTER_PORT_OFFSET 0  // port of splitter is same port of storageserver
+#define SPLITTER_PORT_OFFSET 0  // port of splitter is same port of
+                                // storageserver
 #endif
 
 #define SPLITTER_STAT_MOVING_AVE_WINDOW 30 // window size for moving average of split time

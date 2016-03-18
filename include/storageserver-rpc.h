@@ -54,6 +54,7 @@ int listdelrangeRpcStub(RPCTaskInfo *rti);
 int attrsetRpcStub(RPCTaskInfo *rti);
 int prepareRpcStub(RPCTaskInfo *rti);
 int commitRpcStub(RPCTaskInfo *rti);
+int subtransRpcStub(RPCTaskInfo *rti);
 int shutdownRpcStub(RPCTaskInfo *rti);
 int startsplitterRpcStub(RPCTaskInfo *rti);
 int flushfileRpcStub(RPCTaskInfo *rti);

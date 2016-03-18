@@ -71,19 +71,25 @@
 #ifndef STORAGESERVER_SPLITTER
 #define SS_GETROWID_RPCNO 2
 #else
-#define SS_GETROWID_RPCNO 15
+#define SS_GETROWID_RPCNO 16
 #endif
 
 i64 GetRowidFromServer(Cid cid, i64 hint); // get a fresh rowid for a given cid
 
 struct SplitterStats {
-  unsigned dest:1;              // 1 means stats refer to this thread, 0 for another thread. This is relevant when
-                                // splitter reports a new status, so that the receiving thread knows whose coid was recently split
-  unsigned splitTimeRetryingMs:31; // how many ms we have been retrying current split (0 if current split is done, <0 if this is to be ignored)
+  unsigned dest:1;              // 1 means stats refer to this thread, 0 for
+                                // another thread. This is relevant when
+                                // splitter reports a new status, so that the
+                                // receiving thread knows whose coid was
+                                // recently split
+  unsigned splitTimeRetryingMs:31; // how many ms we have been retrying current
+                                   // split (0 if current split is done,
+                                   // <0 if this is to be ignored)
   u32 splitQueueSize;      // how many elements are queued to be split
   float splitTimeAvg;     // average time to split
   float splitTimeStddev;  // standard deviation time to split
-  SplitterStats(){ splitQueueSize=0; splitTimeRetryingMs=0; splitTimeAvg=0.0; splitTimeStddev=0.0; }
+  SplitterStats(){ splitQueueSize=0; splitTimeRetryingMs=0;
+                   splitTimeAvg=0.0; splitTimeStddev=0.0; }
 };
 
 #define SPLITTER_THROTTLE_NMETRICS 3
@@ -98,7 +104,8 @@ private:
   // computes delay and expiration due to various metrics
   static int computeDelayFromQueue(SplitterStats &load, u64& expiration);
   static int computeDelayFromTimeRetrying(SplitterStats &load, u64& expiration);
-  static int computeDelayFromNodesize(unsigned nelements, unsigned nbytes, u64& expiration);
+  static int computeDelayFromNodesize(unsigned nelements, unsigned nbytes,
+                                      u64& expiration);
   
 public:
   SplitterThrottle();

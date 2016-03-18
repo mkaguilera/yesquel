@@ -42,8 +42,11 @@
 #include "dtreeaux.h"
 
 // prototype definitions
-int compareNpKeyWithKey(i64 nKey1, char *pKey1, i64 nKey2, UnpackedRecord *pIdxKey2);
-int CellSearchNodeUnpacked(DTreeNode &node, UnpackedRecord *pIdxKey, i64 nkey, int biasRight, int *matches=0);
-int GCellSearchNode(DTreeNode &node, i64 nkey, void *pkey, GKeyInfo *ki, int biasRight);
+int compareNpKeyWithKey(i64 nKey1, char *pKey1, i64 nKey2,
+                        UnpackedRecord *pIdxKey2);
+int CellSearchNodeUnpacked(DTreeNode &node, UnpackedRecord *pIdxKey, i64 nkey,
+                           int biasRight, int *matches=0);
+int GCellSearchNode(DTreeNode &node, i64 nkey, void *pkey, GKeyInfo *ki,
+                    int biasRight);
 
 #endif

@@ -76,7 +76,10 @@ public:
   double getMin(void){ return min; }
   double getMax(void){ return max; }
   double getAvg(void){ return sum/nitems; }
-  double getVariance(void){ double ave=getAvg(); return sumsquare/nitems - ave*ave; }
+  double getVariance(void){
+    double ave=getAvg();
+    return sumsquare/nitems - ave*ave;
+  }
   double getStdDev(void){ return sqrt(getVariance()); }
   double getMedian(void);
 };
@@ -92,7 +95,11 @@ public:
   void reset();
   void put(double item);
   double getAvg(void){ if (!nitems) return 0; return sum/nitems; }
-  double getVariance(void){ if (!nitems) return 0; double ave=getAvg(); return sumsquare/nitems - ave*ave; }
+  double getVariance(void){
+    if (!nitems) return 0;
+    double ave=getAvg();
+    return sumsquare/nitems - ave*ave;
+  }
   double getStdDev(void){ return sqrt(getVariance()); }
 };
 

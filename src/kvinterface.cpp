@@ -229,6 +229,32 @@ int freeTx(KVTransaction *tx){
   return 0;
 }
 
+int beginSubTx(KVTransaction *tx, int level){
+  KVLOG("beginSubTx %p", tx);
+  int res;
+  if (tx->type==0) res = tx->u.lt->startSubtrans(level);
+  else res = tx->u.t->startSubtrans(level);
+  return res;
+}
+
+int abortSubTx(KVTransaction *tx, int level){
+  KVLOG("abortSubTx %p", tx);
+  int res;
+  if (tx->type==0) res = tx->u.lt->abortSubtrans(level);
+  else res = tx->u.t->abortSubtrans(level);
+  return res;
+}
+
+int releaseSubTx(KVTransaction *tx, int level){
+  KVLOG("releaseSubTx %p", tx);
+  int res;
+  if (tx->type==0) res = tx->u.lt->releaseSubtrans(level);
+  else res = tx->u.t->releaseSubtrans(level);
+  return res;
+}
+
+
+
 int KVget(KVTransaction *tx, COid coid, Ptr<Valbuf> &buf){
   int res=-1;
 
@@ -236,56 +262,68 @@ int KVget(KVTransaction *tx, COid coid, Ptr<Valbuf> &buf){
   if (tx->type==0)
     res =  tx->u.lt->vget(coid, buf);
   else {
-    assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not be ephemeral for remote txs
+    assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not be
+                                                // ephemeral for remote txs
     res = tx->u.t->vget(coid, buf);
   }
   if (res) 
     buf=0;
 
-  KVLOG("Tx %p cid %llx oid %llx bytes %d", tx, (long long)coid.cid, (long long)coid.oid, buf->len);
+  KVLOG("Tx %p cid %llx oid %llx bytes %d", tx, (long long)coid.cid,
+        (long long)coid.oid, buf->len);
   return res;
 }
 
 int KVput(KVTransaction *tx, COid coid,  char *data, int len){
   int res=-1;
   tx->readonly = 0;
-  KVLOG("Tx %p cid %llx oid %llx bytes %d", tx, (long long)coid.cid, (long long)coid.oid, len);
+  KVLOG("Tx %p cid %llx oid %llx bytes %d", tx, (long long)coid.cid,
+        (long long)coid.oid, len);
 
   if (tx->type==0)
     res = tx->u.lt->put(coid, data, len);
   else {
-    assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not be ephemeral for remote txs
+    assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not
+                                       // be ephemeral for remote txs
     // if (PERFECTREADCACHE_BOOL) res = tx->u.lt->put(coid, data, len);
     res = tx->u.t->put(coid, data, len);
   }
   return res;
 }
 
-int KVput2(KVTransaction *tx, COid coid,  char *data1, int len1, char *data2, int len2){
+int KVput2(KVTransaction *tx, COid coid,  char *data1, int len1, char *data2,
+           int len2){
   int res=-1;
   tx->readonly = 0;
-  KVLOG("Tx %p cid %llx oid %llx bytes %d", tx, (long long)coid.cid, (long long)coid.oid, len1+len2);
+  KVLOG("Tx %p cid %llx oid %llx bytes %d", tx, (long long)coid.cid,
+        (long long)coid.oid, len1+len2);
 
   if (tx->type==0)
     res = tx->u.lt->put2(coid,data1,len1,data2,len2);
   else {
-    assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not be ephemeral for remote txs
-    // if (PERFECTREADCACHE_BOOL) res = tx->u.lt->put2(coid,data1,len1,data2,len2);
+    assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not
+                                                // be ephemeral for remote txs
+    // if (PERFECTREADCACHE_BOOL)
+    //   res = tx->u.lt->put2(coid,data1,len1,data2,len2);
     res = tx->u.t->put2(coid,data1,len1,data2,len2);
   }
   return res;
 }
 
-int KVput3(KVTransaction *tx, COid coid,  char *data1, int len1, char *data2, int len2, char *data3, int len3){
+int KVput3(KVTransaction *tx, COid coid,  char *data1, int len1, char *data2,
+           int len2, char *data3, int len3){
   int res=-1;
   tx->readonly = 0;
-  KVLOG("Tx %p cid %llx oid %llx bytes %d", tx, (long long)coid.cid, (long long)coid.oid, len1+len2+len3);
+  KVLOG("Tx %p cid %llx oid %llx bytes %d", tx, (long long)coid.cid,
+        (long long)coid.oid, len1+len2+len3);
 
   if (tx->type==0)
     res = tx->u.lt->put3(coid,data1,len1,data2,len2,data3,len3);
   else {
-    assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not be ephemeral for remote txs
-    // if (PERFECTREADCACHE_BOOL) res = tx->u.lt->put3(coid,data1,len1,data2,len2,data3,len3);
+    assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not
+                                           // be ephemeral for remote txs
+    // if (PERFECTREADCACHE_BOOL)
+    //   res = tx->u.lt->put3(coid,data1,len1,data2,len2,data3,len3);
     res = tx->u.t->put3(coid,data1,len1,data2,len2,data3,len3);
   }
   return res;
@@ -295,44 +333,52 @@ int KVput3(KVTransaction *tx, COid coid,  char *data1, int len1, char *data2, in
 ////   0 if ok
 ////  -99 if value is not a supervalue
 ////  <0 for other errors
-int KVreadSuperValue(KVTransaction *tx, COid coid, Ptr<Valbuf> &buf, ListCell *cell,
-                     GKeyInfo *ki){
+int KVreadSuperValue(KVTransaction *tx, COid coid, Ptr<Valbuf> &buf,
+                     ListCell *cell, GKeyInfo *ki){
   int res=-1;
   if (tx->type==0)
     res =  tx->u.lt->vsuperget(coid, buf, cell, ki);
   else {
-    assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not be ephemeral for remote txs
+    assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not
+                                                 // be ephemeral for remote txs
     res = tx->u.t->vsuperget(coid, buf, cell, ki);
   }
   if (res) buf=0;
 
-  KVLOG("Tx %p cid %llx oid %llx nattrs %d ncells %d", tx, (long long)coid.cid, (long long)coid.oid, buf->u.raw->Nattrs, buf->u.raw->Ncells);
+  KVLOG("Tx %p cid %llx oid %llx nattrs %d ncells %d", tx,
+        (long long)coid.cid, (long long)coid.oid, buf->u.raw->Nattrs,
+        buf->u.raw->Ncells);
   return res;
 }
 
 int KVwriteSuperValue(KVTransaction *tx, COid coid, SuperValue *sv){
   tx->readonly = 0;
-  KVLOG("Tx %p cid %llx oid %llx nattrs %d ncells %d", tx, (long long)coid.cid, (long long)coid.oid, sv->Nattrs, sv->Ncells);
-  assert(sv->CellType == 0 || sv->Ncells == 0 || sv->pki); // to write non-int cells, must provide pKeyInfo,
+  KVLOG("Tx %p cid %llx oid %llx nattrs %d ncells %d", tx,
+        (long long)coid.cid, (long long)coid.oid, sv->Nattrs, sv->Ncells);
+  assert(sv->CellType == 0 || sv->Ncells == 0 || sv->pki); // to write non-int
+                                             // cells, must provide pKeyInfo,
 
   if (tx->type==0)
     return tx->u.lt->writeSuperValue(coid, sv);
   else {
-    assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not be ephemeral for remote txs
+    assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not
+                                                // be ephemeral for remote txs
     return tx->u.t->writeSuperValue(coid, sv);
   }
 }
 
 #if DTREE_SPLIT_LOCATION != 1
-int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell, GKeyInfo *ki, int flags){
+int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell, GKeyInfo *ki,
+              int flags){
 #else
-int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell, GKeyInfo *ki, int flags, int *ncells, int *size){
+int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell, GKeyInfo *ki,
+              int flags, int *ncells, int *size){
 #endif
   
   int res=-1;
   tx->readonly = 0;
-  KVLOG("Tx %p cid %llx oid %llx flags %d", tx, (long long)coid.cid, (long long)coid.oid, flags);
-  //printf("r%03x", (short)tx & 0xfff);
+  KVLOG("Tx %p cid %llx oid %llx flags %d", tx, (long long)coid.cid,
+        (long long)coid.oid, flags);
 
   if (tx->type==0)
 #if DTREE_SPLIT_LOCATION != 1
@@ -341,8 +387,10 @@ int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell, GKeyInfo *ki, int fl
     res = tx->u.lt->listAdd(coid, cell, ki, flags, ncells, size);
 #endif  
   else {
-    assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not be ephemeral for remote txs
-    // if (PERFECTREADCACHE_BOOL) res = tx->u.lt->listAdd(coid, cell, ki, flags);
+    assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not
+                                                // be ephemeral for remote txs
+    // if (PERFECTREADCACHE_BOOL)
+    //   res = tx->u.lt->listAdd(coid, cell, ki, flags);
 #if DTREE_SPLIT_LOCATION != 1
     res = tx->u.t->listAdd(coid, cell, ki, flags);
 #else
@@ -353,21 +401,26 @@ int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell, GKeyInfo *ki, int fl
 }
 
 // deletes a range of cells
-// intervalType indicates how the interval is to be treated. The possible values are
+// intervalType indicates how the interval is to be treated. The possible
+// values are
 //     0=(cell1,cell2)   1=(cell1,cell2]   2=(cell1,inf)
 //     3=[cell1,cell2)   4=[cell1,cell2]   5=[cell1,inf)
 //     6=(-inf,cell2)    7=(-inf,cell2]    8=(-inf,inf)
 // where inf is infinity
-int KVlistdelrange(KVTransaction *tx, COid coid, u8 intervalType, ListCell *cell1, ListCell *cell2, GKeyInfo *ki){
+int KVlistdelrange(KVTransaction *tx, COid coid, u8 intervalType,
+                   ListCell *cell1, ListCell *cell2, GKeyInfo *ki){
   int res=-1;
   tx->readonly = 0;
-  KVLOG("Tx %p cid %llx oid %llx", tx, (long long)coid.cid, (long long)coid.oid);
+  KVLOG("Tx %p cid %llx oid %llx", tx, (long long)coid.cid,
+        (long long)coid.oid);
 
   if (tx->type==0)
     res = tx->u.lt->listDelRange(coid, intervalType, cell1, cell2, ki);
   else {
-    assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not be ephemeral for remote txs
-    // if (PERFECTREADCACHE_BOOL) res = tx->u.lt->listDelRange(coid, intervalType, cell1, cell2, ki);
+    assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not
+                                                 // be ephemeral for remote txs
+    // if (PERFECTREADCACHE_BOOL)
+    //   res = tx->u.lt->listDelRange(coid, intervalType, cell1, cell2, ki);
     res = tx->u.t->listDelRange(coid, intervalType, cell1, cell2, ki);
   }
   return res;
@@ -376,13 +429,16 @@ int KVlistdelrange(KVTransaction *tx, COid coid, u8 intervalType, ListCell *cell
 int KVattrset(KVTransaction *tx, COid coid, u32 attrid, u64 attrval){
   int res=-1;
   tx->readonly = 0;
-  KVLOG("Tx %p cid %llx oid %llx attrid %d attrval %llx", tx, (long long)coid.cid, (long long)coid.oid, attrid, (long long)attrval);
+  KVLOG("Tx %p cid %llx oid %llx attrid %d attrval %llx", tx,
+        (long long)coid.cid, (long long)coid.oid, attrid, (long long)attrval);
 
   if (tx->type==0)
     res = tx->u.lt->attrSet(coid, attrid, attrval);
   else {
-    assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not be ephemeral for remote txs
-    // if (PERFECTREADCACHE_BOOL) res = tx->u.lt->attrSet(coid, attrid, attrval);
+    assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not
+                                                 // be ephemeral for remote txs
+    // if (PERFECTREADCACHE_BOOL)
+    //   res = tx->u.lt->attrSet(coid, attrid, attrval);
     res = tx->u.t->attrSet(coid, attrid, attrval);
   }
   return res;

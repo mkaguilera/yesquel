@@ -71,7 +71,8 @@ void SuperValue::copy(const SuperValue& c){
 // Insert a new cell at position pos.
 // pos must be between 0 and Ncells. If pos==Ncells, insert at the end.
 // After method is done, Cells[pos] is the new inserted cell
-// Caller should fix CellsSize after setting Cells[pos] (eg, CellsSize += Cells[pos].size())
+// Caller should fix CellsSize after setting Cells[pos]
+// (eg, CellsSize += Cells[pos].size())
 void SuperValue::InsertCell(int pos){
   ListCell *newcells;
   assert(0 <= pos && pos <= Ncells);
@@ -93,7 +94,8 @@ void SuperValue::DeleteCell(int pos){
   --Ncells;
 }
 
-// Delete cells in positions startpos..endpos-1 (a total of endpos-startpos cells).
+// Delete cells in positions startpos..endpos-1 (a total of endpos-startpos
+// cells).
 // startpos must be between 0 and Ncells-1
 // endpos must be between startpos and Ncells
 void SuperValue::DeleteCellRange(int startpos, int endpos){
@@ -106,7 +108,8 @@ void SuperValue::DeleteCellRange(int startpos, int endpos){
   }
   memmove(Cells+startpos, Cells+endpos, (Ncells-endpos)*sizeof(ListCell));
   // zero out tail so desstructor won't try to delete pkey
-  memset(Cells+(Ncells-(endpos-startpos)), 0, (endpos-startpos)*sizeof(ListCell)); 
+  memset(Cells+(Ncells-(endpos-startpos)), 0,
+         (endpos-startpos)*sizeof(ListCell)); 
   Ncells -= (endpos-startpos);
 }
 

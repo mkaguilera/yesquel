@@ -59,14 +59,103 @@
 #include "pendingtx.h"
 #include "logmem.h"
 
-TxWriteSVItem::TxWriteSVItem(const TxWriteSVItem &r) 
-  : cells(r.cells,0)
+TxListItem::~TxListItem(){
+}
+
+// This is a virtual method, implemented manually.
+// We do this to decrease the size of a TxListItem
+void TxListItem::printShort(COid expectedcoid){
+  if (COid::cmp(coid,expectedcoid) != 0) 
+    printf("*BADCOID*");
+  switch(type){
+  case 0: // listadd
+    dynamic_cast<TxListAddItem*>(this)->printShort(expectedcoid);
+    break;
+  case 1: // listdelrange
+    dynamic_cast<TxListDelRangeItem*>(this)->printShort(expectedcoid);
+    break;
+  case 2: // write item
+    dynamic_cast<TxWriteItem*>(this)->printShort(expectedcoid);
+    break;
+  case 3: // write sv items
+    dynamic_cast<TxWriteSVItem*>(this)->printShort(expectedcoid);
+    break;
+  case 4: // setattr
+    dynamic_cast<TxSetAttrItem*>(this)->printShort(expectedcoid);
+    break;
+  case 5: // read item
+    dynamic_cast<TxReadItem*>(this)->printShort(expectedcoid);
+    break;
+  default:
+    printf("*BADTYPE*\n");
+    break;
+  }
+}
+
+// Apply an item to a TxWriteSVItem. cancapture indicates whether item
+// can be captured by this function (meaning the function will own it).
+// Returns true if item was captured and so it should not be deleted
+// afterwards, false otherwise. Always returns false if cancapture==false
+// This is a virtual method, implemented manually.
+// We do this to decrease the size of a TxListItem
+bool TxListItem::applyItemToTucoid(Ptr<TxUpdateCoid> tucoid, bool cancapture){
+  switch(type){
+  case 0: // listadd
+    return dynamic_cast<TxListAddItem*>(this)->applyItemToTucoid(tucoid,
+                                                                 cancapture);
+  case 1: // listdelrange
+    return dynamic_cast<TxListDelRangeItem*>(this)->applyItemToTucoid(tucoid,
+                                                                 cancapture);
+  case 2: // write item
+    return dynamic_cast<TxWriteItem*>(this)->applyItemToTucoid(tucoid,
+                                                               cancapture);
+  case 3: // write sv items
+    return dynamic_cast<TxWriteSVItem*>(this)->applyItemToTucoid(tucoid,
+                                                                 cancapture);
+  case 4: // setattr
+    return dynamic_cast<TxSetAttrItem*>(this)->applyItemToTucoid(tucoid,
+                                                                 cancapture);
+  case 5: // read item
+    return dynamic_cast<TxReadItem*>(this)->applyItemToTucoid(tucoid,
+                                                              cancapture);
+  default:
+    assert(0);
+  }
+  return false;
+}
+
+TxWriteItem::TxWriteItem(const TxWriteItem &r) :
+  TxListItem(r.coid, 2, r.level)
+{
+  len = r.len;
+  buf = (char*) malloc(len);
+  memcpy(buf, r.buf, len);
+  rpcrequest = 0;
+  alloctype = 1;
+}
+
+void TxWriteItem::printShort(COid coidtomatch){
+  putchar('W');
+}
+
+bool TxWriteItem::applyItemToTucoid(Ptr<TxUpdateCoid> tucoid, bool cancapture){
+  tucoid->clearUpdates();
+  if (cancapture){ // capture it
+    tucoid->Writevalue = this;
+    return true;
+  } else { // make a copy of it
+    tucoid->Writevalue = new TxWriteItem(*this);
+    return false;
+  }
+}
+
+TxWriteSVItem::TxWriteSVItem(const TxWriteSVItem &r) :
+  TxListItem(r.coid, 3, r.level),
+  cells(r.cells, 0)
 {
   pki = CloneGKeyInfo(r.pki);
-  coid = r.coid;
   nattrs = r.nattrs;
   celltype = r.celltype;
-  //ncelloids = r.ncelloids;
   attrs = new u64[nattrs];
   memcpy(attrs, r.attrs, nattrs * sizeof(u64));
   ncelloids = lencelloids = 0;
@@ -74,24 +163,36 @@ TxWriteSVItem::TxWriteSVItem(const TxWriteSVItem &r)
 }
 
 TxWriteSVItem::~TxWriteSVItem(){
+  clear(false);
+}
+
+void TxWriteSVItem::clear(bool reset){
   if (attrs) delete [] attrs;
   cells.clear(ListCellPlus::del,0);
   if (pki) free(pki);
   if (celloids) delete [] celloids;
+  if (reset){
+    nattrs = 0;
+    attrs = 0;
+    pki = 0;
+    ncelloids = lencelloids = 0;
+    celloids = 0;
+  }
 }
 
-void TxWriteSVItem::SetPkiSticky(GKeyInfo *k){ 
+void TxWriteSVItem::setPkiSticky(GKeyInfo *k){ 
   if (!pki) pki = CloneGKeyInfo(k); 
 }
 
-char *TxWriteSVItem::GetCelloids(int &retncelloids, int &retlencelloids){
+char *TxWriteSVItem::getCelloids(int &retncelloids, int &retlencelloids){
   if (!celloids) celloids = ListCellsToCelloids(cells, ncelloids, lencelloids);
   retncelloids = ncelloids;
   retlencelloids = lencelloids;
   return celloids;
 }
 
-void TxWriteSVItem::convertOneIntervalTypeToTwoIntervalType(int intervaltype1, int &intervaltype2start, int &intervaltype2end){
+void TxWriteSVItem::convertOneIntervalTypeToTwoIntervalType(int intervaltype1,
+     int &intervaltype2start, int &intervaltype2end){
   if (intervaltype1 < 3) intervaltype2start = 0; // open left interval
   else if (intervaltype1 < 6) intervaltype2start = 1; // closed left interval
   else intervaltype2start = 2; // infinite left interval
@@ -104,66 +205,234 @@ void TxWriteSVItem::convertOneIntervalTypeToTwoIntervalType(int intervaltype1, i
 }
 
 void TxWriteSVItem::printShort(COid coidtomatch){
-  if (COid::cmp(coid, coidtomatch) != 0){ 
-    printf("*BADCOID*"); 
-  }
   printf("celltype %d", celltype);
   printf(" attrs ");
   for (int i=0; i < nattrs; ++i) putchar(attrs[i] ? 'S' : '0');
   printf(" ki "); pki->printShort();
   printf(" cells ");
   SkipListNodeBK<ListCellPlus,int> *cellptr;
-  for (cellptr = cells.getFirst(); cellptr != cells.getLast(); cellptr = cells.getNext(cellptr))
+  for (cellptr = cells.getFirst(); cellptr != cells.getLast();
+       cellptr = cells.getNext(cellptr))
     cellptr->key->printShort();
 }
 
-
-
-TxListItem::~TxListItem(){
+bool TxWriteSVItem::applyItemToTucoid(Ptr<TxUpdateCoid> tucoid,
+                                      bool cancapture){
+  tucoid->clearUpdates(false);
+  if (cancapture){ // capture it
+    tucoid->WriteSV = this;
+    return true;
+  } else { // make copy of it
+    tucoid->WriteSV = new TxWriteSVItem(*this);
+    return false;
+  }
 }
 
-void TxListItem::printShort(COid expectedcoid){
-  if (COid::cmp(coid,expectedcoid) != 0) 
-    printf("*BADCOID*");
-  if (type == 0){ // add item
-    TxListAddItem *tlai = dynamic_cast<TxListAddItem*>(this);
-    putchar('+');
-    tlai->item.printShort(false,false);
-  } else if (type == 1){
-    TxListDelRangeItem *tldr = dynamic_cast<TxListDelRangeItem*>(this);
-    putchar('-');
-    switch(tldr->intervalType/3){
-    case 0: putchar('('); break;
-    case 1: putchar('['); break;
-    case 2: putchar('{'); break;
-    default: putchar('#'); break; // something is wrong
-    }
-    tldr->itemstart.printShort(false,false);
-    putchar(',');
-    tldr->itemend.printShort(false,false);
-    switch(tldr->intervalType%3){
-    case 0: putchar(')'); break;
-    case 1: putchar(']'); break;
-    case 2: putchar('}'); break;
-    default: putchar('#'); break; // something is wrong
-    }
-  } else printf("type %d?", type);
+TxListAddItem::TxListAddItem(const TxListAddItem &r) :
+      TxListItem(r.coid, 0, r.level),
+      item(r.item, *r.item.ppki.ki),
+      pki(r.pki ? CloneGKeyInfo(r.pki) : 0)
+{
 }
 
 TxListAddItem::~TxListAddItem()
 {
   item.Free();
+  if (pki) free(pki);
+}
+
+void TxListAddItem::printShort(COid expectedcoid){
+  assert(type == 0); // add item
+  putchar('+');
+  item.printShort(false,false);
+}
+
+bool TxListAddItem::applyItemToTucoid(Ptr<TxUpdateCoid> tucoid,
+                                      bool cancapture){
+  TxWriteSVItem *twsvi;
+  twsvi = tucoid->WriteSV;
+  if (twsvi){ // if there is already a supervalue, change it
+    if (pki) twsvi->setPkiSticky(pki);
+    twsvi->cells.insertOrReplace(new ListCellPlus(item, pki),
+                                 0, ListCellPlus::del, 0);
+    return false;
+  }
+  else { // otherwise add a listadd item to transaction
+    if (tucoid->Writevalue){ assert(0); return false; }
+    if (cancapture){
+      tucoid->Litems.pushTail(this);
+      return true;
+    } else {
+      tucoid->Litems.pushTail(new TxListAddItem(*this));
+      return false;
+    }
+  }
+}
+
+TxListDelRangeItem::TxListDelRangeItem(const TxListDelRangeItem &r) :
+      TxListItem(r.coid, 1, r.level),
+      itemstart(r.itemstart, *r.itemstart.ppki.ki),
+      itemend(r.itemend, *r.itemend.ppki.ki),
+      pki(r.pki ? CloneGKeyInfo(r.pki) : 0)
+      
+{
+  intervalType = r.intervalType;
 }
 
 TxListDelRangeItem::~TxListDelRangeItem(){
   itemstart.Free();
   itemend.Free();
+  if (pki) free(pki);
 }
 
-// int nticoids = 0;
+void TxListDelRangeItem::printShort(COid expectedcoid){
+  assert(type==1);
+  TxListDelRangeItem *tldr = dynamic_cast<TxListDelRangeItem*>(this);
+  putchar('-');
+  switch(tldr->intervalType/3){
+  case 0: putchar('('); break;
+  case 1: putchar('['); break;
+  case 2: putchar('{'); break;
+  default: putchar('#'); break; // something is wrong
+  }
+  tldr->itemstart.printShort(false,false);
+  putchar(',');
+  tldr->itemend.printShort(false,false);
+  switch(tldr->intervalType%3){
+  case 0: putchar(')'); break;
+  case 1: putchar(']'); break;
+  case 2: putchar('}'); break;
+  default: putchar('#'); break; // something is wrong
+  }
+}
 
-void TxInfoCoid::CommonConstructor(){
-  //++nticoids; 
+bool TxListDelRangeItem::applyItemToTucoid(Ptr<TxUpdateCoid> tucoid,
+                                           bool cancapture){
+  TxWriteSVItem *twsvi;
+  twsvi = tucoid->WriteSV;
+  if (twsvi){ // if there is already a supervalue, change it
+    if (pki) twsvi->setPkiSticky(pki);
+
+    int type1, type2;
+    ListCellPlus rangestart(itemstart, pki);
+    ListCellPlus rangeend(itemend, pki);
+    TxWriteSVItem::convertOneIntervalTypeToTwoIntervalType(intervalType,
+                                                           type1, type2);
+    twsvi->cells.delRange(&rangestart, type1, &rangeend, type2,
+                          ListCellPlus::del, 0);
+    return false;
+  } else { // otherwise add a delrange item to transaction
+    if (cancapture){
+      tucoid->Litems.pushTail(this);
+      return true;
+    } else {
+      tucoid->Litems.pushTail(new TxListDelRangeItem(*this));
+      return false;
+    }
+  }
+}
+
+void TxSetAttrItem::printShort(COid expectedcoid){
+  putchar('S');
+}
+
+bool TxSetAttrItem::applyItemToTucoid(Ptr<TxUpdateCoid> tucoid,
+                                      bool cancapture){
+  TxWriteSVItem *twsvi;
+  if (tucoid->Writevalue){ assert(0); return false; }
+  assert(attrid < GAIA_MAX_ATTRS);
+  twsvi = tucoid->WriteSV;
+  if (twsvi) // if there is already a supervalue, change it
+    twsvi->attrs[attrid] = attrvalue;
+  else {
+    tucoid->SetAttrs[attrid]=1; // mark attribute as set
+    tucoid->Attrs[attrid] = attrvalue; // record attr value
+  }
+  return false;
+}
+
+void TxReadItem::printShort(COid expectedcoid){
+  putchar('R');
+}
+
+bool TxReadItem::applyItemToTucoid(Ptr<TxUpdateCoid> tucoid, bool cancapture){
+  return false;
+}
+
+// remove any items with > level. Returns non-0
+// if items became empty, 0 otherwise
+int TxRawCoid::abortLevel(int level){
+  TxListItem *curr, *next;
+  for (curr = items.getFirst(); curr != items.getLast();
+       curr = next){
+    next = items.getNext(curr);
+    if (curr->level > level){
+      remove(curr);
+      delete curr;
+    }
+  }
+  return items.getNitems() == 0;
+}
+
+// change any items with > level to level
+void TxRawCoid::releaseLevel(int level){
+  for (TxListItem *curr = items.getFirst(); curr != items.getLast();
+       curr = items.getNext(curr)){
+    if (curr->level > level) curr->level = level;
+  }
+}
+
+// change TxRawCoid to TxUpdateCoid. This is used when transaction
+// commits to store transaction updates in memory log
+Ptr<TxUpdateCoid> TxRawCoid::getTucoid(const COid &coid){
+  TxListItem *lastwrite = 0;
+  TxListItem *curr, *next;
+  
+  if (cachedTucoid.isset()) return cachedTucoid; // return cached version
+  
+  // scan first to find last write or writeSV, if any
+  for (curr = items.getFirst(); curr != items.getLast();
+       curr = items.getNext(curr)){
+    if (curr->type == 2 || curr->type==3) lastwrite=curr;
+  }
+  // check last write or writeSV
+  if (lastwrite){
+    if (lastwrite->type == 2){ // write
+      // make sure there is nothing else
+      assert(items.getNext(lastwrite) == items.getLast());
+      // produce a tucoid with write and return it
+      TxWriteItem *twi = dynamic_cast<TxWriteItem*>(lastwrite); assert(twi);
+      remove(lastwrite); // remove since items in list
+                               // will be deleted
+      cachedTucoid = new TxUpdateCoid(twi);
+      return cachedTucoid;
+    }
+    // writeSV
+    assert(lastwrite->type == 3);
+    curr = items.getNext(lastwrite); // start after write
+    remove(lastwrite); // remove since items in list will be deleted
+    TxWriteSVItem *twsvi = dynamic_cast<TxWriteSVItem*>(lastwrite);
+    cachedTucoid = new TxUpdateCoid(twsvi);
+  } else {
+    curr = items.getFirst(); // start at first item
+    cachedTucoid = new TxUpdateCoid(); // start with empty tucoid
+  }
+  // now, we have a tucoid to start with, and the rest of items to
+  // apply to it
+  bool itemcaptured;
+  while (curr != items.getLast()){
+    next = items.getNext(curr);
+    remove(curr); // remove from list
+    itemcaptured = curr->applyItemToTucoid(cachedTucoid, true);
+    if (!itemcaptured){
+      items.pushHead(curr); // put it back at beginning
+    }
+    curr = next;
+  }
+  return cachedTucoid;
+}
+
+void TxUpdateCoid::commonConstructor(){
   refcount = 0;
   SLpopulated = false;
   memset(SetAttrs, 0, sizeof(u8)*GAIA_MAX_ATTRS);
@@ -173,23 +442,22 @@ void TxInfoCoid::CommonConstructor(){
   pendingentriesSleim = 0;
 }
 
-TxInfoCoid::TxInfoCoid(){
-  CommonConstructor();
+TxUpdateCoid::TxUpdateCoid(){
+  commonConstructor();
 }
 
-TxInfoCoid::TxInfoCoid(TxWriteItem *twi){
-  CommonConstructor();
+TxUpdateCoid::TxUpdateCoid(TxWriteItem *twi){
+  commonConstructor();
   Writevalue = twi;
 }
 
-TxInfoCoid::TxInfoCoid(TxWriteSVItem *twsvi){
-  CommonConstructor();
+TxUpdateCoid::TxUpdateCoid(TxWriteSVItem *twsvi){
+  commonConstructor();
   WriteSV = twsvi;
 }
 
-TxInfoCoid::~TxInfoCoid(){
-  //--nticoids;
-  ClearUpdates(true);
+TxUpdateCoid::~TxUpdateCoid(){
+  clearUpdates(true);
 #ifdef GAIA_DESTROY_MARK
   memset(SetAttrs, 0xdd, sizeof(u8)*GAIA_MAX_ATTRS);
   memset(Attrs, 0xdd, sizeof(u64)*GAIA_MAX_ATTRS);
@@ -198,12 +466,12 @@ TxInfoCoid::~TxInfoCoid(){
 #endif
 }
 
-void TxInfoCoid::PopulateSLAddItems(){
+void TxUpdateCoid::populateSLAddItems(){
   if (SLpopulated) return;
   SLpopulated = true;
   // put each TxListAddItem's ListCellPlus into SLAddItems
-  for (list<TxListItem*>::iterator it = Litems.begin(); it != Litems.end(); ++it){
-    TxListItem *tli = *it;
+  for (TxListItem *tli = Litems.getFirst(); tli != Litems.getLast();
+       tli = Litems.getNext(tli)){
     if (tli->type == 0){ // add item
       TxListAddItem *tlai = dynamic_cast<TxListAddItem*>(tli);
       SLAddItems.insert(&tlai->item, 0);
@@ -211,58 +479,67 @@ void TxInfoCoid::PopulateSLAddItems(){
   }
 }
 
-void TxInfoCoid::ClearUpdates(bool justfree){
+void TxUpdateCoid::clearUpdates(bool justfree){
   if (!justfree){
     memset(SetAttrs, 0, sizeof(u8)*GAIA_MAX_ATTRS);
     memset(Attrs, 0, sizeof(u64)*GAIA_MAX_ATTRS);
   }
   if (Writevalue){ delete Writevalue; Writevalue=0; }
   if (WriteSV){ delete WriteSV; WriteSV=0; }
-  list<TxListItem*>::iterator it, itnext;
-  it = Litems.begin();
-  while (it != Litems.end()){
-    itnext = it; ++itnext;
-    delete *it;
-    Litems.erase(it);
-    it = itnext;
+  TxListItem *curr, *next;
+  curr = Litems.getFirst();
+  while (curr != Litems.getLast()){
+    next = Litems.getNext(curr);
+    Litems.remove(curr);
+    delete curr;
+    curr = next;
   }
 }
 
-// Returns whether this TxInfoCoid has a conflict with another TxInfoCoid of the same coid.
-// This method should be called only after no more modifications will be done to
-// this or the given TxInfoCoid (in other words, both TxInfoCoid objects have reached
-// their final state). This is because this function will precompute data once and
-// will reuse the precomputed data in subsequent calls.
+// Returns whether this TxUpdateCoid has a conflict with another
+// TxUpdateCoid of the same coid.
+// This method should be called only after no more modifications will be
+// done to this or the given TxUpdateCoid (in other words, both TxUpdateCoid
+// objects have reached their final state). This is because this function
+// will precompute data once and will reuse the precomputed data in
+// subsequent calls. Precomputed data is stored in SLAddItems.
 #ifdef GAIA_NONCOMMUTATIVE
-bool TxInfoCoid::hasConflicts(Ptr<TxInfoCoid> ticoid, SingleLogEntryInMemory *sleim){
+bool TxUpdateCoid::hasConflicts(Ptr<TxUpdateCoid> tucoid,
+                                SingleLogEntryInMemory *sleim){
   return true; // two updates on same coid always conflict
 }
 #else
-bool TxInfoCoid::hasConflicts(Ptr<TxInfoCoid> ticoid, SingleLogEntryInMemory *sleim){
+bool TxUpdateCoid::hasConflicts(Ptr<TxUpdateCoid> tucoid,
+                                SingleLogEntryInMemory *sleim){
   int i;
   bool hasdelete1, hasdelete2;
-  if (Writevalue || WriteSV || ticoid->Writevalue || ticoid->WriteSV){
-    dprintf(2, "  vote no because %llx wrote a value or supervalue", (long long)sleim->ts.getd1());
+  if (Writevalue || WriteSV || tucoid->Writevalue || tucoid->WriteSV){
+    dprintf(2, "  vote no because %llx wrote a value or supervalue",
+            (long long)sleim->ts.getd1());
     return true; // write the value or supervalue
   }
   for (i=0; i < GAIA_MAX_ATTRS; ++i)
-    if (SetAttrs[i] && ticoid->SetAttrs[i]){
-      dprintf(2, "  vote no because %llx set the same attributes",(long long)sleim->ts.getd1());
+    if (SetAttrs[i] && tucoid->SetAttrs[i]){
+      dprintf(2, "  vote no because %llx set the same attributes",
+              (long long)sleim->ts.getd1());
       return true; // modify the same attributes
     }
   // now check Litems
-  if (Litems.size() == 0 || ticoid->Litems.size() == 0) return false; // no Litems
+  if (Litems.getNitems() == 0 || tucoid->Litems.getNitems() == 0)
+    return false; // no Litems
 
-  if (Litems.size() == 1 && ticoid->Litems.size() == 1){ // special case of 1 Litem each
-    TxListItem *left = *Litems.begin();
-    TxListItem *right = *ticoid->Litems.begin();
+  if (Litems.getNitems() == 1 && tucoid->Litems.getNitems() == 1){
+    // special case of 1 Litem each
+    TxListItem *left = Litems.getFirst();
+    TxListItem *right = tucoid->Litems.getFirst();
     if (left->type == 0){ // left is add item
       TxListAddItem *left2 = dynamic_cast<TxListAddItem *>(left);
       if (right->type == 0){ // right is add item
         TxListAddItem *right2 = dynamic_cast<TxListAddItem *>(right);
         int cmpres = ListCellPlus::cmp(left2->item, right2->item);
         if (cmpres==0){
-          dprintf(2, "  vote no because %llx added the same item", (long long)sleim->ts.getd1());
+          dprintf(2, "  vote no because %llx added the same item",
+                  (long long)sleim->ts.getd1());
         }
         return cmpres==0; // conflict iff they are the same item
       } else { // right is delrange item
@@ -279,12 +556,16 @@ bool TxInfoCoid::hasConflicts(Ptr<TxInfoCoid> ticoid, SingleLogEntryInMemory *sl
           test1 = ListCellPlus::cmp(right2->itemstart, left2->item) <= 0;
         else test1 = true;
         switch(right2->intervalType % 3){
-        case 0: test2 = ListCellPlus::cmp(left2->item, right2->itemend) < 0; break;
-        case 1: test2 = ListCellPlus::cmp(left2->item, right2->itemend) <= 0; break;
-        case 2: test2 = true; break;
+        case 0: test2 = ListCellPlus::cmp(left2->item, right2->itemend) < 0;
+                break;
+        case 1: test2 = ListCellPlus::cmp(left2->item, right2->itemend) <= 0;
+                break;
+        case 2: test2 = true;
+                break;
         }
         if (test1 && test2){
-          dprintf(2, "  vote no because we are deleting, %llx added", (long long)sleim->ts.getd1());
+          dprintf(2, "  vote no because we are deleting, %llx added",
+                  (long long)sleim->ts.getd1());
         }
         return test1 && test2; // conflict iff both tests are met
       }
@@ -300,17 +581,22 @@ bool TxInfoCoid::hasConflicts(Ptr<TxInfoCoid> ticoid, SingleLogEntryInMemory *sl
           test1 = ListCellPlus::cmp(left2->itemstart, right2->item) <= 0;
         else test1 = true;
         switch(left2->intervalType % 3){
-        case 0: test2 = ListCellPlus::cmp(right2->item, left2->itemend) < 0; break;
-        case 1: test2 = ListCellPlus::cmp(right2->item, left2->itemend) <= 0; break;
-        case 2: test2 = true; break;
+        case 0: test2 = ListCellPlus::cmp(right2->item, left2->itemend) < 0;
+                break;
+        case 1: test2 = ListCellPlus::cmp(right2->item, left2->itemend) <= 0;
+                break;
+        case 2: test2 = true;
+                break;
         }
         if (test1 && test2){
-          dprintf(2, "  vote no because we are adding, %llx deleted", (long long)sleim->ts.getd1());
+          dprintf(2, "  vote no because we are adding, %llx deleted",
+                  (long long)sleim->ts.getd1());
         }
         return test1 && test2; // conflict iff both tests are met
       } else { // right is delrange item
 #ifndef DISABLE_DELRANGE_DELRANGE_CONFLICTS
-        dprintf(2, "  vote no because we are deleting, %llx deleted", (long long)sleim->ts.getd1());
+        dprintf(2, "  vote no because we are deleting, %llx deleted",
+                (long long)sleim->ts.getd1());
         return true; // delrange always conflicts with delrange
 #else
         return false;
@@ -319,14 +605,16 @@ bool TxInfoCoid::hasConflicts(Ptr<TxInfoCoid> ticoid, SingleLogEntryInMemory *sl
     }
   }
   // one of the lists has length > 1
-  if (!SLpopulated) PopulateSLAddItems();
-  if (!ticoid->SLpopulated) ticoid->PopulateSLAddItems();
+  if (!SLpopulated) populateSLAddItems();
+  if (!tucoid->SLpopulated) tucoid->populateSLAddItems();
 
   // check additem1 vs additem2
   SkipListNodeBK<ListCellPlus,int> *ptr1;
-  for (ptr1 = SLAddItems.getFirst(); ptr1 != SLAddItems.getLast(); ptr1 = SLAddItems.getNext(ptr1)){
-    if (ticoid->SLAddItems.belongs(ptr1->key)){
-      dprintf(2, "  vote no because %llx added the same item", (long long)sleim->ts.getd1());
+  for (ptr1 = SLAddItems.getFirst(); ptr1 != SLAddItems.getLast();
+       ptr1 = SLAddItems.getNext(ptr1)){
+    if (tucoid->SLAddItems.belongs(ptr1->key)){
+      dprintf(2, "  vote no because %llx added the same item",
+              (long long)sleim->ts.getd1());
       return true; // additem in common
     }
   }
@@ -334,35 +622,41 @@ bool TxInfoCoid::hasConflicts(Ptr<TxInfoCoid> ticoid, SingleLogEntryInMemory *sl
   hasdelete1 = hasdelete2 = false;
 
   // check additem1 vs delrangeitem2
-  for (list<TxListItem*>::iterator it2 = ticoid->Litems.begin(); it2 != ticoid->Litems.end(); ++it2){
-    TxListItem *tli2 = *it2;
+  for (TxListItem *tli2 = tucoid->Litems.getFirst();
+       tli2 != tucoid->Litems.getLast();
+       tli2 = tucoid->Litems.getNext(tli2)){
     if (tli2->type == 1){ // delrange item
       hasdelete2 = true;
       TxListDelRangeItem *tldr2 = dynamic_cast<TxListDelRangeItem*>(tli2);
-      if (SLAddItems.keyInInterval(&tldr2->itemstart, &tldr2->itemend, tldr2->intervalType)) 
+      if (SLAddItems.keyInInterval(&tldr2->itemstart, &tldr2->itemend,
+                                   tldr2->intervalType)) 
       {
-        dprintf(2, "  vote no because we are deleting, %llx added", (long long)sleim->ts.getd1());
+        dprintf(2, "  vote no because we are deleting, %llx added",
+                (long long)sleim->ts.getd1());
         return true; // some key1 inside delrange interval2
       }
     }
   }
 
   // check delrangeitem1 vs additem2
-  for (list<TxListItem*>::iterator it = Litems.begin(); it != Litems.end(); ++it){
-    TxListItem *tli1 = *it;
+  for (TxListItem *tli1 = Litems.getFirst(); tli1 != Litems.getLast();
+       tli1 = Litems.getNext(tli1)){
     if (tli1->type == 1){ // delrange item
       hasdelete1 = true;
       TxListDelRangeItem *tldr1 = dynamic_cast<TxListDelRangeItem*>(tli1);
-      if (ticoid->SLAddItems.keyInInterval(&tldr1->itemstart, &tldr1->itemend, tldr1->intervalType)) 
+      if (tucoid->SLAddItems.keyInInterval(&tldr1->itemstart, &tldr1->itemend,
+                                           tldr1->intervalType)) 
       {
-        dprintf(2, "  vote no because we are adding, %llx deleted", (long long)sleim->ts.getd1());
+        dprintf(2, "  vote no because we are adding, %llx deleted",
+                (long long)sleim->ts.getd1());
         return true; // some key2 inside delrange interval1
       }
     }
   }
 #ifndef DISABLE_DELRANGE_DELRANGE_CONFLICTS
   if (hasdelete1 && hasdelete2){
-    dprintf(2, "  vote no because we are deleting, %llx deleted", (long long)sleim->ts.getd1());
+    dprintf(2, "  vote no because we are deleting, %llx deleted",
+            (long long)sleim->ts.getd1());
     return true;
   }
 #endif
@@ -371,20 +665,22 @@ bool TxInfoCoid::hasConflicts(Ptr<TxInfoCoid> ticoid, SingleLogEntryInMemory *sl
 }
 #endif
 
-void TxInfoCoid::print(){
+void TxUpdateCoid::print(){
   int additems, delrangeitems;
   printf("Attrs ");
   for (int i=0; i < GAIA_MAX_ATTRS; ++i) putchar(Attrs[i] ? 'S' : '0');
-  printf(" Write %s WriteSV %s", Writevalue ? "yes" : "no", WriteSV ? "yes" : "no");
+  printf(" Write %s WriteSV %s", Writevalue ? "yes" : "no",
+         WriteSV ? "yes" : "no");
   additems = delrangeitems = 0;
-  for (list<TxListItem*>::iterator it=Litems.begin(); it != Litems.end(); ++it){
-    if ((*it)->type==0) ++additems;
+  for (TxListItem *tli = Litems.getFirst(); tli != Litems.getLast();
+       tli = Litems.getNext(tli)){
+    if (tli->type==0) ++additems;
     else ++delrangeitems;
   }
   printf(" #additems %d #delrangeitems %d\n", additems, delrangeitems);
 }
 
-void TxInfoCoid::printdetail(COid coid){ // to check
+void TxUpdateCoid::printdetail(COid coid){ // to check
   bool someattr = false;
   printf("Attrs ");
   for (int i=0; i < GAIA_MAX_ATTRS; ++i)
@@ -404,15 +700,18 @@ void TxInfoCoid::printdetail(COid coid){ // to check
   printf(") WriteSV(");
   if (WriteSV) WriteSV->printShort(coid);
   printf(") ops (");
-  for (list<TxListItem*>::iterator it = Litems.begin(); it != Litems.end(); ++it)
-    (*it)->printShort(coid);
+  for (TxListItem *tli = Litems.getFirst(); tli != Litems.getLast();
+       tli = Litems.getNext(tli)){
+    tli->printShort(coid);
+  }
   printf(") sleim %s", pendingentriesSleim ? "yes" : "no");
 }
 
 
 PendingTx::PendingTx() : cTxList(PENDINGTX_HASHTABLE_SIZE){}
 
-int PendingTx::getInfoLockaux(Tid &tid, Ptr<PendingTxInfo> *pti, int status, SkipList<Tid,Ptr<PendingTxInfo>> *b, u64 parm){
+int PendingTx::getInfoLockaux(Tid &tid, Ptr<PendingTxInfo> *pti, int status,
+                              SkipList<Tid,Ptr<PendingTxInfo>> *b, u64 parm){
   Ptr<PendingTxInfo> *retpti = (Ptr<PendingTxInfo> *) parm; // pti to return
   if (status==0){
     *retpti = *pti; // entry was found, so use it
@@ -420,16 +719,18 @@ int PendingTx::getInfoLockaux(Tid &tid, Ptr<PendingTxInfo> *pti, int status, Ski
   }
   else { // entry not found
     *retpti = new PendingTxInfo; // not found, so create it
-    b->insert(tid, *retpti); // insert into the skiplist of appropriate bucket (passed as parameter)
+    b->insert(tid, *retpti); // insert into the skiplist of appropriate bucket
+                             // (passed as parameter)
     return 1;
   }
 }
 
 // gets info structure for a given tid. If it does not exist, create it.
-// Returns the entry locked in ret. Returns 0 if entry was found, 1 if it was created.
+// Returns the entry locked in ret. Returns 0 if entry was found, 1 if it was
+// created.
 // Note: no longer acquires lock since the new RPC system ensures that the RPC
-//    is always sent to the same thread for a given tid, so there'll never be two
-//    threads trying to manipulate the same tid at once
+//   is always sent to the same thread for a given tid, so there'll never be two
+//   threads trying to manipulate the same tid at once
 int PendingTx::getInfo(Tid &tid, Ptr<PendingTxInfo> &retpti){
   int res;
   res = cTxList.lookupApply(tid, getInfoLockaux, (u64) &retpti);
@@ -438,11 +739,11 @@ int PendingTx::getInfo(Tid &tid, Ptr<PendingTxInfo> &retpti){
 }
 
 // Gets info structure for a given tid.
-// Returns the entry locked in retpti. Returns 0 if entry was found, non-zero if it was not found.
+// Returns the entry locked in retpti. Returns 0 if entry was found, non-zero
+//    if it was not found.
 // If not found, retpti is not changed.
-// Caller must release
-// the entry's lock before calling any PendingTx functions, otherwise
-// a deadlock might occur.
+// Caller must release the entry's lock before calling any PendingTx functions,
+// otherwise a deadlock might occur.
 int PendingTx::getInfoNoCreate(Tid &tid, Ptr<PendingTxInfo> &retpti){
   int res;
   res = cTxList.lookup(tid, retpti);

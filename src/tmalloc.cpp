@@ -117,8 +117,10 @@ FixedAllocator::~FixedAllocator(){
 void *FixedAllocator::alloc(u64 reqsize){
   PadBefore *pb;
 
-  if ((long long)reqsize==-1LL) reqsize = Size; // for bookkeeping purposes only, not really used
-  else if ((long long)reqsize > Size) return 0; // size too large for fixed block
+  if ((long long)reqsize==-1LL) reqsize = Size; // for bookkeeping purposes
+                                                // only, not really used
+  else if ((long long)reqsize > Size) return 0; // size too large for fixed
+                                                // block
   FreeUnits_lock.lock();
   if (FreeUnitsHead->next == FreeUnitsTail) // empty linked list
     grow();
@@ -204,7 +206,8 @@ void FixedAllocatorNolock::grow(int inc){
 
   if (PageAllocFunc){
     buf = (char*) PageAllocFunc(allocsize);
-    if (!buf) buf = (char*) malloc(allocsize); // use malloc if PageAllocFunc fails
+    if (!buf) buf = (char*) malloc(allocsize); // use malloc if PageAllocFunc
+                                               // fails
   }
   else buf = (char*) malloc(allocsize);
   assert(buf);
@@ -222,11 +225,13 @@ void FixedAllocatorNolock::grow(int inc){
   pbprev->next = savenext;
 }
 
-FixedAllocatorNolock::FixedAllocatorNolock(int size, int startpool, int incgrow, u64 tag, unsigned pagesize, void *(*pageallocfunc)(size_t)){
+FixedAllocatorNolock::FixedAllocatorNolock(int size, int startpool,
+   int incgrow, u64 tag, unsigned pagesize, void *(*pageallocfunc)(size_t)){
   assert(size > 0 && startpool >= 0 && incgrow > 0);
 
   // set up initial empty linked list
-  FreeUnitsHead = new(malloc(sizeof(PadBefore))) PadBefore; // not allocated with pageallocfunc since this is likely much smaller than page size
+  FreeUnitsHead = new(malloc(sizeof(PadBefore))) PadBefore; // not allocated
+       // with pageallocfunc since this is likely much smaller than page size
   FreeUnitsTail = new(malloc(sizeof(PadBefore))) PadBefore;
   FreeUnitsHead->next = FreeUnitsTail;
   FreeUnitsTail->next = 0;
@@ -259,8 +264,10 @@ FixedAllocatorNolock::~FixedAllocatorNolock(){
 void *FixedAllocatorNolock::alloc(u64 reqsize){
   PadBefore *pb;
 
-  if ((long long)reqsize==-1LL) reqsize = Size; // for bookkeeping purposes only, not really used
-  else if ((long long)reqsize > Size) return 0; // size too large for fixed block
+  if ((long long)reqsize==-1LL) reqsize = Size; // for bookkeeping purposes
+                                                // only, not really used
+  else if ((long long)reqsize > Size) return 0; // size too large for fixed
+                                                // block
   if (FreeUnitsHead->next == FreeUnitsTail) // empty linked list
     grow();
   pb = FreeUnitsHead->next;
@@ -321,7 +328,8 @@ int VariableAllocatorNolock::ceillog2(size_t n){ // computes ceiling(log2(n))
   return i;
 }
 
-VariableAllocatorNolock::VariableAllocatorNolock(u64 tag, unsigned pagesize, void *(*pageallocfunc)(size_t)){
+VariableAllocatorNolock::VariableAllocatorNolock(u64 tag, unsigned pagesize,
+                                                 void *(*pageallocfunc)(size_t)){
   int i;
   int currsize;
   PageSize = pagesize;
@@ -330,19 +338,26 @@ VariableAllocatorNolock::VariableAllocatorNolock(u64 tag, unsigned pagesize, voi
   currsize = 1 << VARALLOC_FIRSTPOOL;
   for (i=0; i < VARALLOC_NPOOLS; ++i){
     if (i <= 2){ // sizes 32..128
-      new((void*)(FixedPools+i)) FixedAllocatorNolock(currsize, 0, 1024, tag, pagesize, pageallocfunc); // allocate 1024 at a time
+      new((void*)(FixedPools+i)) FixedAllocatorNolock(currsize, 0, 1024, tag,
+                         pagesize, pageallocfunc); // allocate 1024 at a time
     } else if (i <= 5){ // sizes 256..1024
-      new((void*)(FixedPools+i)) FixedAllocatorNolock(currsize, 0, 256, tag, pagesize, pageallocfunc); // allocate 256 at a time
+      new((void*)(FixedPools+i)) FixedAllocatorNolock(currsize, 0, 256, tag,
+                         pagesize, pageallocfunc); // allocate 256 at a time
     } else if (i <= 10){ // sizes 2048..32K
-      new((void*)(FixedPools+i)) FixedAllocatorNolock(currsize, 0, 32, tag, pagesize, pageallocfunc); // allocate 32 at a time
+      new((void*)(FixedPools+i)) FixedAllocatorNolock(currsize, 0, 32, tag,
+                         pagesize, pageallocfunc); // allocate 32 at a time
     } else if (i <= 15){ // size 64K..1M
-      new((void*)(FixedPools+i)) FixedAllocatorNolock(currsize, 0, 16, tag, pagesize, pageallocfunc); // allocate 16 at a time
+      new((void*)(FixedPools+i)) FixedAllocatorNolock(currsize, 0, 16, tag,
+                         pagesize, pageallocfunc); // allocate 16 at a time
     } else if (i <= 20){ // size 2M..32MB
-      new((void*)(FixedPools+i)) FixedAllocatorNolock(currsize, 0, 8, tag, pagesize, pageallocfunc); // allocate 8 at a time
+      new((void*)(FixedPools+i)) FixedAllocatorNolock(currsize, 0, 8, tag,
+                         pagesize, pageallocfunc); // allocate 8 at a time
     } else if (i <= 25){ // size 64MB..1GB
-      new((void*)(FixedPools+i)) FixedAllocatorNolock(currsize, 0, 2, tag, pagesize, pageallocfunc); // allocate 2 at a time
+      new((void*)(FixedPools+i)) FixedAllocatorNolock(currsize, 0, 2, tag,
+                         pagesize, pageallocfunc); // allocate 2 at a time
     } else { // size 2GB
-      new((void*)(FixedPools+i)) FixedAllocatorNolock(currsize, 0, 1, tag, pagesize, pageallocfunc); // allocate 1 at a time
+      new((void*)(FixedPools+i)) FixedAllocatorNolock(currsize, 0, 1, tag,
+                         pagesize, pageallocfunc); // allocate 1 at a time
     }
     currsize <<= 1;
   }
@@ -366,7 +381,8 @@ void *VariableAllocatorNolock::alloc(size_t size){
 
 void VariableAllocatorNolock::free(void *ptr){
   size_t size = getSize(ptr);
-  assert((long long)size != -1LL); // if size==-1LL then ptr has been freed already
+  assert((long long)size != -1LL); // if size==-1LL then ptr has been
+                                   // freed already
   int pool = ceillog2(size);
   pool -= VARALLOC_FIRSTPOOL;
   if (pool < 0) pool = 0;
@@ -380,7 +396,8 @@ u64 VariableAllocatorNolock::getTag(void *ptr){
 
 void VariableAllocatorNolock::checkBuf(void *buf, bool alloc){
   size_t size = FixedAllocatorNolock::getSize(buf);
-  assert((long long)size != -1LL); // if size==-1LL then ptr has been freed already
+  assert((long long)size != -1LL); // if size==-1LL then ptr has been
+                                   // freed already
   int pool = ceillog2(size);
   pool -= VARALLOC_FIRSTPOOL;
   if (pool < 0) pool = 0;
@@ -395,14 +412,17 @@ u32 VariableAllocatorNolock::getStatus(void *buf){
   return FixedAllocatorNolock::getStatus(buf);
 }
 
-FixedAllocatorMultipool::FixedAllocatorMultipool(int size, int startpool, int incgrow, int npools){
+FixedAllocatorMultipool::FixedAllocatorMultipool(int size, int startpool,
+                                                 int incgrow, int npools){
   int i;
-  // hack to allocate an array of FixedAllocator with the non-default constructor
+  // hack to allocate an array of FixedAllocator with the non-default
+  // constructor
   int sizeone = (int)(int64_t)((FixedAllocator *)0 + 1);
   Pools = (FixedAllocator*) malloc(sizeone*npools);
   NPools = npools;
   for (i=0; i < NPools; ++i)
-    new(Pools+i) FixedAllocator(size, startpool, incgrow); // call placement constructor
+    new(Pools+i) FixedAllocator(size, startpool, incgrow); // call placement
+                                                           // constructor
 }
 
 FixedAllocatorMultipool::~FixedAllocatorMultipool(){
@@ -426,12 +446,14 @@ void *_tmallocnogc(size_t size);
 void *_tmalloc(size_t size);
 void _tfree(void *buf);
 
-_TMLinkListNode *_TMLinkListNode::_TMnewnode(int n){ // allocate a new superbuffer with space for n buffers
+_TMLinkListNode *_TMLinkListNode::_TMnewnode(int n){ // allocate a new
+                                      // superbuffer with space for n buffers
   _TMLinkListNode *retval;
   int toalloc;
   if (n <= 0) toalloc=1;
   else toalloc = n;
-  retval = (_TMLinkListNode*) _tmallocnogc(sizeof(_TMLinkListNode) + (toalloc-1) * sizeof(void*));
+  retval = (_TMLinkListNode*) _tmallocnogc(sizeof(_TMLinkListNode) +
+                                           (toalloc-1) * sizeof(void*));
   assert(retval);
   new(retval) _TMLinkListNode;
   retval->nbufs = n;
@@ -457,7 +479,8 @@ void _TMThreadInfo::addNode(_TMLinkListNode *node){
   do { // try to slap head using compare-and-swap until successful
     currhead = res;
     node->next = currhead;
-    res = (_TMLinkListNode*) CompareSwapPtr((void * volatile *) &headLinkList, currhead, node);
+    res = (_TMLinkListNode*) CompareSwapPtr((void * volatile *) &headLinkList,
+                                            currhead, node);
   } while (res != currhead);
 }
 
@@ -469,7 +492,8 @@ static void _TMfreelist(){
   if (!curr) return; // empty
   next = curr->next;
   if (!next) return;  // only one element; keep it there
-                      // This check is an optimization: code below would do nothing in this case
+                      // This check is an optimization: code below would do
+                      // nothing in this case
 
   curr->next = 0; // detach rest of list from link list
   curr = next;
@@ -480,7 +504,8 @@ static void _TMfreelist(){
     nbufs = curr->nbufs;
     ptr = curr->bufs;
     for (i = 0; i < nbufs; ++i){
-      assert(VariableAllocatorNolock::getStatus(*ptr)==1); // status should be waiting
+      assert(VariableAllocatorNolock::getStatus(*ptr)==1); // status should be
+                                                           // waiting
       VariableAllocatorNolock::setStatus(*ptr,0); // set status to free
       _TMthreadinfo->allocator.free(*ptr); // return *ptr to local pool
       ++ptr;
@@ -560,7 +585,8 @@ void _tfree(void *buf){
   dmi->superbuffer->bufs[dmi->pos] = buf;
   ++dmi->pos;
   if (dmi->pos >= dmi->superbuffer->nbufs){
-    // superbuffer is full. Send it to the destination thread and allocate a new one
+    // superbuffer is full. Send it to the destination thread and allocate
+    // a new one
     _TMThreadInfo *dt = (_TMThreadInfo*) destthread;
     dt->addNode(dmi->superbuffer);
     dmi->superbuffer = _TMLinkListNode::_TMnewnode(_TM_SUPERBUFFER_SIZE);

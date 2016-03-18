@@ -1,4 +1,4 @@
-Yesquel version 0.2
+Yesquel version 0.3
 ===================
 
 Yesquel is a scalable SQL storage system for Web applications. It
@@ -106,6 +106,15 @@ Executing 'select * from t1 where a=1;' 10000 times
 % ./shell TEST
 Yesquel running SQLite shell
 YS> [...]
+
+
+USING YESQUEL IN APPLICATIONS
+-----------------------------
+
+Yesquel provides the SQLite API, so applications use Yesquel using the
+same function calls as they would using SQLite. See the files
+src/test-sql-simple.cpp and extra/test-sql.cpp for examples.
+
 
 
 CONTENTS
@@ -235,19 +244,9 @@ below. We are currently working on them.
 
 OTHER MISSING FEATURES
 ----------------------
- 1. Schema changes: These have not been tested at all. Use with caution.
+ 1. Schema changes: These are supported but they have not been tested
+    at all. Use with caution.
 
- 2. Integrity checks within transactions. Yesquel does not fully
-    support integrity checks, such as NOT NULL, SQL CHECK, and FOREIGN
-    KEY constraints defined in the schema. If those checks are present
-    and a field gets updated within a BEGIN/COMMIT TRANSACTION block,
-    Yesquel will exit with a critical error message. (It is ok to
-    update checked fields outside a TRANSACTION block.) To work around
-    this problem, remove the constraints from the schema definition,
-    or update the checked data only outside a SQL transaction. Fully
-    implementing integrity checks requires implementing substatement
-    transactions within Yesquel's key-value storage system, which is
-    future work.
 
 PERFORMANCE CONSIDERATIONS
 --------------------------
@@ -285,3 +284,18 @@ To get the most performance from Yesquel, consider the following:
    will be dominated by the performance of the disk. Over the longer
    term, new and faster non-volatile memory technologies will
    eventually displace disks, making this a moot point.
+
+
+HISTORY
+-------
+
+Version 0.1, mid 2014:
+    This version has the DBT and key-value storage system,
+    but excludes the SQLite query processor. Designed for Windows.
+
+Version 0.2, 2016-01-25:
+    Adds the query processor, ported to Linux.
+
+Version 0.3, 2016-03-17:
+    Adds subtransactions in the key-value storage system, which allows for
+    SQL integrity constraints.
