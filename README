@@ -269,10 +269,9 @@ To get the most performance from Yesquel, consider the following:
 
    Because of the way SQLite works, if a table has an integer primary
    key, it is much more efficient to use the SQL type INTEGER rather
-   than the SQL type INT. For example, the following schema is much
-   more efficient:
+   than INT. For example, this schema 
        CREATE TABLE USER(uid INTEGER PRIMARY KEY, ...);
-   rather than
+   is much more efficient than this one
        CREATE TABLE USER(uid INT PRIMARY KEY, ...);
    When the primary key is INT, SQLite stores the key as a secondary
    index to an internal rowid key. This adds an extra level of
