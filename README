@@ -264,7 +264,23 @@ To get the most performance from Yesquel, consider the following:
    that this is a compile-time parameter, so the libraries need to be
    recompiled from scratch to effect the change ("make clean; make").
 
-2. Worker threads
+2. INT versus INTEGER for primary keys
+
+   Because of the way SQLite works, if a table has an integer primary
+   key, it is much more efficient to use the SQL type INTEGER rather
+   than the SQL type INT. For example, the following schema is much
+   more efficient:
+       CREATE TABLE USER(uid INTEGER PRIMARY KEY, ...);
+   rather than
+       CREATE TABLE USER(uid INT PRIMARY KEY, ...);
+   When the primary key is INT, SQLite stores the key as a secondary
+   index to an internal rowid key. This adds an extra level of
+   indirection to the accesses for the primary key, which causes
+   additional operations on the key-value storage system. When using
+   INTEGER for the primary key, the key becomes the rowid, which
+   avoids the extra level of indirection.
+
+3. Worker threads
 
    Yesquel is designed to run many worker threads at both servers and
    clients. However, the default configuration specifies only one worker
@@ -276,7 +292,7 @@ To get the most performance from Yesquel, consider the following:
    we have not tested Yesquel with many worker threads, so the
    system will be less reliable.
 
-3. Logging to disk
+4. Logging to disk
 
    Though Yesquel is designed to log to disk, this option is disabled
    by default. You can enable disk logging by commenting out #define
