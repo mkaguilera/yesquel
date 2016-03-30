@@ -19,7 +19,7 @@ PLATFORM
 --------
 Yesquel is designed to run in Ubuntu Linux. It has not been tried in other
 Linux distributions but it may work since it has few dependencies. Currently,
-the API in in C/C++, but additional bindings may be supported in  the future.
+the API in in C/C++, but additional bindings may be supported in the future.
 
 TARGET USE
 ----------
