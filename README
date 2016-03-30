@@ -168,7 +168,7 @@ src/     Contains the source code for the Yesquel. Upon compilation,
               tcpdatagram.cpp tmalloc-other.cpp tmalloc.cpp util-more.cpp
               util.cpp warning.cpp
               
-            Distributed B-tree:
+            Distributed balanced tree:
                 cellbuf.cpp coid.cpp dtree.cpp dtreeaux.cpp
                 treedirect.cpp yesql-init.cpp            
             
