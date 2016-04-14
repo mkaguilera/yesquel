@@ -307,9 +307,9 @@ public:
 template <class T, int SIZE=DEFAULT_CHANNEL_SIZE>
 class OldChannel {
 private:
-  Align64 volatile u32 SendPos;     // position where next element sent
+  Align64 u32 SendPos;     // position where next element sent
                                     // will be placed
-  Align4 volatile u32 ReceivePos;  // position of next element to be received
+  Align4 u32 ReceivePos;  // position of next element to be received
   Align4 T Elements[SIZE];
 public:
   // size should be a power of 2
