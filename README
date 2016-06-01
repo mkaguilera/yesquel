@@ -23,10 +23,9 @@ the API in in C/C++, but additional bindings may be supported in the future.
 
 TARGET USE
 ----------
-Yesquel is currently a research prototype and its implementation is not tested
-for production use. Bugs will possibly cause crashes and data corruption.
-Yesquel could be a good tool to test your organization's ability to withstand
-unavailability and loss of data, but even that is not guaranteed to happen.
+The current implementation of Yesquel is a research prototype, not thoroughly
+tested for production. If you are interested in collaborating to produce a
+production version, please contact us.
 
 HOW TO COMPILE YESQUEL
 ----------------------
