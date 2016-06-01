@@ -110,12 +110,9 @@ YS> [...]
 
 USING YESQUEL IN APPLICATIONS
 -----------------------------
-
 Yesquel provides the SQLite API, so applications use Yesquel using the
 same function calls as they would using SQLite. See the files
 src/test-sql-simple.cpp and extra/test-sql.cpp for examples.
-
-
 
 CONTENTS
 --------
@@ -232,21 +229,24 @@ below. We are currently working on them.
 
  1. Log replay: Yesquel can log transactions durably to disk but it does
     not replay those transactions upon restart. Rather, Yesquel
-    restarts with an empty state. As partial mitigation, Yesquel allows
-    users to save and restore a checkpoint of the database state to
-    disk. This is triggered manually by the user via the provided
+    restarts with an empty state. This is intended to incur the costs of
+    logging for performance evaluation. As partial mitigation, Yesquel
+    allows users to save and restore a checkpoint of the database state
+    to disk. This is triggered manually by the user via the provided
     "callserver" utility.
 
  2. Disk storage: Storage servers currently keep all data objects in
     memory, without swapping them to disk if memory is short.
 
  3. Thorough testing: Yesquel is not tested thoroughly.
+ 
+ 4. Replication: storage servers are not replicated for high-availability.
+    The Yesquel design includes replication, but this is not implemented.
 
 OTHER MISSING FEATURES
 ----------------------
  1. Schema changes: These are supported but they have not been tested
     at all. Use with caution.
-
 
 PERFORMANCE CONSIDERATIONS
 --------------------------
