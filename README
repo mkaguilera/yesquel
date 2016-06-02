@@ -24,7 +24,7 @@ the API in in C/C++, but additional bindings may be supported in the future.
 TARGET USE
 ----------
 The current implementation of Yesquel is a research prototype, not thoroughly
-tested for production. If you are interested in collaborating to produce a
+tested for production. If you are interested in collaborating to generate a
 production version, please contact us.
 
 HOW TO COMPILE YESQUEL
