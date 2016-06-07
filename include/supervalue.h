@@ -123,16 +123,6 @@ public:
   UnpackedRecord *pIdxKey;
   GKeyInfoPtr ppki;
 
-  // Copy from another ListCellPlus.
-  // Used when we copy a supervalue (TxWriteSVItem).
-  // Not intended to be used with standalone ListCellPlus
-  // (eg, those that come from ListAdd or ListDelRange)
-  ListCellPlus(const ListCellPlus &r) :
-    ListCell(r), ppki(r.ppki.ki, false)  // do not free the GKeyInfo
-  {
-    pIdxKey = 0;
-  }
-
   // Fresh ListCell, but use a given ppki.
   // Intended to be used when creating a new ListCellPlus
   // to be added into a SV (in this case, the suplied ppki will be the
