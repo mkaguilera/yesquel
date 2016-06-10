@@ -314,6 +314,7 @@ btree_open_out:
     if (pBt && pBt->pPager){
       sqlite3PagerClose(pBt->pPager);
     }
+    if (pBt->pPage1){ free(pBt->pPage1); pBt->pPage1=0; }
     sqlite3_free(pBt);
     sqlite3_free(p);
     *ppBtree = 0;
@@ -3040,6 +3041,7 @@ int sqlite3BtreeGetMeta(Btree *p, int idx, u32 *pMeta){
   // If YS_SCHEMA_CACHE==0, we always read the metadata.
   // If YS_SCHEMA_CACHE==2, we already read the metadata, but Gaia
   //   serves those reads from a consistent cache
+  if (pBt->pPage1){ free(pBt->pPage1); pBt->pPage1=0; }
   res = ReadDbMetadata(p->tx, pBt->KVdbid, &len, (char**) &pBt->pPage1);
   if (res) rc = SQLITE_IOERR;
   else *pMeta = pBt->pPage1->metadata[idx];
@@ -3066,7 +3068,7 @@ int sqlite3BtreeUpdateMeta(Btree *p, int idx, u32 iMeta){
   rc = SQLITE_OK;
   sqlite3BtreeEnter(p);
   res = 0;
-  //if (!pBt->pPage1)
+  if (pBt->pPage1){ free(pBt->pPage1); pBt->pPage1=0; }
   res = ReadDbMetadata(p->tx, pBt->KVdbid, &len, (char**) &pBt->pPage1);
   if (res){ rc = SQLITE_IOERR; goto end; }
   pBt->pPage1->metadata[idx] = iMeta;

@@ -1220,6 +1220,7 @@ int Transaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags,
   else {
     assert(vbuf->type==1);
     txCache.applyOneOp(coid, poe);
+    delete poe;
   }
 
 #if DTREE_SPLIT_LOCATION == 1
@@ -1308,6 +1309,7 @@ int Transaction::listDelRange(COid coid, u8 intervalType, ListCell *cell1,
     else {
       assert(vbuf->type==1);
       txCache.applyOneOp(coid, poe);
+      delete poe;
     }
   }
 
@@ -1372,6 +1374,7 @@ int Transaction::attrSet(COid coid, u32 attrid, u64 attrvalue){
     else {
       assert(vbuf->type==1);
       txCache.applyOneOp(coid, poe);
+      delete poe;
     }
   }
 
