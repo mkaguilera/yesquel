@@ -405,7 +405,7 @@ int TxCache::checkPendingOps(COid &coid, int nKey, char *pKey, GKeyInfo *ki){
   res = pendingOps.lookup(coid, polptr);
   if (res==0){ // found something
     pol = *polptr;
-    UnpackedRecord *pIdxKey;
+    UnpackedRecord *pIdxKey=0;
     PendingOpsEntry *poe;
     char aSpace[150];          /* Temp space for pIdxKey - to avoid a malloc */
     
@@ -416,7 +416,7 @@ int TxCache::checkPendingOps(COid &coid, int nKey, char *pKey, GKeyInfo *ki){
       pIdxKey = myVdbeRecordUnpack(ki, (int) nKey, pKey, aSpace,
                                    sizeof(aSpace));
       if (pIdxKey == 0) return GAIAERR_NO_MEMORY;
-    } else pIdxKey = 0;
+    }
     
     for (poe = pol->getFirst(); poe; poe = pol->getNext(poe)){
       if (poe->type == 0){ // add
@@ -450,6 +450,7 @@ int TxCache::checkPendingOps(COid &coid, int nKey, char *pKey, GKeyInfo *ki){
         if (match1 && match2) got = 0; // deleted key
       }
     } // for
+    if (pIdxKey) myVdbeDeleteUnpackedRecord(pIdxKey);
     if (got) return 1; // key was added
     else return 0; // key was removed
   } // if (res==0)
@@ -525,16 +526,16 @@ int myCellSearchUnpacked(Ptr<Valbuf> &vbuf, UnpackedRecord *pIdxKey,
 
 int myCellSearchNode(Ptr<Valbuf> &vbuf, i64 nkey, void *pkey, int biasRight, 
                           GKeyInfo *ki, int *matches){
-  UnpackedRecord *pIdxKey;   /* Unpacked index key */
+  UnpackedRecord *pIdxKey=0; /* Unpacked index key */
   char aSpace[150];          /* Temp space for pIdxKey - to avoid a malloc */
   int res;
 
   if (pkey){
     pIdxKey = myVdbeRecordUnpack(ki, (int) nkey, pkey, aSpace, sizeof(aSpace));
     if (pIdxKey == 0) return GAIAERR_NO_MEMORY;
-  } else pIdxKey = 0;
+  }
   res = myCellSearchUnpacked(vbuf, pIdxKey, nkey, biasRight, matches);
-  if (pkey) myVdbeDeleteUnpackedRecord(pIdxKey);
+  if (pIdxKey) myVdbeDeleteUnpackedRecord(pIdxKey);
   return res;
 }
 
