@@ -532,7 +532,6 @@ int LogInMemory::readCOid(COid& coid, Timestamp ts,
     retval =  GAIAERR_TOO_OLD_VERSION;
     goto end;
   }
-  //printf("%07lld ", (long long)(ts.getd1()-sleim->ts.getd1()));
 
   proceed_with_read:
 

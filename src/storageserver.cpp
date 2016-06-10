@@ -396,7 +396,7 @@ Marshallable *fullreadRpc(FullReadRPCData *d, void *handle, bool &defer){
     resp->data->prki = twsvi->prki;
 
     resp->freedata = 1;
-    resp->deletecelloids = 0; // do not free celloids since it belows to twsvi
+    resp->deletecelloids = 0; // do not free celloids since it belongs to twsvi
     resp->twsvi = 0;
     resp->tucoid = tucoid;
   }
