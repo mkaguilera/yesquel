@@ -74,9 +74,9 @@ static int cursorHoldsMutex(BtCursor *p);
 
 // replace node in level with real node given its oid, and sets its index to 0
 static int ReadReal(BtCursor *pCur, int level, COid newcoid, ListCell *cell,
-                    GKeyInfo *ki){
+                    Ptr<RcKeyInfo> prki){
   int res;
-  res = auxReadReal(pCur->pBtree->tx, newcoid, pCur->node[level], cell, ki);
+  res = auxReadReal(pCur->pBtree->tx, newcoid, pCur->node[level], cell, prki);
   if (res==0){
     pCur->nodetype[level] = 1; // real node
     pCur->nodeIndex[level]=0; // we start with leftmost pointer
@@ -637,14 +637,14 @@ static int CellSearchNodeUnpacked(DTreeNode &node, UnpackedRecord *pIdxKey,
   assert(0 <= mid && mid <= node.Ncells());
   return mid;
 }
-static int CellSearchNode(DTreeNode &node, i64 nkey, void *pkey, KeyInfo *ki,
-                          int biasRight){
+static int CellSearchNode(DTreeNode &node, i64 nkey, void *pkey,
+                          KeyInfo *pKeyInfo, int biasRight){
   UnpackedRecord *pIdxKey;   /* Unpacked index key */
   char aSpace[150];          /* Temp space for pIdxKey - to avoid a malloc */
   int res;
 
   if (pkey){
-    pIdxKey = sqlite3VdbeRecordUnpack(ki, (int)nkey, pkey, aSpace,
+    pIdxKey = sqlite3VdbeRecordUnpack(pKeyInfo, (int)nkey, pkey, aSpace,
                                       sizeof(aSpace));
     if (pIdxKey == 0) return SQLITE_NOMEM;
   } else pIdxKey = 0;
@@ -855,13 +855,12 @@ int DtMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey,
   int level, real, res, index, matches;
   COid coid, coid2, prevcoid;
   ListCell cell;
-  GKeyInfo *ki;
+  Ptr<RcKeyInfo> prki;
 
   cell.nKey = nKey;
   cell.pKey = pKey;
   cell.value = 0xabcdabcdabcdabcd; // not used
-  if (pIdxKey) ki = (GKeyInfo*) pIdxKey->pKeyInfo;
-  else ki = 0;
+  if (pIdxKey) prki = (RcKeyInfo*) pIdxKey->pKeyInfo;
 
   DTREELOG("BtCursor %p pIdxKey %p nKey %lld biasRight %d direct %d",
            pCur, pIdxKey, (long long)nKey, biasRight, tryDirect);
@@ -916,7 +915,7 @@ int DtMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey,
   coid.oid = DTREE_ROOT_OID; // start with root
   do {
     res = auxReadCacheOrReal(pCur->pBtree->tx, coid, pCur->node[level], real,
-                             &cell, ki);
+                             &cell, prki);
     if (res == GAIAERR_WRONG_TYPE){  // not a supervalue
       //printf("Found unexpected non-supervalue\n");
       if (level == 0){
@@ -1009,7 +1008,8 @@ int DtMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey,
     if (pCur->nodetype[level] == 0){ // approx node
       // fetch real node at level from TKVS
       coid2.oid = pCur->node[level].NodeOid();
-      res = auxReadReal(pCur->pBtree->tx, coid2, pCur->node[level], &cell, ki); 
+      res = auxReadReal(pCur->pBtree->tx, coid2, pCur->node[level],
+                        &cell, prki); 
       if (res==GAIAERR_WRONG_TYPE){
         // not supervalue
         if (level == 0){
@@ -1048,7 +1048,7 @@ int DtMovetoUnpackedaux(BtCursor *pCur, UnpackedRecord *pIdxKey, i64 nKey,
     ++level;
     assert(level < DTREE_MAX_LEVELS);
     // read child
-    res = auxReadReal(pCur->pBtree->tx, coid, pCur->node[level], &cell, ki);
+    res = auxReadReal(pCur->pBtree->tx, coid, pCur->node[level], &cell, prki);
     if (res == GAIAERR_WRONG_TYPE)
       res = SQLITE_CORRUPT; // not a supervalue, so tree is corrupted
     if (res){
@@ -1345,10 +1345,10 @@ int sqlite3BtreeInsert(
     cell.value = 0xabcdabcdabcdabcd; // not used
 
 #if DTREE_SPLIT_LOCATION != 1    
-    res = KVlistadd(tx, coid, &cell, (GKeyInfo*) pCur->pKeyInfo, 0);
+    res = KVlistadd(tx, coid, &cell, (RcKeyInfo*) pCur->pKeyInfo, 0);
 #else
-    res = KVlistadd(tx, coid, &cell, (GKeyInfo*) pCur->pKeyInfo, 0, &ncells,
-                    &size);
+    res = KVlistadd(tx, coid, &cell, (RcKeyInfo*) pCur->pKeyInfo,
+                    0, &ncells, &size);
 #endif
     if (res){ DTREELOG("  return %d", SQLITE_IOERR); return SQLITE_IOERR; }
   }
@@ -1408,10 +1408,10 @@ int btreeInsertOptimistic(BtCursor *pCur, const void *pKey, i64 nKey,
 #if DTREE_SPLIT_LOCATION != 1
   // KVlistadd checks that coid is a leaf node and the key is within range.
   // If so, the key is inserted if it is not inserted already
-  res = KVlistadd(tx, coid, &cell, (GKeyInfo*) pCur->pKeyInfo, 1);
+  res = KVlistadd(tx, coid, &cell, (RcKeyInfo*) pCur->pKeyInfo, 1);
 #else
   int ncells=0, size=0;
-  res = KVlistadd(tx, coid, &cell, (GKeyInfo*) pCur->pKeyInfo, 1,
+  res = KVlistadd(tx, coid, &cell, (RcKeyInfo*) pCur->pKeyInfo, 1,
                   &ncells, &size);
 #endif
 
@@ -1506,7 +1506,7 @@ int DtDelete(BtCursor *pCur, int level, ListCell *lc){
       // call range delete on cell
       cell = dtn->Cells()[index];
       res = KVlistdelrange(pCur->pBtree->tx, coid, 4, &cell, &cell,
-                           (GKeyInfo*) pCur->pKeyInfo);
+                           (RcKeyInfo*) pCur->pKeyInfo);
       if (res) return SQLITE_IOERR;
 
       // The stuff below is no longer needed since we are defining a delrange
@@ -1518,7 +1518,7 @@ int DtDelete(BtCursor *pCur, int level, ListCell *lc){
       //  ListCell cell2;
       //  cell2 = dtn->Cells()[index+1];
       //  res = KVlistadd(pCur->pBtree->tx, coid, &cell2,
-      //                  (GKeyInfo*) pCur->pKeyInfo);
+      //                  (RcKeyInfo*) pCur->pKeyInfo);
       //  if (res) return res;
       //} else { // rewrite lastpointer
       //  res = KVattrset(pCur->pBtree->tx, coid, DTREENODE_ATTRIB_LASTPTR,
@@ -1533,7 +1533,7 @@ int DtDelete(BtCursor *pCur, int level, ListCell *lc){
       // call range delete on last real cell
       res = KVlistdelrange(pCur->pBtree->tx, coid, 4,
                  &raw->Cells[raw->Ncells-1], &raw->Cells[raw->Ncells-1],
-                           (GKeyInfo*) pCur->pKeyInfo);
+                           (RcKeyInfo*) pCur->pKeyInfo);
       if (res) return SQLITE_IOERR;
       // set last pointer to remembered pointer
       res = KVattrset(pCur->pBtree->tx, coid, DTREENODE_ATTRIB_LASTPTR, child);
@@ -1599,7 +1599,7 @@ int DtDelete(BtCursor *pCur, int level, ListCell *lc){
       // call delete on only cell
       cell = dtn->Cells()[index];
       res = KVlistdelrange(pCur->pBtree->tx, coid, 4, &cell, &cell,
-                           (GKeyInfo*) pCur->pKeyInfo);
+                           (RcKeyInfo*) pCur->pKeyInfo);
       if (res) return SQLITE_IOERR;
       // the stuff below is no longer needed since a delrange conflicts with
       // another delrange in the same cell
@@ -1642,12 +1642,12 @@ int sqlite3BtreeDelete(BtCursor *pCur){
   // hence update the parents.
   assert(pCur->node[pCur->levelLeaf].Ncells());
   ListCell lc(pCur->node[pCur->levelLeaf].Cells()[0]);
-  //GKeyInfo *pki = CloneGKeyInfo(pCur->node[pCur->levelLeaf].Pki());
+  //Ptr<RcKeyInfo> prki = pCur->node[pCur->levelLeaf].Prki();
   
   res = DtDelete(pCur, pCur->levelLeaf, &lc);
   
   lc.Free();
-  //free(pki);
+  //free(prki);
               
   pCur->eState = CURSOR_INVALID;
   if (res){ DTREELOG("  return %d", SQLITE_IOERR); return SQLITE_IOERR; }

@@ -211,7 +211,7 @@ void SubtransRPCRespData::demarshall(char *buf){
   data = (SubtransRPCResp*) buf;
 }
 
-// ------------stuff for marshalling/demarshalling GKeyInfo objects -----------
+// ------------stuff for marshalling/demarshalling RcKeyInfo objects -----------
 
 // converts a CollSeq into a byte
 static u8 EncodeCollSeqAsByte(CollSeq *cs){
@@ -249,33 +249,34 @@ static CollSeq *DecodeByteAsCollSeq(u8 b){
   return &CollSeqs[b-1];
 }
 
-struct GKeyInfoSerialize {
+struct RcKeyInfoSerialize {
   u8 enc;
   u8 nsortorder; // number of sort order values
   u8 ncoll;      // number of collating sequence values
   // must have nsortorder==0 or nsortorder == ncoll
 };
 
-// serialize a GKeyInfo object.
+// serialize a RcKeyInfo object.
 // Returns the number of iovecs used, and sets *retbuf to a newly allocated
 // buffer (using malloc) that the caller should later free() after the
 // serialized data is no longer needed.
-// The GKeyInfo is serialized as follows:
-//   [haskey]    whether there is a key. If 0, this indicates a null GKeyInfo
+// The RcKeyInfo is serialized as follows:
+//   [haskey]    whether there is a key. If 0, this indicates a null RcKeyInfo
 //               object and the serialization ends here.
 //   [KeyInfoSerialize struct] 
 //   [sortorder byte array with KeyInfoSerialize.nsortorder entries, possibly 0]
 //   [coll byte array with KeyInfoSerialize.ncoll entries, possibly 0]
 // The ncoll byte array has a byte per collating sequence value. The map is
 // obtained from EncodeCollSeqAsByte().
-int marshall_keyinfo(GKeyInfo *pki, iovec *bufs, int maxbufs, char **retbuf){
-  GKeyInfoSerialize *kis;
+int marshall_keyinfo(Ptr<RcKeyInfo> prki, iovec *bufs, int maxbufs,
+                     char **retbuf){
+  RcKeyInfoSerialize *kis;
   char *buf;
   char *ptr;
   int i;
 
   assert(maxbufs >= 1);
-  if (!pki){ // null pki
+  if (!prki.isset()){ // null prki
     buf = (char*) malloc(sizeof(int)); assert(buf);
     *(int*)buf = 0;
     bufs[0].iov_base = buf;
@@ -285,32 +286,32 @@ int marshall_keyinfo(GKeyInfo *pki, iovec *bufs, int maxbufs, char **retbuf){
   }
   // nField*2 reserves space for aSortOrder and aColl. This is conservative,
   // since aSortOrder may be null (meaning it needs no space)
-  ptr = buf = (char*) malloc(sizeof(int) + sizeof(GKeyInfoSerialize) +
-                             pki->nField*2);
+  ptr = buf = (char*) malloc(sizeof(int) + sizeof(RcKeyInfoSerialize) +
+                             prki->nField*2);
   assert(ptr);
   *(int*)ptr = 1;
   ptr += sizeof(int);
   
   // marshall KeyInfoSerialize part
-  kis = (GKeyInfoSerialize*) ptr;
-  kis->enc = pki->enc;
+  kis = (RcKeyInfoSerialize*) ptr;
+  kis->enc = prki->enc;
   // if aSortOrder is non-null, nField indicates its size
-  kis->nsortorder = pki->aSortOrder ? pki->nField : 0; 
-  kis->ncoll = (u8)pki->nField;
+  kis->nsortorder = prki->aSortOrder ? prki->nField : 0; 
+  kis->ncoll = (u8)prki->nField;
   // append entries in aSortOrder (if it is non-null)
-  ptr += sizeof(GKeyInfoSerialize);
+  ptr += sizeof(RcKeyInfoSerialize);
 
   // marshall nsortorder
   if (kis->nsortorder){
-    assert(kis->nsortorder <= pki->nField);
-    memcpy(ptr, pki->aSortOrder, kis->nsortorder);
+    assert(kis->nsortorder <= prki->nField);
+    memcpy(ptr, prki->aSortOrder, kis->nsortorder);
     ptr += kis->nsortorder;
   }
 
   // marshall collating sequences
-  for (i=0; i < pki->nField; ++i)
-    ptr[i] = EncodeCollSeqAsByte(pki->aColl[i]);
-  ptr += pki->nField;
+  for (i=0; i < prki->nField; ++i)
+    ptr[i] = EncodeCollSeqAsByte(prki->aColl[i]);
+  ptr += prki->nField;
   // add entry to iovecs
   bufs[0].iov_base = buf;
   bufs[0].iov_len = (int)(ptr - buf);
@@ -335,12 +336,12 @@ static void Iovecmemcpy(char *dest, iovec *bufs, int nbufs){
 
 // marshalls a keyinfo into a single buffer, which is returned.
 // Caller should later free buffer with free()
-char *marshall_keyinfo_onebuf(GKeyInfo *pki, int &retlen){
+char *marshall_keyinfo_onebuf(Ptr<RcKeyInfo> prki, int &retlen){
   iovec bufs[10];
   int nbuf;
   int len;
   char *tmpbuf, *retval;
-  nbuf = marshall_keyinfo(pki, bufs, sizeof(bufs)/sizeof(iovec), &tmpbuf);
+  nbuf = marshall_keyinfo(prki, bufs, sizeof(bufs)/sizeof(iovec), &tmpbuf);
   len = Ioveclen(bufs, nbuf);
   retval = (char*) malloc(len);
   Iovecmemcpy(retval, bufs, nbuf);
@@ -349,14 +350,13 @@ char *marshall_keyinfo_onebuf(GKeyInfo *pki, int &retlen){
   return retval;
 }
 
-// Demarshall a GKeyInfo object. *buf is a pointer to the serialized buffer.
+// Demarshall a RcKeyInfo object. *buf is a pointer to the serialized buffer.
 // Returns a pointer to the demarshalled object, and modifies *buf to point
-// after the demarshalled buffer. Caller is responsible for calling free()
-// on the returned pointer.
-GKeyInfo *demarshall_keyinfo(char **buf){
+// after the demarshalled buffer.
+Ptr<RcKeyInfo> demarshall_keyinfo(char **buf){
   char *ptr;
-  GKeyInfo *pki;
-  GKeyInfoSerialize *kis;
+  Ptr<RcKeyInfo> prki;
+  RcKeyInfoSerialize *kis;
   int i;
   CollSeq **collseqs;
   int haskeyinfo;
@@ -364,45 +364,42 @@ GKeyInfo *demarshall_keyinfo(char **buf){
   ptr = *buf;
   haskeyinfo = *(int*)ptr;
   ptr += sizeof(int);
-  if (!haskeyinfo){ // null GKeyInfo
+  if (!haskeyinfo){ // null RcKeyInfo
     *buf = ptr;
-    return 0;
+    Ptr<RcKeyInfo> empty;
+    return empty;
   }
 
-  kis = (GKeyInfoSerialize*) ptr;
+  kis = (RcKeyInfoSerialize*) ptr;
 
-  // allocate space for CollSeq pointers too. This malloc reserves one more
-  // pointer than needed since KeyInfo already has space for 1 CollSeq pointer.
-  // I didn't want to subtract 1 because otherwise we need to special case
-  // ncoll==0 (in which case we mustn't subtract 1)
-  pki = (GKeyInfo*) malloc(sizeof(GKeyInfo) + kis->ncoll*sizeof(CollSeq*) +
-                           kis->nsortorder); assert(pki);
+  prki = new(kis->ncoll, kis->nsortorder) RcKeyInfo;
+  assert(prki.isset());
 
   // fill out KeyInfo fields stored in KeyInfoSerialize
-  pki->db = 0;
-  pki->enc = kis->enc;
-  pki->nField = kis->ncoll;
-  ptr += sizeof(GKeyInfoSerialize);
+  prki->db = 0;
+  prki->enc = kis->enc;
+  prki->nField = kis->ncoll;
+  ptr += sizeof(RcKeyInfoSerialize);
 
   // fill out aSortOrder if present
   if (kis->nsortorder){ 
     // copy sortorder array
-    // where to copy: after GKeyInfo and its  array of CollSeq pointers
-    char *copydest = (char*)pki + sizeof(GKeyInfo) +
+    // where to copy: after RcKeyInfo and its array of CollSeq pointers
+    char *copydest = (char*)&*prki + sizeof(RcKeyInfo) +
       kis->ncoll*sizeof(CollSeq*);
     memcpy(copydest, ptr, kis->nsortorder);
-    pki->aSortOrder = (u8*) copydest; // point to where we copied
+    prki->aSortOrder = (u8*) copydest; // point to where we copied
     ptr += kis->nsortorder;
   }
-  else pki->aSortOrder = 0;
+  else prki->aSortOrder = 0;
 
   // fill out collseq pointers
-  collseqs = &pki->aColl[0];
+  collseqs = &prki->aColl[0];
   for (i=0; i < kis->ncoll; ++i) collseqs[i] = DecodeByteAsCollSeq(ptr[i]);
   ptr += kis->ncoll;
 
   *buf = ptr;
-  return pki;
+  return prki;
 }
 
 // -------------------------------- LISTADD RPC --------------------------------
@@ -414,9 +411,9 @@ int ListAddRPCData::marshall(iovec *bufs, int maxbufs){
   bufs[0].iov_len = sizeof(ListAddRPCParm);
   ++nbufs; // nbufs==1
 
-  // serialize GKeyInfo
+  // serialize RcKeyInfo
   if (serializeKeyinfoBuf) free(serializeKeyinfoBuf);
-  nbufs += marshall_keyinfo(data->pKeyInfo, bufs+1, maxbufs-1,
+  nbufs += marshall_keyinfo(data->prki, bufs+1, maxbufs-1,
                             &serializeKeyinfoBuf);
 
   // serialize the data in pKey (if any)
@@ -434,9 +431,9 @@ void ListAddRPCData::demarshall(char *buf){
   data = (ListAddRPCParm*) buf;
   ptr = buf + sizeof(ListAddRPCParm);
 
-  // demarshall GKeyInfo
-  data->pKeyInfo = demarshall_keyinfo(&ptr);
-  freekeyinfo = data->pKeyInfo;
+  // demarshall RcKeyInfo
+  data->prki.init();
+  data->prki = demarshall_keyinfo(&ptr);
 
   // deserialize the data in pKey (if any)
   if (data->cell.pKey) // reading pointer from another machine; we only care
@@ -470,9 +467,9 @@ int ListDelRangeRPCData::marshall(iovec *bufs, int maxbufs){
   bufs[0].iov_len = sizeof(ListDelRangeRPCParm);
   ++nbufs; // nbufs==1
 
-  // serialize GKeyInfo
+  // serialize RcKeyInfo
   if (serializeKeyinfoBuf) free(serializeKeyinfoBuf);
-  nbufs += marshall_keyinfo(data->pKeyInfo, bufs+1, maxbufs-1,
+  nbufs += marshall_keyinfo(data->prki, bufs+1, maxbufs-1,
                             &serializeKeyinfoBuf);
 
   // serialize the data in pKey1 (if any)
@@ -495,9 +492,9 @@ void ListDelRangeRPCData::demarshall(char *buf){
   data = (ListDelRangeRPCParm*) buf;
   ptr = buf + sizeof(ListDelRangeRPCParm);
 
-  // demarshall GKeyInfo
-  data->pKeyInfo = demarshall_keyinfo(&ptr);
-  freekeyinfo = data->pKeyInfo;
+  // demarshall RcKeyInfo
+  data->prki.init();
+  data->prki = demarshall_keyinfo(&ptr);
 
   // deserialize the data in pKey1 (if any)
   if (data->cell1.pKey){
@@ -580,9 +577,9 @@ int FullReadRPCData::marshall(iovec *bufs, int maxbufs){
   bufs[0].iov_len = sizeof(FullReadRPCParm);
   ++nbufs; // nbufs==1
 
-  // serialize GKeyInfo
+  // serialize RcKeyInfo
   if (serializeKeyinfoBuf) free(serializeKeyinfoBuf);
-  nbufs += marshall_keyinfo(data->pKeyInfo, bufs+1, maxbufs-1,
+  nbufs += marshall_keyinfo(data->prki, bufs+1, maxbufs-1,
                             &serializeKeyinfoBuf);
   assert(nbufs < maxbufs);
 
@@ -601,9 +598,9 @@ void FullReadRPCData::demarshall(char *buf){
   data = (FullReadRPCParm*) buf;
   ptr = buf + sizeof(FullReadRPCParm);
 
-  // demarshall GKeyInfo
-  data->pKeyInfo = demarshall_keyinfo(&ptr);
-  freekeyinfo = data->pKeyInfo;
+  // demarshall RcKeyInfo
+  data->prki.init();
+  data->prki = demarshall_keyinfo(&ptr);
 
   // deserialize the data in pKey (if any)
   if (data->cell.pKey) // reading pointer from another machine; we only care if
@@ -617,12 +614,10 @@ void FullReadRPCData::demarshall(char *buf){
 
 FullReadRPCRespData::~FullReadRPCRespData(){
   if (deletecelloids) delete [] deletecelloids;
-  if (freedatapki) free(freedatapki);
   if (freedata && data) delete data; 
   if (twsvi) delete twsvi;
-  if (tmppkiserializebuf) free(tmppkiserializebuf);
+  if (tmpprkiserializebuf) free(tmpprkiserializebuf);
 }
-
 
 int FullReadRPCRespData::marshall(iovec *bufs, int maxbufs){
   assert(maxbufs >= 3);
@@ -634,10 +629,10 @@ int FullReadRPCRespData::marshall(iovec *bufs, int maxbufs){
   bufs[nbufs++].iov_len = sizeof(u64) * data->nattrs;
   bufs[nbufs].iov_base = (char*) data->celloids;
   bufs[nbufs++].iov_len = data->lencelloids;
-  nbufs += marshall_keyinfo(data->pki, bufs+nbufs, maxbufs-nbufs, &tofree);
-  if (tmppkiserializebuf)
-    free(tmppkiserializebuf);
-  tmppkiserializebuf = tofree;
+  nbufs += marshall_keyinfo(data->prki, bufs+nbufs, maxbufs-nbufs, &tofree);
+  if (tmpprkiserializebuf)
+    free(tmpprkiserializebuf);
+  tmpprkiserializebuf = tofree;
   return nbufs;
 }
 
@@ -648,32 +643,19 @@ void FullReadRPCRespData::demarshall(char *buf){
   buf += data->nattrs * sizeof(u64);
   data->celloids = buf; // celloids follows attrs
   buf += data->lencelloids;
-  data->pki = demarshall_keyinfo(&buf);
-  freedatapki = data->pki;
+  data->prki.init();
+  data->prki = demarshall_keyinfo(&buf);
 }
 
 // ------------------------------- FULLWRITE RPC -------------------------------
 
-//FullWriteRPCParm *CloneFullWriteRPCParm(FullWriteRPCParm *orig){
-//  FullWriteRPCParm *clone;
-//  clone = (FullWriteRPCParm*) malloc(sizeof(FullWriteRPCParm) +
-//          orig->nattrs*sizeof(u64) + orig->lencelloids);
-//  memcpy(clone, orig, sizeof(FullWriteRPCParm));
-//  clone->attrs = (u64*)((char*) clone + sizeof(FullWriteRPCParm));
-//  clone->celloids = (char*) clone + sizeof(FullWriteRPCParm) +
-//                    orig->nattrs*sizeof(u64);
-//  memcpy(clone->attrs, orig->attrs, orig->nattrs*sizeof(u64));
-//  memcpy(clone->celloids, orig->celloids, orig->lencelloids);
-//  return clone;
-//}
-
 // converts serialized celloids into items put inside skiplist of cells
 void CelloidsToListCells(char *celloids, int ncelloids, int celltype,
-         SkipListBK<ListCellPlus,int> &cells, GKeyInfo **pki){
+         SkipListBK<ListCellPlus,int> &cells, Ptr<RcKeyInfo> *pprki){
   char *ptr = celloids;
   ListCellPlus *lc;
   for (int i=0; i < ncelloids; ++i){
-    lc = new ListCellPlus(pki);
+    lc = new ListCellPlus(pprki);
     // extract nkey
     u64 nkey;
     ptr += myGetVarint((unsigned char*) ptr, &nkey);
@@ -747,7 +729,6 @@ char *ListCellsToCelloids(SkipListBK<ListCellPlus,int> &cells, int &ncelloids,
   return buf;
 }
 
-
 TxWriteSVItem *fullWriteRPCParmToTxWriteSVItem(FullWriteRPCParm *data){
   TxWriteSVItem *twsvi;
   COid coid;
@@ -763,10 +744,9 @@ TxWriteSVItem *fullWriteRPCParmToTxWriteSVItem(FullWriteRPCParm *data){
   // fill any missing attributes with 0
   memset(twsvi->attrs + data->nattrs, 0,
          (GAIA_MAX_ATTRS-data->nattrs) * sizeof(u64));
-  twsvi->pki = CloneGKeyInfo(data->pKeyInfo); // clone since data->pKeyInfo
-                                              // will be destroyed
+  twsvi->prki = data->prki;
   CelloidsToListCells(data->celloids, data->ncelloids, data->celltype,
-                      twsvi->cells, &twsvi->pki);
+                      twsvi->cells, &twsvi->prki);
   return twsvi;
 }
 
@@ -780,7 +760,7 @@ int FullWriteRPCData::marshall(iovec *bufs, int maxbufs){
   bufs[nbufs].iov_base = (char*) data->celloids;
   bufs[nbufs++].iov_len = data->lencelloids;
   if (serializeKeyinfoBuf) free(serializeKeyinfoBuf);
-  nbufs += marshall_keyinfo(data->pKeyInfo, bufs+nbufs, maxbufs-nbufs,
+  nbufs += marshall_keyinfo(data->prki, bufs+nbufs, maxbufs-nbufs,
                             &serializeKeyinfoBuf);
   return nbufs;
 }
@@ -793,8 +773,8 @@ void FullWriteRPCData::demarshall(char *buf){
   ptr += data->nattrs * sizeof(u64);
   data->celloids = ptr; // celloids follows attrs
   ptr += data->lencelloids;
-  data->pKeyInfo = demarshall_keyinfo(&ptr);
-  freekeyinfo = data->pKeyInfo;
+  data->prki.init();
+  data->prki = demarshall_keyinfo(&ptr);
 }
 
 int FullWriteRPCRespData::marshall(iovec *bufs, int maxbufs){

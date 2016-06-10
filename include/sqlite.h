@@ -9498,6 +9498,15 @@ struct FKey {
 ** comparison of the two index keys.
 */
 struct KeyInfo {
+  int refcount;       // YESQUEL CH: added refcount for smart pointers
+                      //   We use smart pointers only within Yesquel code
+                      //   not sqlite. Sqlite's use of a keyinfo counts
+                      //   as a single refcount, set when the keyinfo is
+                      //   created using our newly added function
+                      //   mallocKeyInfo() in sqlite3.cpp. We changed all places
+                      //   where keyinfos are allocated to call this function.
+                      //   We also added a corresponding freeKeyinfo(), and
+                      //   changed all locations to free using this function.
   sqlite3 *db;        /* The database connection */
   u8 enc;             /* Text encoding - one of the SQLITE_UTF* values */
   u16 nField;         /* Number of entries in aColl[] */

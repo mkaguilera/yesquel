@@ -113,8 +113,8 @@ int LoadStats::check(void){
 
       // split coid ptr->key at cell nptr->key
 #ifndef DISABLE_NODESPLITS
-      // clone the listcellplus and its GKeyInfo
-      cell = new ListCellPlus(*nptr->key, nptr->key->ppki.ki);
+      // clone the listcellplus and its RcKeyInfo
+      cell = new ListCellPlus(*nptr->key, nptr->key->pprki.getprki());
       SplitNode(ptr->key, cell);
 #endif      
     }
@@ -183,7 +183,7 @@ int main(){
       lc.nKey = Time::now() % j;
       lc.pKey = 0;
       lc.value = 0;
-      lcptr = new ListCellPlus(lc,(GKeyInfo*)0);
+      lcptr = new ListCellPlus(lc,(RcKeyInfo*)0);
       ls.report(coid, lcptr);
     }
   }

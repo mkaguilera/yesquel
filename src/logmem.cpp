@@ -396,13 +396,13 @@ LogInMemory::NUpdates LogInMemory::applyTucoid(TxWriteSVItem *twsvi,
     if (tli->type==0){ // add item
       ++retval.nadd;
       TxListAddItem *tlai = dynamic_cast<TxListAddItem*>(tli);
-      if (tlai->item.ppki.ki){
-        // provide pki to TxWriteSVItem if it doesn't have it already
-        twsvi->setPkiSticky(*tlai->item.ppki.ki);
+      if (tlai->item.pprki.hasprki()){
+        // provide prki to TxWriteSVItem if it doesn't have it already
+        twsvi->setPrkiSticky(tlai->item.pprki.getprki());
       }
       // copy item since twsvi->cells will own it      
-      // Use pki of enclosing TxWriteSVItem.
-      twsvi->cells.insertOrReplace(new ListCellPlus(tlai->item, &twsvi->pki), 0,
+      // Use prki of enclosing TxWriteSVItem.
+      twsvi->cells.insertOrReplace(new ListCellPlus(tlai->item, &twsvi->prki),0,
                                    ListCellPlus::del, 0);
     }
     else { // delrange item
@@ -412,9 +412,9 @@ LogInMemory::NUpdates LogInMemory::applyTucoid(TxWriteSVItem *twsvi,
       TxListDelRangeItem *tldri = dynamic_cast<TxListDelRangeItem*>(tli);
       TxWriteSVItem::convertOneIntervalTypeToTwoIntervalType(
                      tldri->intervalType, type1, type2);
-      if (tldri->itemstart.ppki.ki){
-        // provide pki to TxWriteSVItem if it doesn't have it already        
-        twsvi->setPkiSticky(*tldri->itemstart.ppki.ki);
+      if (tldri->itemstart.pprki.hasprki()){
+        // provide prki to TxWriteSVItem if it doesn't have it already        
+        twsvi->setPrkiSticky(tldri->itemstart.pprki.getprki());
       }
       twsvi->cells.delRange(&tldri->itemstart, type1, &tldri->itemend, type2,
                             ListCellPlus::del, 0);

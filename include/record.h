@@ -12,23 +12,82 @@
 
 #include "inttypes.h"
 
+#if !defined(SQLITE_CORE) && !defined(_PARTIAL_RECORD_H)
+/*
+** A "Collating Sequence" is defined by an instance of the following
+** structure. Conceptually, a collating sequence consists of a name and
+** a comparison routine that defines the order of that sequence.
+**
+** There may two separate implementations of the collation function, one
+** that processes text in UTF-8 encoding (CollSeq.xCmp) and another that
+** processes text encoded in UTF-16 (CollSeq.xCmp16), using the machine
+** native byte order. When a collation sequence is invoked, SQLite selects
+** the version that will require the least expensive encoding
+** translations, if any.
+**
+** The CollSeq.pUser member variable is an extra parameter that passed in
+** as the first argument to the UTF-8 comparison function, xCmp.
+** CollSeq.pUser16 is the equivalent for the UTF-16 comparison function,
+** xCmp16.
+**
+** If both CollSeq.xCmp and CollSeq.xCmp16 are NULL, it means that the
+** collating sequence is undefined.  Indices built on an undefined
+** collating sequence may not be read or written.
+*/
+struct CollSeq {
+  char *zName;          /* Name of the collating sequence, UTF-8 encoded */
+  u8 enc;               /* Text encoding handled by xCmp() */
+  u8 type;              /* One of the SQLITE_COLL_... values below */
+  void *pUser;          /* First argument to xCmp() */
+  int (*xCmp)(void*,int, const void*, int, const void*);
+  void (*xDel)(void*);  /* Destructor for pUser */
+};
+
+/*
+** Allowed values of CollSeq.type:
+*/
+#define SQLITE_COLL_BINARY  1  /* The default memcmp() collating sequence */
+#define SQLITE_COLL_NOCASE  2  /* The built-in NOCASE collating sequence */
+#define SQLITE_COLL_REVERSE 3  /* The built-in REVERSE collating sequence */
+#define SQLITE_COLL_USER    0  /* Any other user-defined collating sequence */
+#endif
+
+struct CollSeq;
+/*
+** An instance of the following structure is passed as the first
+** argument to sqlite3VdbeKeyCompare and is used to control the 
+** comparison of the two index keys.
+*/
+struct RcKeyInfo {  // modified from KeyInfo to change sqlite3* to void*
+  int refcount;       // to use smart pointers
+  void *db;           /* The database connection */
+  u8 enc;             /* Text encoding - one of the SQLITE_UTF* values */
+  u16 nField;         /* Number of entries in aColl[] */
+  u8 *aSortOrder;     /* Sort order for each column.  May be NULL */
+  CollSeq *aColl[1];  /* Collating sequence for each term of the key */
+  RcKeyInfo(){ refcount = 0; }
+
+  static void *operator new(std::size_t sz, int ncoll, int nsort);
+  static void operator delete(void *ptr, std::size_t sz);
+  void printShort();
+};
+
 /*********************** Prototypes ******************/
 struct UnpackedRecord;
-struct GKeyInfo;
 
 int myVarintLen(u64 v);
 int myGetVarint(const unsigned char *p, u64 *v);
 int myPutVarint(unsigned char *p, u64 v);
 // functions to expose
 int myVdbeRecordCompare(int nKey1, const void *pKey1, UnpackedRecord *pPKey2);
-UnpackedRecord *myVdbeRecordUnpack(GKeyInfo *pKeyInfo, int nKey,
+UnpackedRecord *myVdbeRecordUnpack(RcKeyInfo *pKeyInfo, int nKey,
                                    const void *pKey, char *pSpace, 
                    int szSpace);
 void myVdbeDeleteUnpackedRecord(UnpackedRecord *p);
 
-// Clone a GKeyInfo, returning a newly allocated pointer.
+// Clone a RcKeyInfo, returning a newly allocated pointer.
 // The pointer should be freed with free()
-GKeyInfo *CloneGKeyInfo(GKeyInfo *ki);
+RcKeyInfo *CloneKeyInfo(RcKeyInfo *ki);
 
 // Returns a pKey from a pIdxKey. The value returned is a dynamically
 // allocated buffer that should be freed by the called with free().
@@ -138,64 +197,6 @@ static int sqlite3VarintLen(u64 v);
 # define DEBUG_ONLY(X)
 #endif
 
-/*
-** A "Collating Sequence" is defined by an instance of the following
-** structure. Conceptually, a collating sequence consists of a name and
-** a comparison routine that defines the order of that sequence.
-**
-** There may two separate implementations of the collation function, one
-** that processes text in UTF-8 encoding (CollSeq.xCmp) and another that
-** processes text encoded in UTF-16 (CollSeq.xCmp16), using the machine
-** native byte order. When a collation sequence is invoked, SQLite selects
-** the version that will require the least expensive encoding
-** translations, if any.
-**
-** The CollSeq.pUser member variable is an extra parameter that passed in
-** as the first argument to the UTF-8 comparison function, xCmp.
-** CollSeq.pUser16 is the equivalent for the UTF-16 comparison function,
-** xCmp16.
-**
-** If both CollSeq.xCmp and CollSeq.xCmp16 are NULL, it means that the
-** collating sequence is undefined.  Indices built on an undefined
-** collating sequence may not be read or written.
-*/
-struct CollSeq {
-  char *zName;          /* Name of the collating sequence, UTF-8 encoded */
-  u8 enc;               /* Text encoding handled by xCmp() */
-  u8 type;              /* One of the SQLITE_COLL_... values below */
-  void *pUser;          /* First argument to xCmp() */
-  int (*xCmp)(void*,int, const void*, int, const void*);
-  void (*xDel)(void*);  /* Destructor for pUser */
-};
-
-/*
-** Allowed values of CollSeq.type:
-*/
-#define SQLITE_COLL_BINARY  1  /* The default memcmp() collating sequence */
-#define SQLITE_COLL_NOCASE  2  /* The built-in NOCASE collating sequence */
-#define SQLITE_COLL_REVERSE 3  /* The built-in REVERSE collating sequence */
-#define SQLITE_COLL_USER    0  /* Any other user-defined collating sequence */
-
-
-/*
-** An instance of the following structure is passed as the first
-** argument to sqlite3VdbeKeyCompare and is used to control the 
-** comparison of the two index keys.
-*/
-struct GKeyInfo {  // modified from KeyInfo to change sqlite3* to void*
-  void *db;           /* The database connection */
-  u8 enc;             /* Text encoding - one of the SQLITE_UTF* values */
-  u16 nField;         /* Number of entries in aColl[] */
-  u8 *aSortOrder;     /* Sort order for each column.  May be NULL */
-  CollSeq *aColl[1];  /* Collating sequence for each term of the key */
-  void printShort(){
-    if (this){
-      printf("%d%d%c", enc, nField, aSortOrder ? 'S' : '0');
-      for (int i=0; i < nField; ++i){ printf("%d", aColl[i]->type); }
-    } else printf("nil");
-  }
-};
-
 
 /*
 ** Internally, the vdbe manipulates nearly all SQL values as Mem
@@ -278,7 +279,7 @@ struct Mem {
 ** into its constituent fields.
 */
 struct UnpackedRecord {
-  GKeyInfo *pKeyInfo;  /* Collation and sort-order information */
+  RcKeyInfo *pKeyInfo;  /* Collation and sort-order information */
   u16 nField;         /* Number of entries in apMem[] */
   u16 flags;          /* Boolean settings.  UNPACKED_... below */
   i64 rowid;          /* Used by UNPACKED_PREFIX_SEARCH */

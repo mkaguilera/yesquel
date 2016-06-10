@@ -46,7 +46,7 @@ int compareNpKeyWithKey(i64 nKey1, char *pKey1, i64 nKey2,
                         UnpackedRecord *pIdxKey2);
 int CellSearchNodeUnpacked(DTreeNode &node, UnpackedRecord *pIdxKey, i64 nkey,
                            int biasRight, int *matches=0);
-int GCellSearchNode(DTreeNode &node, i64 nkey, void *pkey, GKeyInfo *ki,
+int GCellSearchNode(DTreeNode &node, i64 nkey, void *pkey, Ptr<RcKeyInfo> prki,
                     int biasRight);
 
 #endif

@@ -183,11 +183,9 @@ void TxCache::releaseLevel(int level){
 PendingOpsEntry::~PendingOpsEntry(){
   switch(type){
   case 0: // add
-    if (u.add.ki) free(u.add.ki); // free the keyinfo
     u.add.cell.Free(); // free cell
     break;
   case 1: // delrange
-    if (u.delrange.ki) free(u.delrange.ki); // free the keyinfo
     u.delrange.cell1.Free(); // free cell1
     u.delrange.cell2.Free(); // free cell2
     break;
@@ -249,11 +247,11 @@ int TxCache::auxApplyOp(Ptr<Valbuf> vbuf, PendingOpsEntry *poe){
   assert(vbuf->type == 1); // only supervalue
   if (poe->type == 0){ // add
     ListCell &cell = poe->u.add.cell;
-    GKeyInfo *ki = poe->u.add.ki;
     int index, matches=0;
 
     if (vbuf->u.raw->Ncells >= 1){
-      index = myCellSearchNode(vbuf, cell.nKey, cell.pKey, 1, ki, &matches);
+      index = myCellSearchNode(vbuf, cell.nKey, cell.pKey, 1, poe->prki,
+                               &matches);
       if (index < 0) return index;
     }
     else index = 0; // no cells, so insert at position 0
@@ -269,13 +267,13 @@ int TxCache::auxApplyOp(Ptr<Valbuf> vbuf, PendingOpsEntry *poe){
   } else if (poe->type == 1){ // delrange
     ListCell &cell1 = poe->u.delrange.cell1;
     ListCell &cell2 = poe->u.delrange.cell2;
-    GKeyInfo *ki = poe->u.delrange.ki;
     int index1, index2;
     int matches1, matches2;
     int intervtype = poe->u.delrange.intervtype;
 
     if (intervtype < 6){
-      index1 = myCellSearchNode(vbuf, cell1.nKey, cell1.pKey, 0, ki, &matches1);
+      index1 = myCellSearchNode(vbuf, cell1.nKey, cell1.pKey, 0, poe->prki,
+                                &matches1);
       if (index1 < 0){ return index1; }
       assert(0 <= index1 && index1 <= vbuf->u.raw->Ncells);
       if (matches1 && intervtype < 3) ++index1; // open interval,
@@ -285,7 +283,7 @@ int TxCache::auxApplyOp(Ptr<Valbuf> vbuf, PendingOpsEntry *poe){
 
     if (index1 < vbuf->u.raw->Ncells){
       if (intervtype % 3 < 2){
-        index2 = myCellSearchNode(vbuf, cell2.nKey, cell2.pKey, 0, ki,
+        index2 = myCellSearchNode(vbuf, cell2.nKey, cell2.pKey, 0, poe->prki,
                                   &matches2);
         if (index2 < 0){ return index2; }
         // must find value in cell
@@ -398,7 +396,8 @@ bool TxCache::hasPendingOps(COid &coid){
 
  // check if key was added or removed by pending operations.
 // Returns 1 if added, 0 if removed, -1 if neither
-int TxCache::checkPendingOps(COid &coid, int nKey, char *pKey, GKeyInfo *ki){
+int TxCache::checkPendingOps(COid &coid, int nKey, char *pKey,
+                             Ptr<RcKeyInfo> prki){
   int res;
   PendingOpsList **polptr, *pol;
   
@@ -413,7 +412,7 @@ int TxCache::checkPendingOps(COid &coid, int nKey, char *pKey, GKeyInfo *ki){
     assert(pol);
     
     if (pKey){
-      pIdxKey = myVdbeRecordUnpack(ki, (int) nKey, pKey, aSpace,
+      pIdxKey = myVdbeRecordUnpack(&*prki, (int) nKey, pKey, aSpace,
                                    sizeof(aSpace));
       if (pIdxKey == 0) return GAIAERR_NO_MEMORY;
     }
@@ -525,13 +524,14 @@ int myCellSearchUnpacked(Ptr<Valbuf> &vbuf, UnpackedRecord *pIdxKey,
 }
 
 int myCellSearchNode(Ptr<Valbuf> &vbuf, i64 nkey, void *pkey, int biasRight, 
-                          GKeyInfo *ki, int *matches){
+                     Ptr<RcKeyInfo> prki, int *matches){
   UnpackedRecord *pIdxKey=0; /* Unpacked index key */
   char aSpace[150];          /* Temp space for pIdxKey - to avoid a malloc */
   int res;
 
   if (pkey){
-    pIdxKey = myVdbeRecordUnpack(ki, (int) nkey, pkey, aSpace, sizeof(aSpace));
+    pIdxKey = myVdbeRecordUnpack(&*prki, (int) nkey, pkey, aSpace,
+                                 sizeof(aSpace));
     if (pIdxKey == 0) return GAIAERR_NO_MEMORY;
   }
   res = myCellSearchUnpacked(vbuf, pIdxKey, nkey, biasRight, matches);

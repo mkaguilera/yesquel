@@ -115,14 +115,15 @@ int CellSearchNodeUnpacked(DTreeNode &node, UnpackedRecord *pIdxKey, i64 nkey,
   assert(0 <= mid && mid <= node.Ncells());
   return mid;
 }
-int GCellSearchNode(DTreeNode &node, i64 nkey, void *pkey, GKeyInfo *ki,
+int GCellSearchNode(DTreeNode &node, i64 nkey, void *pkey, Ptr<RcKeyInfo> prki,
                     int biasRight){
   UnpackedRecord *pIdxKey;   /* Unpacked index key */
   char aSpace[150];          /* Temp space for pIdxKey - to avoid a malloc */
   int res;
 
   if (pkey){
-    pIdxKey = myVdbeRecordUnpack(ki, (int)nkey, pkey, aSpace, sizeof(aSpace));
+    pIdxKey = myVdbeRecordUnpack(&*prki, (int)nkey, pkey, aSpace,
+                                 sizeof(aSpace));
     if (pIdxKey == 0) return SQLITE_NOMEM;
   } else pIdxKey = 0;
   res = CellSearchNodeUnpacked(node, pIdxKey, nkey, biasRight);

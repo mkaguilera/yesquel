@@ -289,7 +289,7 @@ int LocalTransaction::vget(COid coid, Ptr<Valbuf> &buf){
 }
 
 int LocalTransaction::vsuperget(COid coid, Ptr<Valbuf> &buf, ListCell *cell,
-                                GKeyInfo *ki){
+                                Ptr<RcKeyInfo> prki){
   int reslocalread;
   FullReadRPCData *rpcdata;
   FullReadRPCRespData *rpcresp;
@@ -323,7 +323,7 @@ int LocalTransaction::vsuperget(COid coid, Ptr<Valbuf> &buf, ListCell *cell,
   rpcdata->data->ts = StartTs;
   rpcdata->data->cid = coid.cid;
   rpcdata->data->oid = coid.oid;
-  rpcdata->data->pKeyInfo = ki;
+  rpcdata->data->prki = prki;
   if (cell) rpcdata->data->cell = *cell;
   else memset(&rpcdata->data->cell, 0, sizeof(ListCell));
 
@@ -382,7 +382,7 @@ int LocalTransaction::vsuperget(COid coid, Ptr<Valbuf> &buf, ListCell *cell,
     sv->Cells[i].value = *(Oid*)ptr;
     ptr += sizeof(u64); // space for 64-bit value in cell
   }
-  sv->pki = CloneGKeyInfo(r->pki);
+  sv->prki = r->prki;
   buf = vbuf;
   if (readsTxCached < MAX_READS_TO_TXCACHE){
     ++readsTxCached;
@@ -729,7 +729,7 @@ int LocalTransaction::writeSuperValue(COid coid, SuperValue *sv){
   fp->nattrs = sv->Nattrs;
   fp->celltype = sv->CellType;
   fp->ncelloids = sv->Ncells;
-  fp->pKeyInfo = sv->pki;
+  fp->prki = sv->prki;
 
   // calculate space needed for cells
   len = 0;
@@ -773,10 +773,10 @@ int LocalTransaction::writeSuperValue(COid coid, SuperValue *sv){
 }
 
 #if DTREE_SPLIT_LOCATION != 1
-int LocalTransaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki,
+int LocalTransaction::listAdd(COid coid, ListCell *cell, Ptr<RcKeyInfo> prki,
                               int flags){
 #else
-int LocalTransaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki,
+int LocalTransaction::listAdd(COid coid, ListCell *cell, Ptr<RcKeyInfo> prki,
                               int flags, int *ncells, int *size){
 #endif
   ListAddRPCData *rpcdata;
@@ -806,7 +806,7 @@ int LocalTransaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki,
   if (flags & 1){
     if (vbuf->u.raw->Ncells >= 1){
       int matches;
-      myCellSearchNode(vbuf, cell->nKey, cell->pKey, 0, ki, &matches);
+      myCellSearchNode(vbuf, cell->nKey, cell->pKey, 0, prki, &matches);
       if (matches) return 0; // found
     }
     flags &= ~1; // don't check again in listaddRpc, we already read the value
@@ -825,7 +825,7 @@ int LocalTransaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki,
   rpcdata->data->level = currlevel;
   rpcdata->data->flags = flags;
   rpcdata->data->ts = StartTs;
-  rpcdata->data->pKeyInfo = ki;
+  rpcdata->data->prki = prki;
   rpcdata->data->cell = *cell;
 
   // this is the buf information really used by the marshaller
@@ -853,7 +853,7 @@ int LocalTransaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki,
       vbufincache = 0; // this new vbuf is not in cache, store it below
     }
     if (vbuf->u.raw->Ncells >= 1)
-      index = myCellSearchNode(vbuf, cell->nKey, cell->pKey, 1, ki,
+      index = myCellSearchNode(vbuf, cell->nKey, cell->pKey, 1, prki,
                                &matches);
     else index = 0; // no cells, so insert at position 0
     assert(0 <= index && index <= vbuf->u.raw->Ncells);
@@ -878,7 +878,7 @@ int LocalTransaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki,
 
 // deletes a range of cells from a supervalue
 int LocalTransaction::listDelRange(COid coid, u8 intervalType, ListCell *cell1,
-                                   ListCell *cell2, GKeyInfo *ki){
+                                   ListCell *cell2, Ptr<RcKeyInfo> prki){
   ListDelRangeRPCData *rpcdata;
   ListDelRangeRPCRespData *rpcresp;
   int respstatus;
@@ -910,7 +910,7 @@ int LocalTransaction::listDelRange(COid coid, u8 intervalType, ListCell *cell1,
   rpcdata->data->cid = coid.cid;
   rpcdata->data->oid = coid.oid;
   rpcdata->data->level = currlevel;
-  rpcdata->data->pKeyInfo = ki;
+  rpcdata->data->prki = prki;
   rpcdata->data->intervalType = intervalType;
   rpcdata->data->cell1 = *cell1;
   rpcdata->data->cell2 = *cell2;
@@ -939,7 +939,7 @@ int LocalTransaction::listDelRange(COid coid, u8 intervalType, ListCell *cell1,
     }
 
     if (intervalType < 6){
-      index1 = myCellSearchNode(vbuf, cell1->nKey, cell1->pKey, 0, ki,
+      index1 = myCellSearchNode(vbuf, cell1->nKey, cell1->pKey, 0, prki,
                                 &matches1);
       if (index1 < 0){ respstatus = -1; goto end; }
       assert(0 <= index1 && index1 <= vbuf->u.raw->Ncells);
@@ -950,7 +950,7 @@ int LocalTransaction::listDelRange(COid coid, u8 intervalType, ListCell *cell1,
 
     if (index1 < vbuf->u.raw->Ncells){
       if (intervalType % 3 < 2){
-        index2 = myCellSearchNode(vbuf, cell2->nKey, cell2->pKey, 0, ki,
+        index2 = myCellSearchNode(vbuf, cell2->nKey, cell2->pKey, 0, prki,
                                   &matches2);
         if (index2 < 0){ respstatus = -1; goto end; }
         // must find value in cell

@@ -79,7 +79,7 @@ public:
   int &CellsSize(){ return raw->u.raw->CellsSize; }
   ListCell *Cells(){ return raw->u.raw->Cells; }
   u8 &CellType(){ return raw->u.raw->CellType; }
-  GKeyInfo *Pki(){ return raw->u.raw->pki; }
+  Ptr<RcKeyInfo> Prki(){ return raw->u.raw->prki; }
   Oid &GetPtr(int index){
     if (index==raw->u.raw->Ncells) return LastPtr();
     else return raw->u.raw->Cells[index].value;
@@ -108,10 +108,10 @@ public:
 
 // prototype definitions
 int auxReadReal(KVTransaction *tx, COid coid, DTreeNode &outptr,
-                ListCell *cell, GKeyInfo *ki);
+                ListCell *cell, Ptr<RcKeyInfo> prki);
 int auxReadCache(COid coid, DTreeNode &outptr);
 void auxRemoveCache(COid coid);
 int auxReadCacheOrReal(KVTransaction *tx, COid coid, DTreeNode &outptr,
-                       int &real, ListCell *cell, GKeyInfo *ki);
+                       int &real, ListCell *cell, Ptr<RcKeyInfo> prki);
 
 #endif

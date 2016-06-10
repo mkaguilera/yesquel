@@ -86,6 +86,7 @@ Transaction::Transaction(StorageConfig *sc)
 
 Transaction::~Transaction(){
   txCache.clear();
+  if (piggy_buf) delete piggy_buf;
 }
 
 // start a new transaction
@@ -398,7 +399,7 @@ int Transaction::vget(COid coid, Ptr<Valbuf> &buf){
 }
 
 int Transaction::vsuperget(COid coid, Ptr<Valbuf> &buf, ListCell *cell,
-                           GKeyInfo *ki){
+                           Ptr<RcKeyInfo> prki){
   IPPortServerno server;
   int reslocalread;
   FullReadRPCData *rpcdata;
@@ -432,7 +433,7 @@ int Transaction::vsuperget(COid coid, Ptr<Valbuf> &buf, ListCell *cell,
   rpcdata->data->ts = StartTs;
   rpcdata->data->cid = coid.cid;
   rpcdata->data->oid = coid.oid;
-  rpcdata->data->pKeyInfo = ki;
+  rpcdata->data->prki = prki;
   if (cell){
     rpcdata->data->cellPresent = 1;
     rpcdata->data->cell = *cell;
@@ -508,7 +509,7 @@ int Transaction::vsuperget(COid coid, Ptr<Valbuf> &buf, ListCell *cell,
     sv->Cells[i].value = *(Oid*)ptr;
     ptr += sizeof(u64); // space for 64-bit value in cell
   }
-  sv->pki = CloneGKeyInfo(r->pki);
+  sv->prki = r->prki;
   buf = vbuf;
 
   res = txCache.applyPendingOps(coid, buf, readsTxCached<MAX_READS_TO_TXCACHE);
@@ -1075,7 +1076,7 @@ int Transaction::writeSuperValue(COid coid, SuperValue *sv){
   fp->nattrs = sv->Nattrs;
   fp->celltype = sv->CellType;
   fp->ncelloids = sv->Ncells;
-  fp->pKeyInfo = sv->pki;
+  fp->prki = sv->prki;
 
   // calculate space needed for cells
   len = 0;
@@ -1128,10 +1129,11 @@ int Transaction::writeSuperValue(COid coid, SuperValue *sv){
 }
 
 #if DTREE_SPLIT_LOCATION != 1
-int Transaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags){
+int Transaction::listAdd(COid coid, ListCell *cell, Ptr<RcKeyInfo> prki,
+                         int flags){
 #else
-int Transaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags,
-                         int *ncells, int *size){
+int Transaction::listAdd(COid coid, ListCell *cell, Ptr<RcKeyInfo> prki,
+                         int flags, int *ncells, int *size){
 #endif
   IPPortServerno server;
   ListAddRPCData *rpcdata;
@@ -1155,7 +1157,7 @@ int Transaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags,
       //applyPendingOps(coid, vbuf);
       if (vbuf->u.raw->Ncells >= 1){
 	int matches;
-	myCellSearchNode(vbuf, cell->nKey, cell->pKey, 0, ki, &matches);
+	myCellSearchNode(vbuf, cell->nKey, cell->pKey, 0, prki, &matches);
 	if (matches) return 0; // found, nothing to do
       }
       // data in txcache, but key not present, so continue to ask server to
@@ -1164,7 +1166,7 @@ int Transaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags,
       // optimization below isn't correct since we must check whether node is
       // leaf and key is in range in any case, optimization below helps only if
       // key was previously added in the same transaction
-      //res = checkPendingOps(coid, cell->nKey, cell->pKey, ki);
+      //res = checkPendingOps(coid, cell->nKey, cell->pKey, prki);
       //if (res == 1) return 0;
     }
   }
@@ -1184,7 +1186,7 @@ int Transaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags,
   rpcdata->data->level = currlevel;
   rpcdata->data->flags = flags;
   rpcdata->data->ts = StartTs;
-  rpcdata->data->pKeyInfo = ki;
+  rpcdata->data->prki = prki;
   rpcdata->data->cell = *cell;
 
   // this is the buf information really used by the marshaller
@@ -1214,7 +1216,7 @@ int Transaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags,
   poe->type = 0; // add
   poe->level = currlevel;
   poe->u.add.cell.copy(*cell);
-  poe->u.add.ki = CloneGKeyInfo(ki);
+  poe->prki = prki;
 
   if (localread == 0) txCache.addPendingOps(coid, poe); // no data in cache
   else {
@@ -1239,7 +1241,7 @@ int Transaction::listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags,
 //     6=(-inf,cell2)    7=(-inf,cell2]    8=(-inf,inf)
 // where inf is infinity
 int Transaction::listDelRange(COid coid, u8 intervalType, ListCell *cell1,
-                              ListCell *cell2, GKeyInfo *ki){
+                              ListCell *cell2, Ptr<RcKeyInfo> prki){
   IPPortServerno server;
   ListDelRangeRPCData *rpcdata;
   ListDelRangeRPCRespData rpcresp;
@@ -1267,7 +1269,7 @@ int Transaction::listDelRange(COid coid, u8 intervalType, ListCell *cell1,
   rpcdata->data->cid = coid.cid;
   rpcdata->data->oid = coid.oid;
   rpcdata->data->level = currlevel;
-  rpcdata->data->pKeyInfo = ki;
+  rpcdata->data->prki = prki;
   rpcdata->data->intervalType = intervalType;
   rpcdata->data->cell1 = *cell1;
   rpcdata->data->cell2 = *cell2;
@@ -1303,7 +1305,7 @@ int Transaction::listDelRange(COid coid, u8 intervalType, ListCell *cell1,
     poe->u.delrange.cell1.copy(*cell1);
     poe->u.delrange.cell2.copy(*cell2);
     poe->u.delrange.intervtype = intervalType;
-    poe->u.delrange.ki = CloneGKeyInfo(ki);
+    poe->prki = prki;
 
     if (localread == 0) txCache.addPendingOps(coid, poe); // no data in cache
     else {

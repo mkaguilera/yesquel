@@ -129,10 +129,10 @@ struct TxWriteSVItem : public TxListItem {
   u64 *attrs;      // value of attributes
   SkipListBK<ListCellPlus,int> cells; // parsed cells
                             // note: the value in this skiplist is not used
-  GKeyInfo *pki;
-    // all cells in above skiplist will point to this pki.
+  Ptr<RcKeyInfo> prki;
+    // all cells in above skiplist will point to this prki.
     // If non-null, it is freed with free() in the destructor.
-    // This pki is initially empty, but we learn it later when we
+    // This prki is initially empty, but we learn it later when we
     // compare against a given ListCellPlus that comes in a ListAdd or
     // ListDelRange RPC.
     // The reason we do it this way is because sqlite does not include
@@ -141,25 +141,26 @@ struct TxWriteSVItem : public TxListItem {
     // later.
     // This field is the mechanism to do it: all cells have a pointer to
     // this field, and we set this field later. Once we set it (function
-    // SetPkiSticky(), it remains with the value. That method will clone
+    // SetPrkiSticky(), it remains with the value. That method will clone
     // the KeyInfo (and so the object will own it) and will not change it
     // again in subsequent calls).
 
   TxWriteSVItem(const COid &coidinit, int l) : TxListItem(coidinit, 3, l) {
-    nattrs = 0; attrs = 0; pki = 0; ncelloids = lencelloids = 0;
+    nattrs = 0; attrs = 0; prki = 0; ncelloids = lencelloids = 0;
     celloids = 0; }
   TxWriteSVItem(const TxWriteSVItem &r);
   ~TxWriteSVItem();
   void clear(bool reset); // clears object and optionally reset to empty state
   TxWriteSVItem &operator=(const TxWriteSVItem &r){ assert(0); return *this; }
 
-  void setPkiSticky(GKeyInfo *k);
+  void setPrkiSticky(Ptr<RcKeyInfo> prki_arg);
 
   char *getCelloids(int &retncelloids, int &retlencelloids);
 
   // converts from a single interval type for both start and end of the
   // interval to two interval types, one for the start and one for the end
-  static void convertOneIntervalTypeToTwoIntervalType(int intervaltype1, int &intervaltype2start, int &intervaltype2end);
+  static void convertOneIntervalTypeToTwoIntervalType(int intervaltype1,
+                  int &intervaltype2start, int &intervaltype2end);
 
   void printShort(COid coidtomatch);
   bool applyItemToTucoid(Ptr<TxUpdateCoid> tucoid, bool cancapture);
@@ -176,15 +177,16 @@ private:
 // information about a list add item
 struct TxListAddItem : public TxListItem {
   ListCellPlus item;
-  GKeyInfo *pki;
+  Ptr<RcKeyInfo> prki;
   
-  TxListAddItem(const COid &coidinit, GKeyInfo *ki, const ListCell &c, int l) :
+  TxListAddItem(const COid &coidinit, Ptr<RcKeyInfo> prki_arg,
+                const ListCell &c, int l) :
     TxListItem(coidinit, 0, l),
-    item(c, ki) // copy cell content
+    item(c, prki_arg) // copy cell content
   {
-    pki = CloneGKeyInfo(ki);
+    prki = prki_arg;
   }
-  TxListAddItem(const TxListAddItem &r);
+  TxListAddItem(TxListAddItem &r);
   ~TxListAddItem();
   void printShort(COid coidtomatch);
   bool applyItemToTucoid(Ptr<TxUpdateCoid> tucoid, bool cancapture);
@@ -195,17 +197,17 @@ struct TxListDelRangeItem : public TxListItem {
   u8 intervalType;
   ListCellPlus itemstart; // first item in interval to delete
   ListCellPlus itemend;   // list item in interval to delete
-  GKeyInfo *pki;
-  TxListDelRangeItem(const COid &coidinit, GKeyInfo *ki, u8 it,
+  Ptr<RcKeyInfo> prki;
+  TxListDelRangeItem(const COid &coidinit, Ptr<RcKeyInfo> prki_arg, u8 it,
                      const ListCell &is, const ListCell &ie, int l) :
     TxListItem(coidinit, 1, l),
     intervalType(it),
-    itemstart(is, ki),
-    itemend(ie, ki)
+    itemstart(is, prki_arg),
+    itemend(ie, prki_arg)
   {
-    pki = CloneGKeyInfo(ki);
+    prki = prki_arg;
   }
-  TxListDelRangeItem(const TxListDelRangeItem &r);
+  TxListDelRangeItem(TxListDelRangeItem &r);
   
   ~TxListDelRangeItem();
   void printShort(COid coidtomatch);
@@ -280,9 +282,9 @@ class TxUpdateCoid {
 private:
   void commonConstructor();
   SkipListBK<ListCellPlus,int> SLAddItems;  // to be used in hasConflicts
-                                            // will be precomputed once and then used later
-                                            // note: (1) the value in this skiplist is not used
-                                            // note: (2) the ListCellPlus* items added do not belong to SLAddItems
+      // will be precomputed once and then used later
+      // note: (1) the value in this skiplist is not used
+      // note: (2) the ListCellPlus* items added do not belong to SLAddItems
   bool SLpopulated;
   void populateSLAddItems();
   Align4 int refcount;         // for Ptr<> smart pointers
@@ -298,7 +300,8 @@ public:
   void clearUpdates(bool justfree=false);
 
   u8 SetAttrs[GAIA_MAX_ATTRS];// which attributes have been set. 
-  u64 Attrs[GAIA_MAX_ATTRS];  // to what values they have been set. These Attr changes are on top
+  u64 Attrs[GAIA_MAX_ATTRS];  // to what values they have been set. These Attr
+                              // changes are on top
                               // of any writes that have occurred
   TxWriteItem *Writevalue;    // if there has been a write, the latest one
   TxWriteSVItem *WriteSV;     // if there has been a write of a supervalue,
@@ -370,12 +373,14 @@ public:
 class PendingTx {
 private:
   HashTableMT<Tid,Ptr<PendingTxInfo> > cTxList;
-  static int getInfoLockaux(Tid &tid, Ptr<PendingTxInfo> *pti, int status, SkipList<Tid,Ptr<PendingTxInfo>> *b, u64 parm);
+  static int getInfoLockaux(Tid &tid, Ptr<PendingTxInfo> *pti, int status,
+                            SkipList<Tid,Ptr<PendingTxInfo>> *b, u64 parm);
 public:
   PendingTx();
 
   // gets info structure for a given tid. If it does not exist, create it.
-  // Returns the entry locked in ret. Returns 0 if entry was found, 1 if it was created.
+  // Returns the entry locked in ret. Returns 0 if entry was found, 1 if it
+  // was created.
   int getInfo(Tid &tid, Ptr<PendingTxInfo> &retpti);
 
   // Gets info structure for a given tid.

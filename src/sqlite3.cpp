@@ -6751,6 +6751,25 @@ SQLITE_PRIVATE void *sqlite3DbMallocZero(sqlite3 *db, int n){
   return p;
 }
 
+
+// YESQUEL CH: added this function to allocate keyinfos
+SQLITE_PRIVATE KeyInfo *mallocKeyInfo(sqlite3 *db, int n){
+  KeyInfo *pKeyInfo = (KeyInfo*) sqlite3DbMallocZero(db, n);
+  pKeyInfo->refcount = 0x4000000; // set special bit to indicate
+                                  // this was allocated using sqlite3DbMalloc
+  return pKeyInfo;
+}
+
+// YESQUEL CH: added this function to free keyinfos
+SQLITE_PRIVATE void freeKeyInfo(sqlite3 *db, KeyInfo *pKeyInfo){
+  // the right way to implement this function is to decrement the refcount
+  // and free when it gets to 0x1000000. However, we do not expect sqlite
+  // to free a keyinfo that is being used within Yesquel, so
+  // it should never be the case that refcount > 0x1000000 when we get here.
+  assert(pKeyInfo->refcount == 0x4000000);
+  sqlite3DbFree(db, pKeyInfo);
+}
+
 /*
 ** Allocate and zero memory.  If the allocation fails, make
 ** the mallocFailed flag in the connection pointer.
@@ -18199,7 +18218,7 @@ SQLITE_PRIVATE void sqlite3VdbeChangeP4(Vdbe *p, int addr, const char *zP4, int 
 
     nField = ((KeyInfo*)zP4)->nField;
     nByte = sizeof(*pKeyInfo) + (nField-1)*sizeof(pKeyInfo->aColl[0]) + nField;
-    pKeyInfo = (KeyInfo*) sqlite3DbMallocRaw(0, nByte);
+    pKeyInfo = mallocKeyInfo(0, nByte); // YESQUEL CH
     pOp->p4.pKeyInfo = pKeyInfo;
     if( pKeyInfo ){
       u8 *aSortOrder;
@@ -30175,7 +30194,7 @@ SQLITE_PRIVATE KeyInfo *sqlite3IndexKeyinfo(Parse *pParse, Index *pIdx){
   int nCol = pIdx->nColumn;
   int nBytes = sizeof(KeyInfo) + (nCol-1)*sizeof(CollSeq*) + nCol;
   sqlite3 *db = pParse->db;
-  KeyInfo *pKey = (KeyInfo *)sqlite3DbMallocZero(db, nBytes);
+  KeyInfo *pKey = mallocKeyInfo(db, nBytes); // YESQUEL CH
 
   if( pKey ){
     pKey->db = pParse->db;
@@ -30191,7 +30210,7 @@ SQLITE_PRIVATE KeyInfo *sqlite3IndexKeyinfo(Parse *pParse, Index *pIdx){
   }
 
   if( pParse->nErr ){
-    sqlite3DbFree(db, pKey);
+    freeKeyInfo(db, pKey); // YESQUEL CH
     pKey = 0;
   }
   return pKey;
@@ -40268,7 +40287,7 @@ static KeyInfo *keyInfoFromExprList(Parse *pParse, ExprList *pList){
   int i;
 
   nExpr = pList->nExpr;
-  pInfo = (KeyInfo*) sqlite3DbMallocZero(db, sizeof(*pInfo) + nExpr*(sizeof(CollSeq*)+1) );
+  pInfo = mallocKeyInfo(db, sizeof(*pInfo) + nExpr*(sizeof(CollSeq*)+1) ); // YESQUEL CH
   if( pInfo ){
     pInfo->aSortOrder = (u8*)&pInfo->aColl[nExpr];
     pInfo->nField = (u16)nExpr;
@@ -41351,7 +41370,7 @@ static int multiSelect(
 
     assert( p->pRightmost==p );
     nCol = p->pEList->nExpr;
-    pKeyInfo = (KeyInfo*) sqlite3DbMallocZero(db,
+    pKeyInfo = mallocKeyInfo(db,   // YESQUEL CH
                        sizeof(*pKeyInfo)+nCol*(sizeof(CollSeq*) + 1));
     if( !pKeyInfo ){
       rc = SQLITE_NOMEM;
@@ -41382,7 +41401,8 @@ static int multiSelect(
         pLoop->addrOpenEphm[i] = -1;
       }
     }
-    sqlite3DbFree(db, pKeyInfo);
+    
+    freeKeyInfo(db, pKeyInfo); // YESQUEL CH
   }
 
 multi_select_end:
@@ -41736,7 +41756,7 @@ static int multiSelectOrderBy(
       aPermute[i] = pItem->iCol - 1;
     }
     pKeyMerge =
-      (KeyInfo*) sqlite3DbMallocRaw(db, sizeof(*pKeyMerge)+nOrderBy*(sizeof(CollSeq*)+1));
+      mallocKeyInfo(db, sizeof(*pKeyMerge)+nOrderBy*(sizeof(CollSeq*)+1)); // YESQUEL CH
     if( pKeyMerge ){
       pKeyMerge->aSortOrder = (u8*)&pKeyMerge->aColl[nOrderBy];
       pKeyMerge->nField = (u16)nOrderBy;
@@ -41775,7 +41795,7 @@ static int multiSelectOrderBy(
     assert( nOrderBy>=nExpr || db->mallocFailed );
     regPrev = sqlite3GetTempRange(pParse, nExpr+1);
     sqlite3VdbeAddOp2(v, OP_Integer, 0, regPrev);
-    pKeyDup = (KeyInfo*) sqlite3DbMallocZero(db,
+    pKeyDup = mallocKeyInfo(db,  // YESQUEL CH
                   sizeof(*pKeyDup) + nExpr*(sizeof(CollSeq*)+1) );
     if( pKeyDup ){
       pKeyDup->aSortOrder = (u8*)&pKeyDup->aColl[nExpr];

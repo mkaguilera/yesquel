@@ -64,13 +64,13 @@
 
 #ifdef _DTREE_C
 struct KeyInfo;
-static int CellSearchNode(DTreeNode &node, i64 nkey, void *pkey, KeyInfo *ki,
-                          int biasRight);
-inline int GCellSearchNode(DTreeNode &node, i64 nkey, void *pkey, GKeyInfo *ki,
-                           int biasRight){
+static int CellSearchNode(DTreeNode &node, i64 nkey, void *pkey,
+                          KeyInfo *pKeyInfo, int biasRight);
+inline int GCellSearchNode(DTreeNode &node, i64 nkey, void *pkey,
+                           Ptr<RcKeyInfo> prki, int biasRight){
   // call the function defined in dtree.cpp that uses KeyInfo
-  // instead of GKeyInfo
-  return CellSearchNode(node, nkey, pkey, (KeyInfo*) ki, biasRight);
+  // instead of RcKeyInfo
+  return CellSearchNode(node, nkey, pkey, (KeyInfo*) &*prki, biasRight);
 }
 #else
 #include "splitter-standalone.h"
@@ -80,7 +80,7 @@ inline int GCellSearchNode(DTreeNode &node, i64 nkey, void *pkey, GKeyInfo *ki,
 // Returns 0 if found, non-zero if error. If found, the oid of the parent
 // is placed in result.
 int FindParentReal(KVTransaction *tx, COid targetcoid, ListCell &cell,
-                   GKeyInfo *ki, Oid &result){
+                   Ptr<RcKeyInfo> prki, Oid &result){
   DTreeNode node;
   int res;
   COid coid, nextcoid;
@@ -105,7 +105,7 @@ int FindParentReal(KVTransaction *tx, COid targetcoid, ListCell &cell,
       return res;
     }
 
-    index = GCellSearchNode(node, cell.nKey, cell.pKey, ki, 0);
+    index = GCellSearchNode(node, cell.nKey, cell.pKey, prki, 0);
     assert(0 <= index && index <= node.Ncells()+1);
     nextcoid.oid = node.GetPtr(index);
   } while (nextcoid.oid != targetcoid.oid &&
@@ -129,7 +129,7 @@ int FindParentReal(KVTransaction *tx, COid targetcoid, ListCell &cell,
 // it may return non-zero (not found) even if parent exists because cached
 // information may be wrong.
 int FindParentCache(KVTransaction *tx, COid targetcoid, ListCell &cell,
-                    GKeyInfo *ki, Oid &result){
+                    Ptr<RcKeyInfo> prki, Oid &result){
   DTreeNode node;
   int res;
   COid coid, nextcoid;
@@ -155,7 +155,7 @@ int FindParentCache(KVTransaction *tx, COid targetcoid, ListCell &cell,
       return res;
     }
 
-    index = GCellSearchNode(node, cell.nKey, cell.pKey, ki, 0);
+    index = GCellSearchNode(node, cell.nKey, cell.pKey, prki, 0);
     assert(0 <= index && index <= node.Ncells()+1);
     nextcoid.oid = node.GetPtr(index);
   } while (nextcoid.oid != targetcoid.oid &&
@@ -173,7 +173,7 @@ int FindParentCache(KVTransaction *tx, COid targetcoid, ListCell &cell,
       dprintf(1,"Bc%d,%d,%llx ", res, nsearches, (long long)coid.oid); 
       return res; 
     }
-    index = GCellSearchNode(node, cell.nKey, cell.pKey, ki, 0);
+    index = GCellSearchNode(node, cell.nKey, cell.pKey, prki, 0);
     assert(0 <= index && index <= node.Ncells()+1);
     nextcoid.oid = node.GetPtr(index);
   }
@@ -256,7 +256,7 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote,
   KVTransaction *tx;
   COid parentcoid, leftcoid, oldleftcoid;
   DTreeNode nodesplit, nodeparent;
-  GKeyInfo *ki;
+  Ptr<RcKeyInfo> prki;
   Timestamp committs;
 
   parentcoid.cid = toSplit.cid;
@@ -277,7 +277,7 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote,
   if (res){ dprintf(1,"a%d ", res); return res; }
   assert(nodesplit.raw->type==1); // must be supervalue
 
-  ki = nodesplit.Pki();
+  prki = nodesplit.Prki();
 
   // check if cell==0 and node is too large (node has been split already)
   //       or cell!=0 and node smaller than minimum splittable size (no
@@ -294,7 +294,7 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote,
   if (!cell) splitindex = nodesplit.Ncells()/2;
   else {
     splitindex = GCellSearchNode(nodesplit, cell->nKey, cell->pKey,
-                                 cell->ppki.ki ? *cell->ppki.ki : 0, 0);
+                                 cell->pprki.getprki(),  0);
     if (splitindex==0) ++splitindex;
   }
   cellsInNodesplit = nodesplit.Ncells()-splitindex-1; // # cells that will be
@@ -319,7 +319,7 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote,
   memset(&leftnode, 0, sizeof(SuperValue));
   leftnode.Nattrs = DTREENODE_NATTRIBS;
   leftnode.CellType = nodesplit.CellType();
-  leftnode.pki = CloneGKeyInfo(nodesplit.Pki());
+  leftnode.prki = nodesplit.Prki();
   leftnode.Attrs = new u64[DTREENODE_NATTRIBS];
   // copy flags and height from right node (toSplit node)
   leftnode.Attrs[DTREENODE_ATTRIB_FLAGS] = nodesplit.Flags();
@@ -355,7 +355,7 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote,
     memset(&newroot, 0, sizeof(SuperValue));
     newroot.Nattrs = DTREENODE_NATTRIBS;
     newroot.CellType = nodesplit.CellType();
-    newroot.pki = CloneGKeyInfo(nodesplit.Pki());
+    newroot.prki = nodesplit.Prki();
     newroot.Attrs = new u64[DTREENODE_NATTRIBS];
     // copy flags from right node (toSplit node), and set height to be 1 greater
     newroot.Attrs[DTREENODE_ATTRIB_FLAGS] = nodesplit.Flags() &
@@ -455,14 +455,14 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote,
   }
   else { // splitting non-root
     // find real parent by doing a traversal using toSplit's leftmost cell
-    res = FindParentCache(tx, toSplit, nodesplit.Cells()[0], ki,
+    res = FindParentCache(tx, toSplit, nodesplit.Cells()[0], prki,
                           parentcoid.oid);
     //if (!res) dprintf(1, "Found parent of %llx %llx using cache",
     //                  (long long)toSplit.cid, (long long)toSplit.oid);
     if (res){
       dprintf(1, "Cannot find parent of %llx %llx using cache: %d",
               (long long)toSplit.cid, (long long)toSplit.oid, res);
-      res = FindParentReal(tx, toSplit, nodesplit.Cells()[0], ki,
+      res = FindParentReal(tx, toSplit, nodesplit.Cells()[0], prki,
                            parentcoid.oid);
       if (res){ dprintf(1, "g%d ", res); goto end; }
     }
@@ -474,10 +474,10 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote,
 
     // listAdd the new cell to parent
 #if DTREE_SPLIT_LOCATION != 1
-    res = KVlistadd(tx, parentcoid, &lc, (GKeyInfo*) ki, 2);  // flags&2 means
+    res = KVlistadd(tx, parentcoid, &lc, prki, 2);  // flags&2 means
                                                            // bypass throttling
 #else
-    res = KVlistadd(tx, parentcoid, &lc, (GKeyInfo*) ki, 2, 0, 0); // flags&2
+    res = KVlistadd(tx, parentcoid, &lc, prki, 2, 0, 0); // flags&2
                                                    // means bypass throttling
 #endif
     if (res){ dprintf(1, "h%d ", res); goto end; }
@@ -499,7 +499,7 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote,
     
     // DelRange of cells (-inf..splitindex+1) from toSplit node (the right node)
     res = KVlistdelrange(tx, toSplit, 6, &nodesplit.Cells()[0],
-                         &nodesplit.Cells()[splitindex+1], (GKeyInfo*) ki);
+                         &nodesplit.Cells()[splitindex+1], prki);
     if (res){ dprintf(1, "l%d ", res);  goto end; }
 
     res = commitTx(tx, &committs);
@@ -518,7 +518,7 @@ int DtSplit(COid toSplit, ListCellPlus *cell, bool remote,
 #endif
         tofix.raw->commitTs = committs; // update timestamps
         tofix.raw->readTs = committs;
-        index = GCellSearchNode(tofix, lc.nKey, lc.pKey, ki, 0);
+        index = GCellSearchNode(tofix, lc.nKey, lc.pKey, prki, 0);
         assert(0 <= index && index <= tofix.Ncells());
         tofix.raw->u.raw->InsertCell(index);
         tofix.raw->u.raw->CellsSize += lc.size();

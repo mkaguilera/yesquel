@@ -46,6 +46,7 @@
 #include "record.h"
 #include "supervalue.h"
 #include "pendingtx.h"
+#include "datastruct.h"
 
 class TxWriteItem;
 class TxWriteSVItem;
@@ -605,32 +606,29 @@ public:
 // RPC to add an item to a list of a Value
 
 struct ListAddRPCParm {
-  Tid tid;           // transaction id
-  Cid cid;           // container id
-  Oid oid;           // object id
-  int level;         // subtransaction level
-  u32 flags;         // if flags&1, check cell being added before adding
-                     // if flags&2, bypass throttle
-  Timestamp ts;      // start timestamp of transaction (used for reading,
-                     //   when check >= 1)
-  ListCell cell;     // cell to add
-  GKeyInfo *pKeyInfo; // information about the record format
+  Tid tid;             // transaction id
+  Cid cid;             // container id
+  Oid oid;             // object id
+  int level;           // subtransaction level
+  u32 flags;           // if flags&1, check cell being added before adding
+                       // if flags&2, bypass throttle
+  Timestamp ts;        // start timestamp of transaction (used for reading,
+                       //   when check >= 1)
+  ListCell cell;       // cell to add
+  Ptr<RcKeyInfo> prki; // information about the record format
   ~ListAddRPCParm(){ cell.Free(); }
 };
 
 class ListAddRPCData : public Marshallable {
 private:
-  GKeyInfo *freekeyinfo; // set by demarshall since it allocates a keyinfo for
-                         // data->pKeyInfo
   char *serializeKeyinfoBuf;  // intended to be used by client only.
-                             // this is a buffer allocated to serialize GKeyInfo
+                             // this is a buffer allocated to serialize RcKeyInfo
 
 public:
   ListAddRPCParm *data;
   int freedata;  // caller should set if data should be deleted in destructor
-  ListAddRPCData()  { freekeyinfo = 0; serializeKeyinfoBuf = 0; freedata = 0; }
+  ListAddRPCData()  { serializeKeyinfoBuf = 0; freedata = 0; }
   ~ListAddRPCData(){ 
-    if (freekeyinfo) free(freekeyinfo);
     if (serializeKeyinfoBuf) free(serializeKeyinfoBuf);
     if (freedata) delete data;
   }
@@ -669,7 +667,7 @@ struct ListDelRangeRPCParm {
   Cid cid;            // container id
   Oid oid;            // object id
   int level;          // subtransaction level
-  GKeyInfo *pKeyInfo; // information about the record format
+  Ptr<RcKeyInfo> prki;// information about the record format
   u8 intervalType;    // 0 = (key1,key2), 1 = (key1,key2],
                       // 2=[key1,key2), 3=[key1,key2]
   ListCell cell1;     // starting key in range
@@ -679,18 +677,15 @@ struct ListDelRangeRPCParm {
 
 class ListDelRangeRPCData : public Marshallable {
 private:
-  GKeyInfo *freekeyinfo; // set by demarshall since it allocates a keyinfo for
-                         // data->pKeyInfo
   char *serializeKeyinfoBuf;  // intended to be used by client only.
-                             // this is a buffer allocated to serialize GKeyInfo
+                             // this is a buffer allocated to serialize RcKeyInfo
 
 public:
   ListDelRangeRPCParm *data;
   int freedata;  // caller should set if data should be deleted in destructor
-  ListDelRangeRPCData()  { freekeyinfo = 0; serializeKeyinfoBuf = 0;
+  ListDelRangeRPCData()  { serializeKeyinfoBuf = 0;
                            freedata = 0; }
   ~ListDelRangeRPCData(){ 
-    if (freekeyinfo) free(freekeyinfo);
     if (serializeKeyinfoBuf) free(serializeKeyinfoBuf);
     if (freedata) delete data;
   }
@@ -796,31 +791,28 @@ public:
 // RPC to return the Value, including all lists and attributes
 
 struct FullReadRPCParm {
-  Tid tid;           // transaction id
-  Timestamp ts;      // timestamp
-  Cid cid;           // container id
-  Oid oid;           // object id
-  int cellPresent;   // whether cell information is present
-  ListCell cell;     // if cellPresent: desired cell. This is used only to
-                     // keep stats of which cell caused the read, to be used
-                     // for load splits
-  GKeyInfo *pKeyInfo; // cell type
+  Tid tid;            // transaction id
+  Timestamp ts;       // timestamp
+  Cid cid;            // container id
+  Oid oid;            // object id
+  int cellPresent;    // whether cell information is present
+  ListCell cell;      // if cellPresent: desired cell. This is used only to
+                      // keep stats of which cell caused the read, to be used
+                      // for load splits
+  Ptr<RcKeyInfo> prki;// cell type
   ~FullReadRPCParm(){ cell.Free(); }
 };
 
 class FullReadRPCData : public Marshallable {
 private:
-  GKeyInfo *freekeyinfo; // set by demarshall since it allocates a keyinfo
-                         // for data->pKeyInfo
   char *serializeKeyinfoBuf;  // intended to be used by client only.
-                             // this is a buffer allocated to serialize GKeyInfo
+                             // this is a buffer allocated to serialize RcKeyInfo
   
 public:
   FullReadRPCParm *data;
   int freedata;  // caller should set if data should be deleted in destructor
-  FullReadRPCData(){ freekeyinfo = 0; serializeKeyinfoBuf = 0; freedata = 0; }
+  FullReadRPCData(){ serializeKeyinfoBuf = 0; freedata = 0; }
   ~FullReadRPCData(){ 
-    if (freekeyinfo) free(freekeyinfo);
     if (serializeKeyinfoBuf) free(serializeKeyinfoBuf);
     if (freedata) delete data;
   }
@@ -838,7 +830,7 @@ struct FullReadRPCResp {
   u32 lencelloids;             // length in bytes of (cell,oid) pairs
   u64 *attrs;                  // value of attributes
   char *celloids;              // list with celloids
-  GKeyInfo *pki;               // keyinfo if available
+  Ptr<RcKeyInfo> prki;         // keyinfo if available
   u64 versionNoForCache;       // version number for cache
   Timestamp tsForCache;        // timestamp for cache
   Timestamp reserveTsForCache; // reserve timestamp for cache
@@ -849,19 +841,18 @@ public:
   FullReadRPCResp *data;
   TxWriteSVItem *twsvi; // used by server only. Set to TxWriteSVItem to delete
                         // (if any) after sending response
-  char *tmppkiserializebuf;   // used by server only. Set to temporary pki
+  char *tmpprkiserializebuf;   // used by server only. Set to temporary prki
                             // serialize buffer to delete after sending response
   int freedata;
   char *deletecelloids; // used by server only. If true, delete data->celloids
                         // after sending response
-  GKeyInfo *freedatapki;  // If non-null, the KeyInfo to delete on destruction
   Ptr<TxUpdateCoid> tucoid; // this is here to decrement the refcount of tucoid
          // when this object is deleted. This is used at the server only,
          // which creates a tucoid in LogInMemory::readCOid holding
          // the data of the object being read
   FullReadRPCRespData(){
-    freedata = 0; twsvi = 0; deletecelloids = 0; freedatapki=0;
-    tmppkiserializebuf = 0;
+    freedata = 0; twsvi = 0; deletecelloids = 0;
+    tmpprkiserializebuf = 0;
   }
   ~FullReadRPCRespData();
   int marshall(iovec *bufs, int maxbufs); 
@@ -882,7 +873,7 @@ struct FullWriteRPCParm {
   u32 lencelloids;    // length in bytes of (cell,oid) pairs
   u64 *attrs;         // value of attributes
   char *celloids;     // list with celloids
-  GKeyInfo *pKeyInfo; // key info; can be null if there are no cells or if
+  Ptr<RcKeyInfo> prki;// key info; can be null if there are no cells or if
                       // celltype==0. Otherwise should not be null
 };
 
@@ -895,20 +886,16 @@ TxWriteSVItem *fullWriteRPCParmToTxWriteSVItem(FullWriteRPCParm *data);
 
 class FullWriteRPCData : public Marshallable {
 private:
-  GKeyInfo *freekeyinfo; // set by demarshall at server since it allocates
-                         // a keyinfo for data->pKeyInfo
   char *serializeKeyinfoBuf;  // intended to be used by client only.
                               // this is a buffer allocated at the client's
-                              // marshall() to serialize GKeyInfo
+                              // marshall() to serialize RcKeyInfo
 public:
   FullWriteRPCParm *data;
   int freedata;  // if set, delete data in destructor; set by client
   char *deletecelloids; // if non-null, free it in destructor; set by client
-  FullWriteRPCData()  {
-    freekeyinfo = 0; serializeKeyinfoBuf = 0; freedata = 0; deletecelloids = 0;
-  }
+  FullWriteRPCData() { serializeKeyinfoBuf = 0; freedata = 0;
+                       deletecelloids = 0; }
   ~FullWriteRPCData(){ 
-    if (freekeyinfo) free(freekeyinfo);
     if (serializeKeyinfoBuf) free(serializeKeyinfoBuf);
     if (deletecelloids) delete [] deletecelloids;
     if (freedata) delete data;

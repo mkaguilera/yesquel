@@ -52,14 +52,16 @@ int ListCellsSize(SkipListBK<ListCellPlus,int> &cells);
 
 // converts serialized celloids into items put inside skiplist of cells
 void CelloidsToListCells(char *celloids, int ncelloids, int celltype,
-                         SkipListBK<ListCellPlus,int> &cells, GKeyInfo **pki);
+                         SkipListBK<ListCellPlus,int> &cells,
+                         Ptr<RcKeyInfo> *pprki);
 
 // converts listcells to serialized celloids
 char *ListCellsToCelloids(SkipListBK<ListCellPlus,int> &cells, int &ncelloids,
                           int &lencelloids);
 
-int marshall_keyinfo(GKeyInfo *pki, iovec *bufs, int maxbufs, char **retbuf);
-char *marshall_keyinfo_onebuf(GKeyInfo *pki, int &retlen);
-GKeyInfo *demarshall_keyinfo(char **buf);
+int marshall_keyinfo(Ptr<RcKeyInfo> prki, iovec *bufs, int maxbufs,
+                     char **retbuf);
+char *marshall_keyinfo_onebuf(Ptr<RcKeyInfo> prki, int &retlen);
+Ptr<RcKeyInfo> demarshall_keyinfo(char **buf);
 
 #endif

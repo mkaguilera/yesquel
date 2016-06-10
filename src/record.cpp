@@ -1479,7 +1479,7 @@ static u32 sqlite3VdbeSerialGet(
 ** sqlite3VdbeDeleteUnpackedRecord().
 */ 
 static UnpackedRecord *sqlite3VdbeRecordUnpack(
-  GKeyInfo *pKeyInfo,     /* Information about the record format */
+  RcKeyInfo *pKeyInfo,   /* Information about the record format */
   int nKey,              /* Size of the binary record */
   const void *pKey,      /* The binary record */
   char *pSpace,          /* Unaligned space available to hold the object */
@@ -1524,7 +1524,7 @@ static UnpackedRecord *sqlite3VdbeRecordUnpack(
 
     idx += getVarint32(&aKey[idx], serial_type);
     pMem->enc = pKeyInfo->enc;
-    // pMem->db = pKeyInfo->db;
+    pMem->db = pKeyInfo->db;
     pMem->flags = 0;
     pMem->zMalloc = 0;
     d += sqlite3VdbeSerialGet(&aKey[d], serial_type, pMem);
@@ -1537,8 +1537,8 @@ static UnpackedRecord *sqlite3VdbeRecordUnpack(
 }
 
 
-UnpackedRecord *myVdbeRecordUnpack(GKeyInfo *pKeyInfo, int nKey, const void *pKey, char *pSpace, 
-                   int szSpace){
+UnpackedRecord *myVdbeRecordUnpack(RcKeyInfo *pKeyInfo, int nKey,
+                                   const void *pKey, char *pSpace, int szSpace){
   return sqlite3VdbeRecordUnpack(pKeyInfo, nKey, pKey, pSpace, szSpace);
 }
 
@@ -1603,7 +1603,7 @@ static int sqlite3VdbeRecordCompare(
   int nField;
   int rc = 0;
   const unsigned char *aKey1 = (const unsigned char *)pKey1;
-  GKeyInfo *pKeyInfo;
+  RcKeyInfo *pKeyInfo;
   Mem mem1;
 
   pKeyInfo = pPKey2->pKeyInfo;
@@ -1682,25 +1682,24 @@ static int sqlite3VdbeRecordCompare(
   return rc;
 }
 
-GKeyInfo *CloneGKeyInfo(GKeyInfo *ki){
-  GKeyInfo *newkey;
-  int len;
-  if (ki==0) return 0;
-  int nfield = ki->nField;
+RcKeyInfo *CloneKeyInfo(RcKeyInfo *prki){
+  RcKeyInfo *newkey;
+  if (!prki) return 0;
+  int nfield = prki->nField;
   if (nfield <= 0) nfield = 1;
-  // reserve space for GKeyInfo + aSortOrder (if non-null) and CollSeq
-  len = sizeof(GKeyInfo) + (nfield-1) * sizeof(CollSeq*) + (ki->aSortOrder ? nfield*sizeof(u8) : 0);
-  newkey = (GKeyInfo*) malloc(len); assert(newkey);
+  // reserve space for RcKeyInfo + aSortOrder (if non-null) and CollSeq
+  newkey = new(nfield, prki->aSortOrder ? nfield : 0) RcKeyInfo();
+  assert(newkey);
   // copy fields
-  newkey->db = ki->db;
-  newkey->enc = ki->enc;
-  newkey->nField = ki->nField;
+  newkey->db = prki->db;
+  newkey->enc = prki->enc;
+  newkey->nField = prki->nField;
   // copy Collating sequence
-  memcpy(&newkey->aColl[0], &ki->aColl[0], nfield * sizeof(CollSeq*));
+  memcpy(&newkey->aColl[0], &prki->aColl[0], nfield * sizeof(CollSeq*));
   // copy sort order if present
-  if (ki->aSortOrder){
-    newkey->aSortOrder = (u8*) ((char*) newkey + sizeof(GKeyInfo) + (nfield-1) * sizeof(CollSeq*));
-    memcpy(newkey->aSortOrder, ki->aSortOrder, nfield * sizeof(u8));
+  if (prki->aSortOrder){
+    newkey->aSortOrder = (u8*) ((char*) newkey + sizeof(RcKeyInfo) + (nfield-1) * sizeof(CollSeq*));
+    memcpy(newkey->aSortOrder, prki->aSortOrder, nfield * sizeof(u8));
   } else newkey->aSortOrder = 0; // not present
   return newkey;
 }
@@ -1800,3 +1799,19 @@ int testRecordPack(UnpackedRecord *pIdxKey, int file_format){
 }
 
 
+void *RcKeyInfo::operator new(std::size_t sz, int ncoll, int nsort){
+  sz += ncoll * sizeof(CollSeq*) + nsort;
+  return malloc(sz);
+}
+  
+static void RcKeyInfo::operator delete(void *ptr, std::size_t sz){
+  free(ptr);
+}
+
+void RcKeyInfo::printShort(){
+  if (this){
+    printf("%d%d%c", enc, nField, aSortOrder ? 'S' : '0');
+    for (int i=0; i < nField; ++i){ printf("%d", aColl[i]->type); }
+  } else printf("nil");
+}
+  

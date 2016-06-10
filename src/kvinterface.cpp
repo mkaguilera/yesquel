@@ -334,14 +334,14 @@ int KVput3(KVTransaction *tx, COid coid,  char *data1, int len1, char *data2,
 ////  -99 if value is not a supervalue
 ////  <0 for other errors
 int KVreadSuperValue(KVTransaction *tx, COid coid, Ptr<Valbuf> &buf,
-                     ListCell *cell, GKeyInfo *ki){
+                     ListCell *cell, Ptr<RcKeyInfo> prki){
   int res=-1;
   if (tx->type==0)
-    res =  tx->u.lt->vsuperget(coid, buf, cell, ki);
+    res =  tx->u.lt->vsuperget(coid, buf, cell, prki);
   else {
     assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not
                                                  // be ephemeral for remote txs
-    res = tx->u.t->vsuperget(coid, buf, cell, ki);
+    res = tx->u.t->vsuperget(coid, buf, cell, prki);
   }
   if (res) buf=0;
 
@@ -355,8 +355,8 @@ int KVwriteSuperValue(KVTransaction *tx, COid coid, SuperValue *sv){
   tx->readonly = 0;
   KVLOG("Tx %p cid %llx oid %llx nattrs %d ncells %d", tx,
         (long long)coid.cid, (long long)coid.oid, sv->Nattrs, sv->Ncells);
-  assert(sv->CellType == 0 || sv->Ncells == 0 || sv->pki); // to write non-int
-                                             // cells, must provide pKeyInfo,
+  assert(sv->CellType == 0 || sv->Ncells == 0 || sv->prki.isset());
+    // to write non-int cells, must provide prki
 
   if (tx->type==0)
     return tx->u.lt->writeSuperValue(coid, sv);
@@ -368,10 +368,10 @@ int KVwriteSuperValue(KVTransaction *tx, COid coid, SuperValue *sv){
 }
 
 #if DTREE_SPLIT_LOCATION != 1
-int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell, GKeyInfo *ki,
+int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell, Ptr<RcKeyInfo> prki,
               int flags){
 #else
-int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell, GKeyInfo *ki,
+int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell, Ptr<RcKeyInfo> prki,
               int flags, int *ncells, int *size){
 #endif
   
@@ -382,19 +382,19 @@ int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell, GKeyInfo *ki,
 
   if (tx->type==0)
 #if DTREE_SPLIT_LOCATION != 1
-    res = tx->u.lt->listAdd(coid, cell, ki, flags);
+    res = tx->u.lt->listAdd(coid, cell, prki, flags);
 #else
-    res = tx->u.lt->listAdd(coid, cell, ki, flags, ncells, size);
+    res = tx->u.lt->listAdd(coid, cell, prki, flags, ncells, size);
 #endif  
   else {
     assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not
                                                 // be ephemeral for remote txs
     // if (PERFECTREADCACHE_BOOL)
-    //   res = tx->u.lt->listAdd(coid, cell, ki, flags);
+    //   res = tx->u.lt->listAdd(coid, cell, prki, flags);
 #if DTREE_SPLIT_LOCATION != 1
-    res = tx->u.t->listAdd(coid, cell, ki, flags);
+    res = tx->u.t->listAdd(coid, cell, prki, flags);
 #else
-    res = tx->u.t->listAdd(coid, cell, ki, flags, ncells, size);
+    res = tx->u.t->listAdd(coid, cell, prki, flags, ncells, size);
 #endif
   }
   return res;
@@ -408,20 +408,20 @@ int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell, GKeyInfo *ki,
 //     6=(-inf,cell2)    7=(-inf,cell2]    8=(-inf,inf)
 // where inf is infinity
 int KVlistdelrange(KVTransaction *tx, COid coid, u8 intervalType,
-                   ListCell *cell1, ListCell *cell2, GKeyInfo *ki){
+                   ListCell *cell1, ListCell *cell2, Ptr<RcKeyInfo> prki){
   int res=-1;
   tx->readonly = 0;
   KVLOG("Tx %p cid %llx oid %llx", tx, (long long)coid.cid,
         (long long)coid.oid);
 
   if (tx->type==0)
-    res = tx->u.lt->listDelRange(coid, intervalType, cell1, cell2, ki);
+    res = tx->u.lt->listDelRange(coid, intervalType, cell1, cell2, prki);
   else {
     assert(!(coid.cid >> 48 & EPHEMDB_CID_BIT)); // container should not
                                                  // be ephemeral for remote txs
     // if (PERFECTREADCACHE_BOOL)
-    //   res = tx->u.lt->listDelRange(coid, intervalType, cell1, cell2, ki);
-    res = tx->u.t->listDelRange(coid, intervalType, cell1, cell2, ki);
+    //   res = tx->u.lt->listDelRange(coid, intervalType, cell1, cell2, prki);
+    res = tx->u.t->listDelRange(coid, intervalType, cell1, cell2, prki);
   }
   return res;
 }

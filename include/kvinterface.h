@@ -38,9 +38,8 @@
 #define _KVINTERFACE_H
 
 #include "options.h"
+#include "record.h"
 #include "coid.h"
-
-struct GKeyInfo;
 
 #define MEMKVSTORE_HASHTABLE_SIZE 50000
 
@@ -115,6 +114,7 @@ struct KVTransaction {
     if (work){ 
       while (!work->empty()) delete work->popHead();
     }
+    delete work;
   }
 
   int type;   // 0=in-memory, 1=remote
@@ -164,19 +164,19 @@ int KVput3(KVTransaction *tx, COid coid,  char *data1, int len1,
            char *data2, int len2, char *data3, int len3);
 
 int KVreadSuperValue(KVTransaction *tx, COid coid, Ptr<Valbuf> &buf,
-                     ListCell *cell, GKeyInfo *ki);
+                     ListCell *cell, Ptr<RcKeyInfo> prki);
 int KVwriteSuperValue(KVTransaction *tx, COid coid, SuperValue *sv);
 #if DTREE_SPLIT_LOCATION != 1
   int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell,
-                GKeyInfo *ki, int flags);
+                Ptr<RcKeyInfo> prki, int flags);
 #else
   // when split occurs at client, KVlistadd returns some extra information for
   // client to determine whether to split or not
-  int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell, GKeyInfo *ki,
-                int flags, int *ncells, int *size);
+  int KVlistadd(KVTransaction *tx, COid coid, ListCell *cell,
+                Ptr<RcKeyInfo> prki, int flags, int *ncells, int *size);
 #endif
 int KVlistdelrange(KVTransaction *tx, COid coid, u8 intervalType,
-                   ListCell *cell1, ListCell *cell2, GKeyInfo *ki);
+                   ListCell *cell1, ListCell *cell2, Ptr<RcKeyInfo> prki);
 int KVattrset(KVTransaction *tx, COid coid, u32  attrid, u64 attrval);
 
 int KVtxreadonly(KVTransaction *tx); // return whether transaction is

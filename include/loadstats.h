@@ -77,7 +77,7 @@ class LoadStats {
   }
   
   void report(COid &coid, ListCellPlus *cell); // reports an access. cell will
-      // be owned by LoadStats and should have its own GKeyInfo (or GKeyInfo
+      // be owned by LoadStats and should have its own RcKeyInfo (or RcKeyInfo
       // should be guaranteed to remain valid until the end of the interval)
   int check(void); // check if period is done. If so, find heavy hitters, call
       // the splitter and start new period. Returns 0 if period continues,

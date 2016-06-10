@@ -65,7 +65,8 @@ void SuperValue::copy(const SuperValue& c){
       Cells[i] = c.Cells[i]; 
     }
   } else Cells = 0;
-  pki = CloneGKeyInfo(c.pki);
+  prki.init();
+  prki = c.prki;
 }
 
 // Insert a new cell at position pos.
@@ -119,7 +120,7 @@ void SuperValue::Free(void){
     delete [] Cells;
   }
   if (Attrs) delete [] Attrs;
-  if (pki) free(pki);
+  prki = 0;
   Ncells = 0;
   CellsSize = 0;
   Nattrs = 0;

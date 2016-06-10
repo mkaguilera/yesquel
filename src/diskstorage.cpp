@@ -180,7 +180,7 @@ int DiskStorage::readCOidFromFile(FILE *f, const COid &coid,
     res = (int)fread((void*) keyinfobuf, 1, lenkeyinfo, f);
     if (res != lenkeyinfo) goto error; 
     ptr = keyinfobuf;
-    twsvi->pki = demarshall_keyinfo(&ptr);
+    twsvi->prki = demarshall_keyinfo(&ptr);
     assert(ptr-keyinfobuf == lenkeyinfo);
     delete [] keyinfobuf;
 
@@ -199,7 +199,7 @@ int DiskStorage::readCOidFromFile(FILE *f, const COid &coid,
     // deserialize cells
 
     CelloidsToListCells(celloids, ncelloids, twsvi->celltype, twsvi->cells,
-                        &twsvi->pki);
+                        &twsvi->prki);
     delete [] celloids;
     tucoidptr = new TxUpdateCoid(twsvi);
   }
@@ -246,7 +246,7 @@ int DiskStorage::writeCOidToFile(FILE *f, Ptr<TxUpdateCoid> tucoid){
     len = twsvi->nattrs * sizeof(u64);
     res = (int)fwrite((void*) twsvi->attrs,1,len,f); if (res != len) goto error;
     // write KeyInfo len
-    keyinfo = marshall_keyinfo_onebuf(twsvi->pki, len);
+    keyinfo = marshall_keyinfo_onebuf(twsvi->prki, len);
     res = (int)fwrite((void*) &len, 1, sizeof(int), f);
     if (res != sizeof(int)) goto error;
     // write Keyinfo

@@ -44,9 +44,9 @@
 #include "util.h"
 #include "inttypes.h"
 #include "datastruct.h"
+#include "record.h"
 #include "gaiatypes.h"
 #include "valbuf.h"
-#include "record.h"
 
 #define GAIA_MAX_ATTRS 6 // max number of attributes in a supervalue
 
@@ -87,28 +87,36 @@ public:
 // A cell with space for a UnpackedRecord.
 // There are two types of ListCellPlus objects:
 //  - those that are part of a supervalue (TxWriteSVItem) object.
-//    They will all share the value of ppki, which will point
-//    to a GKeyInfoPtr object stored in the TxWriteSVItem. This
+//    They will all share the value of pprki, which will point
+//    to a RcKeyInfoPtr object stored in the TxWriteSVItem. This
 //    object will be modified as we compare the ListCellPlus
 //     with a standalone ListCellPlus.
 // - those that are standalone and arrive in ListAdd and ListDelRange
-//   RPCs. They will have their own private ppki.
+//   RPCs. They will have their own private pprki.
 
 // ListCellsPlus in a TxWriteSVItem will have freeki = false, since
 // they all point to the KeyInfo of the enclosing TxWriteSVItem
 // (which is owned by TxWriteSVItem).
 // Standalone ListCellsPlus will have freeki = true
-class GKeyInfoPtr {
+class RcKeyInfoPtr {
+private:
+  Ptr<RcKeyInfo> *pprki;
+  bool ownpprki;
+  
 public:
-  // This is for a private G
-  GKeyInfoPtr(GKeyInfo **k, bool fk){ 
-    ki = k; freeki = fk; 
+  // requires k to be non-null. If there is no keyinfo,
+  // k should point to a Ptr<RcKeyInfo> set to 0.
+  RcKeyInfoPtr(Ptr<RcKeyInfo> *k, bool own){
+    assert(k);
+    pprki = k; ownpprki = own; 
   }
-  ~GKeyInfoPtr(){ if (freeki && ki){ free(*ki); delete ki; } }
-  GKeyInfo **ki;
-  bool freeki;
+  bool hasprki(){ return pprki->isset(); }
+  // might return a Ptr<> set to 0
+  Ptr<RcKeyInfo> getprki(){
+    return *pprki;
+  }
+  ~RcKeyInfoPtr(){ if (ownpprki){ assert(pprki); delete pprki; } }
 };
-
 
 class ListCellPlus : public ListCell {
 private:
@@ -116,40 +124,39 @@ private:
 protected:
   void UnpackRecord(){
     if (!pIdxKey)
-      pIdxKey = myVdbeRecordUnpack(*ppki.ki, (int)nKey, pKey, aspace,
+      pIdxKey = myVdbeRecordUnpack(&*pprki.getprki(), (int)nKey, pKey, aspace,
                                    sizeof(aspace));
   }
 public:
   UnpackedRecord *pIdxKey;
-  GKeyInfoPtr ppki;
+  RcKeyInfoPtr pprki;
 
-  // Fresh ListCell, but use a given ppki.
+  // Fresh ListCell, but use a given pprki.
   // Intended to be used when creating a new ListCellPlus
-  // to be added into a SV (in this case, the suplied ppki will be the
+  // to be added into a SV (in this case, the suplied pprki will be the
   // one of the SV)
-  ListCellPlus(GKeyInfo **ki) :
-    ListCell(), ppki(ki, false)   // do not free the GKeyInfo
+  ListCellPlus(Ptr<RcKeyInfo> *pprki_arg) :
+    ListCell(), pprki(pprki_arg, false)   // do not free the RcKeyInfo
   {
     pIdxKey = 0;
   }
 
-  // Copy from another ListCell or ListCellPlus, but use a given ppki.
+  // Copy from another ListCell or ListCellPlus, but use a given pprki.
   // Intended to be used when adding a standalone ListCellPlus
-  // into a SV (in this case, the suplied ppki will be the
+  // into a SV (in this case, the suplied pprki will be the
   // one of the SV)
-  ListCellPlus(const ListCell &r, GKeyInfo **ki) :
-    ListCell(r), ppki(ki, false)   // do not free the GKeyInfo
+  ListCellPlus(const ListCell &r, Ptr<RcKeyInfo> *pprki_arg) :
+    ListCell(r), pprki(pprki_arg, false)   // do not free the RcKeyInfo
   {
     pIdxKey = 0;
   }
 
-  // create with a private GKeyInfo, copying from a ListCell.
+  // create with a private RcKeyInfo, copying from a ListCell.
   // Used when we deserialize a ListAdd or ListDelRange, to
   // create a standalone ListCellPlus from a ListCell.
-  ListCellPlus(const ListCell &r, GKeyInfo *srcpki)
+  ListCellPlus(const ListCell &r, Ptr<RcKeyInfo> srcprki)
     : ListCell(r),
-      ppki(srcpki ? new GKeyInfo *(CloneGKeyInfo(srcpki)) : 0, true)  // free
-                              // the GKeyInfo when we delete the ListCellPlus
+      pprki(new Ptr<RcKeyInfo>(srcprki), true)
   { 
     pIdxKey = 0;
   }
@@ -213,10 +220,10 @@ public:
   i32 CellsSize;    // size of cells combined
   u64 *Attrs;       // value of attributes
   ListCell *Cells;  // contents of cells, owned by DTreeNode
-  GKeyInfo *pki;    // keyinfo if available
+  Ptr<RcKeyInfo> prki; // keyinfo if available
 
   SuperValue(){ Nattrs = 0; CellType = 0; Ncells = 0; CellsSize = 0;
-                Attrs = 0; Cells = 0; pki = 0; }
+                Attrs = 0; Cells = 0; prki = 0; }
   void copy(const SuperValue& c);
   SuperValue(const SuperValue& c){ copy(c); }
   SuperValue& operator=(const SuperValue& c){ copy(c); return *this; }

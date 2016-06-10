@@ -153,7 +153,7 @@ TxWriteSVItem::TxWriteSVItem(const TxWriteSVItem &r) :
   TxListItem(r.coid, 3, r.level),
   cells(r.cells, 0)
 {
-  pki = CloneGKeyInfo(r.pki);
+  prki = r.prki;
   nattrs = r.nattrs;
   celltype = r.celltype;
   attrs = new u64[nattrs];
@@ -169,19 +169,19 @@ TxWriteSVItem::~TxWriteSVItem(){
 void TxWriteSVItem::clear(bool reset){
   if (attrs) delete [] attrs;
   cells.clear(ListCellPlus::del,0);
-  if (pki) free(pki);
+  prki = 0;
   if (celloids) delete [] celloids;
   if (reset){
     nattrs = 0;
     attrs = 0;
-    pki = 0;
+    prki = 0;
     ncelloids = lencelloids = 0;
     celloids = 0;
   }
 }
 
-void TxWriteSVItem::setPkiSticky(GKeyInfo *k){ 
-  if (!pki) pki = CloneGKeyInfo(k); 
+void TxWriteSVItem::setPrkiSticky(Ptr<RcKeyInfo> prki_arg){
+  if (!prki.isset()) prki = prki_arg;
 }
 
 char *TxWriteSVItem::getCelloids(int &retncelloids, int &retlencelloids){
@@ -208,7 +208,7 @@ void TxWriteSVItem::printShort(COid coidtomatch){
   printf("celltype %d", celltype);
   printf(" attrs ");
   for (int i=0; i < nattrs; ++i) putchar(attrs[i] ? 'S' : '0');
-  printf(" ki "); pki->printShort();
+  printf(" rki "); prki->printShort();
   printf(" cells ");
   SkipListNodeBK<ListCellPlus,int> *cellptr;
   for (cellptr = cells.getFirst(); cellptr != cells.getLast();
@@ -228,17 +228,17 @@ bool TxWriteSVItem::applyItemToTucoid(Ptr<TxUpdateCoid> tucoid,
   }
 }
 
-TxListAddItem::TxListAddItem(const TxListAddItem &r) :
+TxListAddItem::TxListAddItem(TxListAddItem &r) :
       TxListItem(r.coid, 0, r.level),
-      item(r.item, *r.item.ppki.ki),
-      pki(r.pki ? CloneGKeyInfo(r.pki) : 0)
+      item(r.item, r.item.pprki.getprki()),
+      prki(r.prki)
 {
 }
 
 TxListAddItem::~TxListAddItem()
 {
   item.Free();
-  if (pki) free(pki);
+  prki = 0;
 }
 
 void TxListAddItem::printShort(COid expectedcoid){
@@ -252,8 +252,8 @@ bool TxListAddItem::applyItemToTucoid(Ptr<TxUpdateCoid> tucoid,
   TxWriteSVItem *twsvi;
   twsvi = tucoid->WriteSV;
   if (twsvi){ // if there is already a supervalue, change it
-    if (pki) twsvi->setPkiSticky(pki);
-    twsvi->cells.insertOrReplace(new ListCellPlus(item, pki),
+    if (prki.isset()) twsvi->setPrkiSticky(prki);
+    twsvi->cells.insertOrReplace(new ListCellPlus(item, &twsvi->prki),
                                  0, ListCellPlus::del, 0);
     return false;
   }
@@ -269,12 +269,11 @@ bool TxListAddItem::applyItemToTucoid(Ptr<TxUpdateCoid> tucoid,
   }
 }
 
-TxListDelRangeItem::TxListDelRangeItem(const TxListDelRangeItem &r) :
+TxListDelRangeItem::TxListDelRangeItem(TxListDelRangeItem &r) :
       TxListItem(r.coid, 1, r.level),
-      itemstart(r.itemstart, *r.itemstart.ppki.ki),
-      itemend(r.itemend, *r.itemend.ppki.ki),
-      pki(r.pki ? CloneGKeyInfo(r.pki) : 0)
-      
+      itemstart(r.itemstart, r.itemstart.pprki.getprki()),
+      itemend(r.itemend, r.itemend.pprki.getprki()),
+      prki(r.prki)
 {
   intervalType = r.intervalType;
 }
@@ -282,7 +281,6 @@ TxListDelRangeItem::TxListDelRangeItem(const TxListDelRangeItem &r) :
 TxListDelRangeItem::~TxListDelRangeItem(){
   itemstart.Free();
   itemend.Free();
-  if (pki) free(pki);
 }
 
 void TxListDelRangeItem::printShort(COid expectedcoid){
@@ -311,11 +309,11 @@ bool TxListDelRangeItem::applyItemToTucoid(Ptr<TxUpdateCoid> tucoid,
   TxWriteSVItem *twsvi;
   twsvi = tucoid->WriteSV;
   if (twsvi){ // if there is already a supervalue, change it
-    if (pki) twsvi->setPkiSticky(pki);
+    if (prki.isset()) twsvi->setPrkiSticky(prki);
 
     int type1, type2;
-    ListCellPlus rangestart(itemstart, pki);
-    ListCellPlus rangeend(itemend, pki);
+    ListCellPlus rangestart(itemstart, prki);
+    ListCellPlus rangeend(itemend, prki);
     TxWriteSVItem::convertOneIntervalTypeToTwoIntervalType(intervalType,
                                                            type1, type2);
     twsvi->cells.delRange(&rangestart, type1, &rangeend, type2,

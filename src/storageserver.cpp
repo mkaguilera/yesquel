@@ -344,7 +344,7 @@ Marshallable *fullreadRpc(FullReadRPCData *d, void *handle, bool &defer){
     //printf("FULLREADRPC got cell nkey %lld (%llx) pkey %p\n",
     //   (long long) d->data->cell.nKey, (long long) d->data->cell.nKey,
     //   d->data->cell.pKey);
-    cell = new ListCellPlus(d->data->cell, d->data->pKeyInfo);
+    cell = new ListCellPlus(d->data->cell, d->data->prki);
     ReportAccess(coid, cell);
   }
 #endif  
@@ -366,9 +366,7 @@ Marshallable *fullreadRpc(FullReadRPCData *d, void *handle, bool &defer){
     resp->data->lencelloids = 0;
     resp->data->attrs = 0;
     resp->data->celloids = 0;
-    resp->data->pki = 0;
     resp->freedata = 1;
-    resp->freedatapki = 0;
     resp->deletecelloids = 0;
     resp->twsvi = 0;
   }
@@ -395,11 +393,10 @@ Marshallable *fullreadRpc(FullReadRPCData *d, void *handle, bool &defer){
     resp->data->lencelloids = lencelloids;
     resp->data->attrs = twsvi->attrs;
     resp->data->celloids = buf;
-    resp->data->pki = CloneGKeyInfo(twsvi->pki);
+    resp->data->prki = twsvi->prki;
 
     resp->freedata = 1;
     resp->deletecelloids = 0; // do not free celloids since it belows to twsvi
-    resp->freedatapki = resp->data->pki;
     resp->twsvi = 0;
     resp->tucoid = tucoid;
   }
@@ -590,12 +587,12 @@ Marshallable *listaddRpc(ListAddRPCData *d, void *&state){
       goto end;
     }
       
-    if (d->data->pKeyInfo){
-      // provide pki to TxWriteSVItem if it doesn't have it already      
-      twsvitmp->setPkiSticky(d->data->pKeyInfo);
+    if (d->data->prki.isset()){
+      // provide prki to TxWriteSVItem if it doesn't have it already      
+      twsvitmp->setPrkiSticky(d->data->prki);
     }
     ListCellPlus *c1, *c2;
-    ListCellPlus c(d->data->cell, &twsvitmp->pki);
+    ListCellPlus c(d->data->cell, &twsvitmp->prki);
     c1 = twsvitmp->cells.keyInInterval(&c, &c, 7); // search (-inf,cell]
     if (!c1 && twsvitmp->attrs[DTREENODE_ATTRIB_LEFTPTR]){
       // nothing to the left and not leftmost node
@@ -619,7 +616,7 @@ Marshallable *listaddRpc(ListAddRPCData *d, void *&state){
   if (res){ *trcoidptr = new TxRawCoid; }
   trcoid = *trcoidptr;
 
-  tlai = new TxListAddItem(coid, d->data->pKeyInfo,
+  tlai = new TxListAddItem(coid, d->data->prki,
                            d->data->cell, d->data->level);
   trcoid->add(tlai);
   
@@ -692,7 +689,7 @@ Marshallable *listdelrangeRpc(ListDelRangeRPCData *d){
   if (res){ *trcoidptr = new TxRawCoid; }
   trcoid = *trcoidptr;
 
-  TxListDelRangeItem *tldri = new TxListDelRangeItem(coid, d->data->pKeyInfo,
+  TxListDelRangeItem *tldri = new TxListDelRangeItem(coid, d->data->prki,
        d->data->intervalType, d->data->cell1, d->data->cell2, d->data->level);
   trcoid->add(tldri);
 

@@ -98,10 +98,15 @@ struct PendingOpsEntry {
   PendingOpsEntry *next;
   int type;   // 0 = add, 1 = delrange, 2 = attrset
   int level;
+  Ptr<RcKeyInfo> prki; // only valid if type==0 or 1. We put this here,
+                       // instead of inside union, to avoid dealing with
+                       // destructors inside unions, which are a pain
   union dummy {
     dummy(){}
-    struct { ListCell cell; GKeyInfo *ki; } add;
-    struct { ListCell cell1, cell2; int intervtype; GKeyInfo *ki; } delrange;
+    ~dummy(){}
+    struct { ListCell cell; } add;
+    struct { ListCell cell1, cell2; int intervtype; }
+      delrange;
     struct { u32 attrid; u64 attrvalue; } attrset;
   } u;
 };
@@ -172,9 +177,9 @@ public:
   // -------------- Operations that affect just pending ops ----------------
   void clearallPendingOps(); // clears all pending ops
   bool hasPendingOps(COid &coid); // checks of tx nas pending updates on coid
-  int checkPendingOps(COid &coid, int nKey, char *pKey, GKeyInfo *ki); // check
-        // if key was added or removed by pending operations. Returns 1 if
-        // added, 0 if removed, -1 if neither
+  int checkPendingOps(COid &coid, int nKey, char *pKey, Ptr<RcKeyInfo> prki);
+     // check if key was added or removed by pending operations. Returns 1 if
+     // added, 0 if removed, -1 if neither
   void removePendingOps(COid &coid); // remove pending ops for coid
   void addPendingOps(COid &coid, PendingOpsEntry *poe); // add to coid's
                                                         // pendingops
@@ -184,7 +189,7 @@ int myCellSearchUnpacked(Ptr<Valbuf> &vbuf, UnpackedRecord *pIdxKey,
                                 i64 nkey, int biasRight, int *matches=0);
 
 int myCellSearchNode(Ptr<Valbuf> &vbuf, i64 nkey, void *pkey, int biasRight, 
-                     GKeyInfo *ki, int *matches=0);
+                     Ptr<RcKeyInfo> prki, int *matches=0);
 
 int mycompareNpKeyWithKey(i64 nKey1, char *pKey1, i64 nKey2,
                           UnpackedRecord *pIdxKey2);

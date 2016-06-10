@@ -73,11 +73,11 @@ void DTreeNode::InitSuperValue(SuperValue *sv, u8 celltype){
 // Returns a status: 0 if ok, != 0 if problem.
 // The read node is returned in variable outptr.
 int auxReadReal(KVTransaction *tx, COid coid, DTreeNode &outptr,
-                ListCell *cell, GKeyInfo *ki){
+                ListCell *cell, Ptr<RcKeyInfo> prki){
   DTreeNode dtn;
   int res;
 
-  res = KVreadSuperValue(tx, coid, dtn.raw, cell, ki);
+  res = KVreadSuperValue(tx, coid, dtn.raw, cell, prki);
   if (res) return res;
 
   if (dtn.raw->type == 1 && dtn.isInner()){ // inner supernode
@@ -112,7 +112,7 @@ void auxRemoveCache(COid coid){
 // change it since the value may be shared with other threads.
 // Otherwise, the data is private and the caller can change it.
 int auxReadCacheOrReal(KVTransaction *tx, COid coid, DTreeNode &outptr,
-                       int &real, ListCell *cell, GKeyInfo *ki){
+                       int &real, ListCell *cell, Ptr<RcKeyInfo> prki){
   int res;
   res = auxReadCache(coid, outptr);
   if (res==0){ 
@@ -120,7 +120,7 @@ int auxReadCacheOrReal(KVTransaction *tx, COid coid, DTreeNode &outptr,
     real=0; 
     return 0; 
   } // found in cache
-  res = auxReadReal(tx, coid, outptr, cell, ki);
+  res = auxReadReal(tx, coid, outptr, cell, prki);
   if (res) return res; // error
   real = 1;
   return 0;

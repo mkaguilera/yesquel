@@ -1786,7 +1786,17 @@ class Ptr {
 private:
   T *ptr;
 public:
-  Ptr(){ ptr = 0; }
+  void init(){ ptr = 0; } // This function is intended to initialize
+                          // the smart pointer when it is pointing to
+                          // garbage (e.g., uninitialized memory). This
+                          // does not happen normally since the constructor
+                          // initializes things, but it may happen if one
+                          // uses a placement new or similar.
+                          // Do NOT use init() when the pointer is
+                          // already set to something valid; doing so will
+                          // fail to decrease the refcount of the old value,
+                          // leading to a memory leak.
+  Ptr(){ init(); }
   Ptr(T *p){ ptr = p; if (p) AtomicInc32(&p->refcount); }
   Ptr(Ptr const &ptr2) { ptr = ptr2.ptr; if (ptr) AtomicInc32(&ptr->refcount); }
   ~Ptr(){ if (ptr && AtomicDec32(&ptr->refcount)==0) delete ptr; }

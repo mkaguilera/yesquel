@@ -206,11 +206,12 @@ public:
   int vget(COid coid, Ptr<Valbuf> &buf);
 
   // read a supervalue into a Valbuf
-  // cell and ki are passed just for the server to keep stats of
+  // cell and prki are passed just for the server to keep stats of
   // what cell triggered the read of the supervalue (to trigger
-  // load splits). It is legal to pass cell=0 and ki=0 to indicate
+  // load splits). It is legal to pass cell=0 and prki=(nullptr) to indicate
   // no particular cell, in which case these parameters are ignored.
-  int vsuperget(COid coid, Ptr<Valbuf> &buf, ListCell *cell, GKeyInfo *ki);
+  int vsuperget(COid coid, Ptr<Valbuf> &buf, ListCell *cell,
+                Ptr<RcKeyInfo> prki);
 
   static void readFreeBuf(char *buf); // frees a buffer returned by
                                       // readNewBuf() or get()
@@ -234,7 +235,7 @@ public:
   //int readSuperValue(COid coid, SuperValue **svret);
 
   // writes a super value. Returns 0 if ok, non-0 if I/O error.
-  // If super value has non-int cells, must provide svret->pki != 0.
+  // If super value has non-int cells, must provide svret->prki != (nullptr).
   int writeSuperValue(COid coid, SuperValue *svret);
 
   // Adds a cell to a supervalue.
@@ -247,9 +248,9 @@ public:
   // If check (1) fails, this function returns GAIAERR_CELL_OUTRANGE
   // and if check (2) fails, it returns GAIAERR_CELL_EXISTS
 #if DTREE_SPLIT_LOCATION != 1
-  int listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags);
+  int listAdd(COid coid, ListCell *cell, Ptr<RcKeyInfo> prki, int flags);
 #else
-  int listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags,
+  int listAdd(COid coid, ListCell *cell, Ptr<RcKeyInfo> prki, int flags,
               int *ncells=0, int *size=0);
 #endif
   
@@ -261,7 +262,7 @@ public:
   //     6=(-inf,cell2)    7=(-inf,cell2]    8=(-inf,inf)
   // where inf is infinity
   int listDelRange(COid coid, u8 intervalType, ListCell *cell1,
-                   ListCell *cell2, GKeyInfo *ki);
+                   ListCell *cell2, Ptr<RcKeyInfo> prki);
   
   // sets an attribute
   int attrSet(COid coid, u32 attrid, u64 attrvalue);

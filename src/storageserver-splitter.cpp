@@ -224,7 +224,7 @@ void SplitNode(COid &coid, ListCellPlus *cell){
 // Reports access to a cell within a coid for load splitting. Periodically
 // check if a load split is needed and, if so, call SplitNode to get it.
 //
-// The cell object and its associated GKeyInfo will be owned by the reporting
+// The cell object and its associated RcKeyInfo will be owned by the reporting
 // data structure
 void ReportAccess(COid &coid, ListCellPlus *cell){
   ServerSplitterState *SS = (ServerSplitterState*)

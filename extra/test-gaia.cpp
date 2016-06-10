@@ -69,12 +69,12 @@ static const char *CONFIGFILENAME="config.txt";
 StorageConfig *SC = 0;
 #endif
 
-GKeyInfo *KI = 0;
+Ptr<RcKeyInfo> KI = 0;
 
 CollSeq TheCS = { "BINARY", 1, 1, 0, binCollFunc, 0 };
 
-GKeyInfo *createki(void){
-  GKeyInfo *ret = new GKeyInfo;
+Ptr<RcKeyInfo> createki(void){
+  Ptr<RcKeyInfo> ret = new(1,1) RcKeyInfo;
   ret->db = 0;
   ret->enc = 1; // utf8 encoding
   ret->nField = 1; // 1 entry in acoll
@@ -238,7 +238,7 @@ void SetStrCells(SuperValue *svp, int n){
   for (int i=0; i < n; ++i){
     cellptr[i] = GetStrCell(i);
   }
-  svp->pki = CloneGKeyInfo(KI);
+  svp->prki = KI;
 }
 
 void CheckStrCells(SuperValue *svp, int n){

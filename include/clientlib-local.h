@@ -84,21 +84,22 @@ public:
   int put3(COid coid, char *data1, int len1, char *data2, int len2,
            char *data3, int len3);
   int vget(COid coid, Ptr<Valbuf> &buf);
-  int vsuperget(COid coid, Ptr<Valbuf> &buf, ListCell *cell, GKeyInfo *ki);
+  int vsuperget(COid coid, Ptr<Valbuf> &buf, ListCell *cell,
+                Ptr<RcKeyInfo> prki);
   static void readFreeBuf(char *buf);
   static char *allocReadBuf(int len);
   int addset(COid coid, COid toadd);
   int remset(COid coid, COid toremove);
   int writeSuperValue(COid coid, SuperValue *svret);
 #if DTREE_SPLIT_LOCATION != 1
-  int listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags);
+  int listAdd(COid coid, ListCell *cell, Ptr<RcKeyInfo> prki, int flags);
 #else
   // when split occurs at client, listadd returns ncells and size
-  int listAdd(COid coid, ListCell *cell, GKeyInfo *ki, int flags,
+  int listAdd(COid coid, ListCell *cell, Ptr<RcKeyInfo> prki, int flags,
               int *ncells=0, int *size=0);
 #endif
   int listDelRange(COid coid, u8 intervalType, ListCell *cell1,
-                   ListCell *cell2, GKeyInfo *ki);
+                   ListCell *cell2, Ptr<RcKeyInfo> prki);
   int attrSet(COid coid, u32 attrid, u64 attrvalue);
   int startSubtrans(int level);
   int abortSubtrans(int level);
