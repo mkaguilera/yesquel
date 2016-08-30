@@ -4,10 +4,12 @@ Yesquel version 0.3
 Yesquel is a scalable SQL storage system for Web applications. It
 achieves the functionality of SQL systems together with the
 scalability and performance of NOSQL. It does so by providing
-each client with its own SQL query processor, which then shares
-a common distributed balanced tree data structure to store tables
-and indexes. Thus, as we add more clients to the system, we also
-add more query processing capability. Please visit
+each client with its own SQL query processor. Thus, as we add
+more clients to the system, we also add more query processing
+capability, thereby achieving scalability. The many query
+processors share tables and indexes via a distributed balanced
+tree data structure, designed for efficient concurrent access.
+Please visit
 
    http://www.yesquel.com
    
@@ -229,8 +231,7 @@ below. We are currently working on them.
 
  1. Log replay: Yesquel can log transactions durably to disk but it does
     not replay those transactions upon restart. Rather, Yesquel
-    restarts with an empty state. This is intended to incur the costs of
-    logging for performance evaluation. As partial mitigation, Yesquel
+    restarts with an empty state. As partial mitigation, Yesquel
     allows users to save and restore a checkpoint of the database state
     to disk. This is triggered manually by the user via the provided
     "callserver" utility.
@@ -243,9 +244,7 @@ below. We are currently working on them.
  4. Replication: storage servers are not replicated for high-availability.
     The Yesquel design includes replication, but this is not implemented.
 
-OTHER MISSING FEATURES
-----------------------
- 1. Schema changes: These are supported but they have not been tested
+ 5. Schema changes: These are supported but they have not been tested
     at all. Use with caution.
 
 PERFORMANCE CONSIDERATIONS
@@ -288,8 +287,8 @@ To get the most performance from Yesquel, consider the following:
    we suggest increasing the number of worker threads.  This is done
    by modifying some compile-time parameters in include/options.h:
    CLIENT_WORKERTHREADS and SERVER_WORKERTHREADS. Note, however, that
-   we have not tested Yesquel with many worker threads, so the
-   system will be less reliable.
+   we have not carefully tested Yesquel with many worker threads, so
+   the system will be less reliable.
 
 4. Logging to disk
 
