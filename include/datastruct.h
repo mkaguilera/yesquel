@@ -1589,7 +1589,7 @@ public:
 // Requirements:
 // 1. U has a field of type T
 // 2. U has public fields next, prev, snext, sprev of type U*
-// 3. U has method T GetKey(T) which returns key of T
+// 3. U has method T GetKey() which returns key of U
 // 4. U has static functions HashKey(T) and CompareKey(T,T) which hashes and
 //    compares a given key
 template<class T, class U, class Alloc=DefaultAllocator>
