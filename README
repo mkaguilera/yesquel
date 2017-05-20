@@ -11,7 +11,7 @@ processors share tables and indexes via a distributed balanced
 tree data structure, designed for efficient concurrent access.
 Please visit
 
-   http://www.yesquel.com
+   http://www.yesquel.org
    
 for more details, where you will find a paper with Yesquel's
 architecture and design, and a video with the presentation given
